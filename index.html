@@ -1,1 +1,72 @@
-<h1>Herald</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Herald</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Herald</h1>
+      <div id="connection-bar">
+        <input type="text" id="hub-address" value="herald.local:8765" />
+        <button id="connect-btn" onclick="toggleConnect()">Connect</button>
+        <span id="connection-status" class="status disconnected">Disconnected</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="setup-panel">
+        <h2>Setup</h2>
+        <div class="setup-row">
+          <label>Game Mode</label>
+          <select id="game-mode" onchange="onGameModeChange()">
+            <option value="clockwise">Clockwise (Generic)</option>
+            <option value="clockwise_pass">Clockwise with Passing</option>
+            <option value="eclipse_simple">Eclipse — Simple</option>
+            <option value="eclipse_advanced">Eclipse — Advanced</option>
+            <option value="ti">Twilight Imperium</option>
+          </select>
+        </div>
+        <div class="setup-row">
+          <label>Players</label>
+          <span id="player-count">0 boxes connected</span>
+        </div>
+        <div class="setup-row" id="first-player-row" style="display:none">
+          <label>First Player</label>
+          <select id="first-player"></select>
+        </div>
+        <div class="setup-row" id="eclipse-mode-row" style="display:none">
+          <label>Reaction Cards</label>
+          <input type="checkbox" id="eclipse-reaction-cards" />
+          <span class="hint">Enforce passing via RFID tap</span>
+        </div>
+        <button onclick="addVirtualBox()">Add Virtual Box</button>
+        <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
+      </section>
+
+        <section id="table-section">
+        <h2>Table</h2>
+        <div id="table-container">
+            <div id="table-surface">
+            <span id="table-label">No game in progress</span>
+            </div>
+            <div id="box-positions"></div>
+        </div>
+        <div id="phase-controls" style="display:none; margin-top: 0.75rem;">
+            <button onclick="advancePhase()">Advance Phase</button>
+        </div>
+        </section>
+
+      <section id="log-section">
+        <h2>Event Log <button onclick="clearLog()">Clear</button></h2>
+        <div id="log"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

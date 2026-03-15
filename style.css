@@ -1,0 +1,328 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+header {
+  margin-bottom: 1.5rem;
+}
+
+h1 {
+  font-size: 2rem;
+  color: #c9a84c;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #888;
+  margin-bottom: 0.75rem;
+}
+
+section {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Connection bar */
+#connection-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#hub-address {
+  flex: 1;
+  min-width: 160px;
+  padding: 0.4rem 0.6rem;
+  background: #0f3460;
+  border: 1px solid #334;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.status {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+.status.disconnected { background: #3a1a1a; color: #e07070; }
+.status.connected { background: #1a3a1a; color: #70e070; }
+.status.connecting { background: #3a3a1a; color: #e0e070; }
+
+/* Buttons */
+button {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  background: #c9a84c;
+  color: #1a1a2e;
+  font-weight: bold;
+  transition: opacity 0.15s;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button:not(:disabled):hover { opacity: 0.85; }
+
+/* Setup */
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.setup-row label {
+  width: 80px;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+select {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  background: #0f3460;
+  border: 1px solid #334;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+}
+
+#start-btn {
+  width: 100%;
+  padding: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+/* Table */
+#table-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 75%;
+}
+
+#table-surface {
+  position: absolute;
+  top: 15%;
+  left: 15%;
+  width: 70%;
+  height: 70%;
+  background: #0a2540;
+  border-radius: 50%;
+  border: 2px solid #1e4060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#table-label {
+  color: #446;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+#box-positions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Box cards */
+.box-card {
+  position: absolute;
+  width: 64px;
+  transform: translate(-50%, -50%);
+  background: #0f3460;
+  border: 2px solid #334;
+  border-radius: 8px;
+  padding: 0.4rem;
+  text-align: center;
+  font-size: 0.75rem;
+  cursor: default;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.box-card.active {
+  border-color: #c9a84c;
+  background: #1a3a00;
+}
+
+.box-card.passed {
+  border-color: #555;
+  opacity: 0.6;
+}
+
+.box-card.disconnected {
+  border-color: #3a1a1a;
+  opacity: 0.4;
+}
+
+.box-name {
+  font-weight: bold;
+  color: #e0e0e0;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.box-id {
+  color: #888;
+  font-size: 0.7rem;
+}
+
+.led-ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #333;
+  margin: 0.3rem auto;
+  background: #111;
+  position: relative;
+}
+
+.led-ring.on {
+  border-color: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.box-buttons {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 0.3rem;
+}
+
+.box-btn {
+  padding: 2px 4px;
+  font-size: 0.65rem;
+  background: #1a1a3e;
+  color: #aaa;
+  border: 1px solid #334;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.box-btn:hover {
+  background: #2a2a5e;
+  color: #e0e0e0;
+}
+
+/* Log */
+#log {
+  height: 150px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+#log-section h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#log-section h2 button {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  font-weight: normal;
+}
+
+.log-entry {
+  padding: 0.15rem 0;
+  border-bottom: 1px solid #1a1a2e;
+  color: #aaa;
+}
+
+.log-entry.sent { color: #7090e0; }
+.log-entry.received { color: #70c070; }
+.log-entry.system { color: #c9a84c; }
+.log-entry.error { color: #e07070; }
+
+.box-virtual {
+  font-size: 0.6rem;
+  color: #888;
+  text-align: right;
+  margin-bottom: -0.2rem;
+}
+
+.box-card.can-react {
+  border-color: #3a3a8a;
+}
+
+.box-card.reacting {
+  border-color: #5a5aff;
+  background: #1a1a4e;
+}
+
+.box-card.passed {
+  border-color: #333;
+  opacity: 0.5;
+}
+
+.box-card.combat {
+  border-color: #8a1a1a;
+  background: #2a0a0a;
+}
+
+.box-card.upkeep {
+  border-color: #8a6a1a;
+  background: #2a1a0a;
+}
+
+.box-status {
+  font-size: 0.65rem;
+  color: #888;
+  margin-top: 0.1rem;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.round-counter {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #c9a84c;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.game-mode-label {
+  font-size: 0.75rem;
+  color: #446;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
