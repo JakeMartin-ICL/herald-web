@@ -43,6 +43,26 @@
           <input type="checkbox" id="eclipse-reaction-cards" />
           <span class="hint">Enforce passing via RFID tap</span>
         </div>
+        <div class="setup-row" id="ti-speaker-row" style="display:none">
+            <label>Speaker</label>
+            <select id="ti-speaker"></select>
+            </div>
+        <div class="setup-row" id="ti-secondary-row" style="display:none">
+        <label>Secondary</label>
+        <select id="ti-secondary-mode">
+            <option value="fastest">Fastest — all light up immediately</option>
+            <option value="fast" selected>Fast — light up on end turn</option>
+            <option value="standard">Standard — sequential</option>
+        </select>
+        </div>
+        <div class="setup-row" id="ti-mecatol-row" style="display:none">
+        <label>Mecatol</label>
+        <input type="checkbox" id="ti-mecatol" onchange="tiMecatolChanged()" />
+        <span class="hint">Mecatol Rex is controlled</span>
+        </div>
+        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning()">
+        Learn Tags
+        </button>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
         <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
       </section>
@@ -66,6 +86,22 @@
       </section>
     </main>
   </div>
+    <div id="tag-learning-overlay" style="display:none">
+    <div id="tag-learning-modal">
+        <h2>Learn Tags</h2>
+        <div id="tag-learning-prompt"></div>
+        <div id="tag-learning-status"></div>
+        <button onclick="simulateTagTap()">Simulate Tap</button>
+        <button onclick="cancelTagLearning()">Cancel</button>
+    </div>
+    </div>
+    <div id="rfid-dialog-overlay" style="display:none" onclick="closeRfidDialog()">
+    <div id="rfid-dialog" onclick="event.stopPropagation()">
+        <h2>Simulate RFID Tap</h2>
+        <div id="rfid-dialog-list"></div>
+        <button onclick="closeRfidDialog()">Cancel</button>
+    </div>
+    </div>
 
   <script src="app.js"></script>
 </body>

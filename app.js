@@ -27,6 +27,37 @@ const state = {
     firstPlayerId: null,
     round: 0,
   },
+
+  ti: {
+  phase: null,        // 'strategy', 'action', 'status', 'agenda', 'status2'
+  round: 0,
+  speakerHwid: null,
+  turnOrder: [],      // sorted by initiative during action phase
+  secondaryMode: 'fast', // 'fastest', 'fast', 'standard'
+  mecatolControlled: false,
+
+  // Per-player TI state, keyed by hwid
+  players: {},
+  // {
+  //   hwid,
+  //   strategyCards: [],  // [{ id, name, color, initiative, used }]
+  //   passed: false,
+  //   confirmedSecondary: false,
+  // }
+
+  // Tag mappings — persisted in localStorage
+  // tagId -> { type: 'strategy'|'speaker'|'homesystem', id, label, color, initiative }
+  tagMap: JSON.parse(localStorage.getItem('herald-ti-tags') || '{}'),
+
+  // Active secondary state
+  secondary: null,
+  // {
+  //   activeHwid,     // who played the strategy card
+  //   cardId,         // which card
+  //   cardColor,      // for lighting
+  //   pendingHwids,   // who still needs to confirm
+  // }
+},
 };
 
 // ---- Box name persistence ----
@@ -49,6 +80,10 @@ function defaultBoxName(hwid) {
   // Generate default name based on seat position
   const index = state.boxOrder.indexOf(hwid);
   return `Player ${index + 1}`;
+}
+
+function saveTiTags() {
+  localStorage.setItem('herald-ti-tags', JSON.stringify(state.ti.tagMap));
 }
 
 // ---- WebSocket ----
@@ -165,6 +200,9 @@ function handleMessage(msg) {
     case 'longpress':
       handleLongPress(msg.hwid);
       break;
+    case 'rfid':
+      handleRfid(msg.hwid, msg.tagId);
+      break;
   }
 
   render();
@@ -247,21 +285,32 @@ function updateSetupUI() {
   const count = Object.keys(state.boxes).length;
   const mode = document.getElementById('game-mode').value;
   const isEclipse = mode.startsWith('eclipse');
+  const isTi = mode === 'ti';
 
   document.getElementById('player-count').textContent =
     `${count} box${count !== 1 ? 'es' : ''} connected`;
-
   document.getElementById('start-btn').disabled =
     count < 2 || state.gameActive;
 
-  const firstPlayerRow = document.getElementById('first-player-row');
-  firstPlayerRow.style.display = isEclipse ? 'flex' : 'none';
+  // Eclipse rows
+  document.getElementById('first-player-row').style.display = isEclipse ? 'flex' : 'none';
+  document.getElementById('eclipse-mode-row').style.display = isEclipse ? 'flex' : 'none';
 
-  const eclipseModeRow = document.getElementById('eclipse-mode-row');
-  eclipseModeRow.style.display = isEclipse ? 'flex' : 'none';
+  // TI rows
+  document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';
+  document.getElementById('ti-secondary-row').style.display = isTi ? 'flex' : 'none';
+  document.getElementById('ti-mecatol-row').style.display = isTi ? 'flex' : 'none';
+  document.getElementById('ti-learn-tags-btn').style.display = isTi ? 'block' : 'none';
 
   if (isEclipse) {
     const select = document.getElementById('first-player');
+    select.innerHTML = state.boxOrder.map(hwid =>
+      `<option value="${hwid}">${getDisplayName(hwid)}</option>`
+    ).join('');
+  }
+
+  if (isTi) {
+    const select = document.getElementById('ti-speaker');
     select.innerHTML = state.boxOrder.map(hwid =>
       `<option value="${hwid}">${getDisplayName(hwid)}</option>`
     ).join('');
@@ -330,7 +379,9 @@ function startGame() {
   state.gameMode = document.getElementById('game-mode').value;
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
+    state.boxes[hwid].badges = [];
   });
+  requestWakeLock();
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
   gameModeStart();
   render();
@@ -624,6 +675,41 @@ function simulateButton(hwid, type) {
   handleMessage({ type, hwid });
 }
 
+function getSimRfidOptions() {
+  const mode = state.gameMode;
+  if (mode === 'ti') {
+    return Object.entries(state.ti.tagMap).map(([tagId, info]) => ({
+      id: tagId,
+      label: info.label,
+    }));
+  }
+  if (mode.startsWith('eclipse')) {
+    return Object.entries(state.eclipse?.tagMap || {}).map(([id, info]) => ({
+      id,
+      label: info.label,
+    }));
+  }
+  return [];
+}
+
+function simulateRfid(hwid) {
+  const safeId = hwid.replace(/:/g, '-');
+  const select = document.getElementById(`rfid-select-${safeId}`);
+  if (!select) return;
+  const tagId = select.value;
+  if (!tagId) return;
+  log(`[SIM] ${getDisplayName(hwid)} tapped tag ${tagId}`, 'system');
+  handleMessage({ type: 'rfid', hwid, tagId });
+}
+
+function simulateTagTap() {
+  if (!tagLearningActive) return;
+  // Generate a fake unique tag ID for this slot
+  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
+  const fakeTagId = `sim-tag-${tag.id}`;
+  handleTagLearning(fakeTagId);
+}
+
 // ---- Table rendering ----
 
 function getBoxPositions(count) {
@@ -692,6 +778,43 @@ function renderLedRing(leds) {
   </svg>`;
 }
 
+function renderBadges(box) {
+  if (!box.badges || box.badges.length === 0) return '';
+
+  const items = box.badges.map(badge => {
+    switch (badge.type) {
+      case 'icon':
+        return `<span class="badge-icon" title="${badge.label || ''}">${badge.value}</span>`;
+      case 'pill':
+        return `<span class="badge-pill ${badge.faded ? 'faded' : ''}"
+          style="background:${badge.color || '#555'}">${badge.value}</span>`;
+      case 'text':
+        return `<span class="badge-text"
+          style="color:${badge.color || '#aaa'}">${badge.value}</span>`;
+      default:
+        return '';
+    }
+  }).join('');
+
+  return `<div class="box-badges">${items}</div>`;
+}
+
+function renderSimControls(hwid) {
+  const rfidOptions = getSimRfidOptions();
+  const rfidBtn = rfidOptions.length > 0
+    ? `<button class="box-btn" onclick="openRfidDialog('${hwid}')">RFID</button>`
+    : '';
+
+  return `<div class="box-sim">
+    <div class="box-sim-row">
+      <button class="box-btn" onclick="simulateButton('${hwid}', 'endturn')">End</button>
+      <button class="box-btn" onclick="simulateButton('${hwid}', 'pass')">Pass</button>
+      <button class="box-btn" onclick="simulateButton('${hwid}', 'longpress')">Long</button>
+      ${rfidBtn}
+    </div>
+  </div>`;
+}
+
 function renderBoxes() {
   const container = document.getElementById('box-positions');
   container.innerHTML = '';
@@ -716,15 +839,53 @@ function renderBoxes() {
       <div class="box-name">${getDisplayName(hwid)}</div>
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
-      <div class="box-buttons">
-        <button class="box-btn" onclick="simulateButton('${hwid}', 'endturn')">End</button>
-        <button class="box-btn" onclick="simulateButton('${hwid}', 'pass')">Pass</button>
-        <button class="box-btn" onclick="simulateButton('${hwid}', 'longpress')">Long</button>
-      </div>
+      ${renderBadges(box)}
+      ${renderSimControls(hwid)}
     `;
 
     container.appendChild(card);
   });
+}
+
+function setBoxBadges(hwid, badges) {
+  if (!state.boxes[hwid]) return;
+  state.boxes[hwid].badges = badges;
+}
+
+function clearBoxBadges(hwid) {
+  if (!state.boxes[hwid]) return;
+  state.boxes[hwid].badges = [];
+}
+
+function clearAllBadges() {
+  state.boxOrder.forEach(id => clearBoxBadges(id));
+}
+
+// ---- RFID dialog ----
+
+let rfidDialogHwid = null;
+
+function openRfidDialog(hwid) {
+  rfidDialogHwid = hwid;
+  const options = getSimRfidOptions();
+  const list = document.getElementById('rfid-dialog-list');
+  list.innerHTML = options.map(o =>
+    `<button class="rfid-option" onclick="selectRfidOption('${o.id}')">${o.label}</button>`
+  ).join('');
+  document.getElementById('rfid-dialog-overlay').style.display = 'flex';
+}
+
+function selectRfidOption(tagId) {
+  if (!rfidDialogHwid) return;
+  const hwid = rfidDialogHwid;
+  closeRfidDialog();
+  log(`[SIM] ${getDisplayName(hwid)} tapped ${tagId}`, 'system');
+  handleMessage({ type: 'rfid', hwid, tagId });
+}
+
+function closeRfidDialog() {
+  document.getElementById('rfid-dialog-overlay').style.display = 'none';
+  rfidDialogHwid = null;
 }
 
 // ---- Log ----
@@ -757,6 +918,101 @@ function setStatus(status) {
 function advancePhase() {
   handleLongPress(state.hubHwid || state.boxOrder[0]);
   render();
+}
+
+// ---- TI Tag Learning ----
+
+const TI_TAGS_TO_LEARN = [
+  { type: 'speaker',    id: 'speaker',     label: 'Speaker Token',  color: '#ffffff', initiative: null },
+  { type: 'strategy',   id: 'leadership',  label: 'Leadership',     color: '#cc0000', initiative: 1 },
+  { type: 'strategy',   id: 'diplomacy',   label: 'Diplomacy',      color: '#ff8800', initiative: 2 },
+  { type: 'strategy',   id: 'politics',    label: 'Politics',       color: '#dddd00', initiative: 3 },
+  { type: 'strategy',   id: 'construction',label: 'Construction',   color: '#00aa00', initiative: 4 },
+  { type: 'strategy',   id: 'trade',       label: 'Trade',          color: '#00aaaa', initiative: 5 },
+  { type: 'strategy',   id: 'warfare',     label: 'Warfare',        color: '#0055ff', initiative: 6 },
+  { type: 'strategy',   id: 'technology',  label: 'Technology',     color: '#000066', initiative: 7 },
+  { type: 'strategy',   id: 'imperial',    label: 'Imperial',       color: '#660088', initiative: 8 },
+];
+
+let tagLearningIndex = 0;
+let tagLearningActive = false;
+
+function startTagLearning() {
+  tagLearningIndex = 0;
+  tagLearningActive = true;
+  document.getElementById('tag-learning-overlay').style.display = 'flex';
+  showNextTagPrompt();
+}
+
+function showNextTagPrompt() {
+  if (tagLearningIndex >= TI_TAGS_TO_LEARN.length) {
+    finishTagLearning();
+    return;
+  }
+  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
+  document.getElementById('tag-learning-prompt').textContent =
+    `Tap the ${tag.label} on the hub box`;
+  document.getElementById('tag-learning-status').textContent = 
+    `${tagLearningIndex} of ${TI_TAGS_TO_LEARN.length} learned`;
+}
+
+function handleTagLearning(tagId) {
+  if (!tagLearningActive) return false;
+  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
+
+  // Store mapping
+  state.ti.tagMap[tagId] = {
+    type: tag.type,
+    id: tag.id,
+    label: tag.label,
+    color: tag.color,
+    initiative: tag.initiative,
+  };
+  saveTiTags();
+
+  document.getElementById('tag-learning-status').textContent =
+    `✓ ${tag.label} learned`;
+
+  tagLearningIndex++;
+  setTimeout(showNextTagPrompt, 800);
+  return true;
+}
+
+function finishTagLearning() {
+  tagLearningActive = false;
+  document.getElementById('tag-learning-overlay').style.display = 'none';
+  log('Tag learning complete', 'system');
+  updateSetupUI();
+}
+
+function cancelTagLearning() {
+  tagLearningActive = false;
+  tagLearningIndex = 0;
+  document.getElementById('tag-learning-overlay').style.display = 'none';
+}
+
+function handleRfid(hwid, tagId) {
+  // Tag learning intercepts all RFID during learning mode
+  if (tagLearningActive) {
+    // Only accept taps on the hub
+    if (hwid === state.hubHwid) {
+      handleTagLearning(tagId);
+    }
+    return;
+  }
+
+  // During gameplay, route to game mode handler
+  if (!state.gameActive) return;
+  switch (state.gameMode) {
+    case 'ti':
+      handleTiRfid(hwid, tagId);
+      break;
+  }
+}
+
+function tiMecatolChanged() {
+  state.ti.mecatolControlled = document.getElementById('ti-mecatol').checked;
+  log(`Mecatol Rex ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
 }
 
 // ---- Wake Lock ----

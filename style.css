@@ -43,7 +43,8 @@ section {
   margin-bottom: 1rem;
 }
 
-/* Connection bar */
+/* ---- Connection bar ---- */
+
 #connection-bar {
   display: flex;
   gap: 0.5rem;
@@ -69,10 +70,11 @@ section {
 }
 
 .status.disconnected { background: #3a1a1a; color: #e07070; }
-.status.connected { background: #1a3a1a; color: #70e070; }
-.status.connecting { background: #3a3a1a; color: #e0e070; }
+.status.connected    { background: #1a3a1a; color: #70e070; }
+.status.connecting   { background: #3a3a1a; color: #e0e070; }
 
-/* Buttons */
+/* ---- Buttons ---- */
+
 button {
   padding: 0.4rem 0.9rem;
   border: none;
@@ -92,7 +94,8 @@ button:disabled {
 
 button:not(:disabled):hover { opacity: 0.85; }
 
-/* Setup */
+/* ---- Setup ---- */
+
 .setup-row {
   display: flex;
   align-items: center;
@@ -116,13 +119,19 @@ select {
   font-size: 0.9rem;
 }
 
+.hint {
+  font-size: 0.8rem;
+  color: #888;
+}
+
 #start-btn {
   width: 100%;
   padding: 0.6rem;
   margin-top: 0.25rem;
 }
 
-/* Table */
+/* ---- Table ---- */
+
 #table-container {
   position: relative;
   width: 100%;
@@ -141,12 +150,14 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
 }
 
 #table-label {
   color: #446;
   font-size: 0.85rem;
   text-align: center;
+  padding: 0.5rem;
 }
 
 #box-positions {
@@ -157,10 +168,30 @@ select {
   height: 100%;
 }
 
-/* Box cards */
+#phase-controls {
+  text-align: center;
+}
+
+.round-counter {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #c9a84c;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.game-mode-label {
+  font-size: 0.75rem;
+  color: #446;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ---- Box cards ---- */
+
 .box-card {
   position: absolute;
-  width: 64px;
+  width: 80px;
   transform: translate(-50%, -50%);
   background: #0f3460;
   border: 2px solid #334;
@@ -170,21 +201,27 @@ select {
   font-size: 0.75rem;
   cursor: default;
   transition: border-color 0.2s, background 0.2s;
+  z-index: 1;
 }
 
-.box-card.active {
-  border-color: #c9a84c;
-  background: #1a3a00;
+.box-card:hover {
+  z-index: 20;
 }
 
-.box-card.passed {
-  border-color: #555;
-  opacity: 0.6;
-}
+/* Box card states */
+.box-card.active      { border-color: #c9a84c; background: #1a3a00; }
+.box-card.can-react   { border-color: #3a3a8a; }
+.box-card.reacting    { border-color: #5a5aff; background: #1a1a4e; }
+.box-card.passed      { border-color: #333; opacity: 0.5; }
+.box-card.disconnected{ border-color: #3a1a1a; opacity: 0.4; }
+.box-card.combat      { border-color: #8a1a1a; background: #2a0a0a; }
+.box-card.upkeep      { border-color: #8a6a1a; background: #2a1a0a; }
 
-.box-card.disconnected {
-  border-color: #3a1a1a;
-  opacity: 0.4;
+.box-virtual {
+  font-size: 0.6rem;
+  color: #888;
+  text-align: right;
+  margin-bottom: -0.2rem;
 }
 
 .box-name {
@@ -196,31 +233,75 @@ select {
   text-overflow: ellipsis;
 }
 
-.box-id {
+.box-status {
+  font-size: 0.65rem;
   color: #888;
-  font-size: 0.7rem;
+  margin-top: 0.1rem;
 }
 
-.led-ring {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 3px solid #333;
-  margin: 0.3rem auto;
-  background: #111;
-  position: relative;
-}
+/* ---- Badges ---- */
 
-.led-ring.on {
-  border-color: currentColor;
-  box-shadow: 0 0 8px currentColor;
-}
-
-.box-buttons {
+.box-badges {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   justify-content: center;
   margin-top: 0.3rem;
+}
+
+.badge-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.badge-pill {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #fff;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.badge-pill.faded {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.badge-text {
+  font-size: 0.65rem;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Sim controls ---- */
+
+.box-sim {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  background: #0a1628;
+  border: 1px solid #334;
+  border-radius: 4px;
+  padding: 4px;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.box-card:hover .box-sim {
+  display: flex;
+}
+
+.box-sim-row {
+  display: flex;
+  gap: 2px;
 }
 
 .box-btn {
@@ -239,7 +320,19 @@ select {
   color: #e0e0e0;
 }
 
-/* Log */
+.box-sim select {
+  font-size: 0.65rem;
+  padding: 1px 2px;
+  background: #1a1a3e;
+  color: #aaa;
+  border: 1px solid #334;
+  border-radius: 3px;
+  max-width: 90px;
+  flex: 1;
+}
+
+/* ---- Log ---- */
+
 #log {
   height: 150px;
   overflow-y: auto;
@@ -265,64 +358,100 @@ select {
   color: #aaa;
 }
 
-.log-entry.sent { color: #7090e0; }
+.log-entry.sent     { color: #7090e0; }
 .log-entry.received { color: #70c070; }
-.log-entry.system { color: #c9a84c; }
-.log-entry.error { color: #e07070; }
+.log-entry.system   { color: #c9a84c; }
+.log-entry.error    { color: #e07070; }
 
-.box-virtual {
-  font-size: 0.6rem;
-  color: #888;
-  text-align: right;
-  margin-bottom: -0.2rem;
+
+/* ---- Tag learning overlay ---- */
+
+#tag-learning-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
 }
 
-.box-card.can-react {
-  border-color: #3a3a8a;
+#tag-learning-modal {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 300px;
+  width: 90%;
+  text-align: center;
 }
 
-.box-card.reacting {
-  border-color: #5a5aff;
-  background: #1a1a4e;
-}
-
-.box-card.passed {
-  border-color: #333;
-  opacity: 0.5;
-}
-
-.box-card.combat {
-  border-color: #8a1a1a;
-  background: #2a0a0a;
-}
-
-.box-card.upkeep {
-  border-color: #8a6a1a;
-  background: #2a1a0a;
-}
-
-.box-status {
-  font-size: 0.65rem;
-  color: #888;
-  margin-top: 0.1rem;
-}
-
-.hint {
-  font-size: 0.8rem;
-  color: #888;
-}
-
-.round-counter {
-  font-size: 1.8rem;
-  font-weight: bold;
+#tag-learning-modal h2 {
   color: #c9a84c;
-  line-height: 1;
-  margin-bottom: 0.25rem;
+  margin-bottom: 1rem;
 }
 
-.game-mode-label {
-  font-size: 0.75rem;
-  color: #446;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+#tag-learning-prompt {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
+#tag-learning-status {
+  font-size: 0.85rem;
+  color: #70c070;
+  min-height: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+/* ---- RFID dialog ---- */
+
+#rfid-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#rfid-dialog {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 300px;
+  width: 90%;
+}
+
+#rfid-dialog h2 {
+  color: #c9a84c;
+  margin-bottom: 1rem;
+}
+
+#rfid-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.rfid-option {
+  padding: 0.5rem 0.75rem;
+  background: #0f3460;
+  border: 1px solid #334;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+  color: #e0e0e0;
+  width: 100%;
+}
+
+.rfid-option:hover {
+  background: #1a4a7a;
+  border-color: #c9a84c;
 }
