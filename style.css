@@ -1,3 +1,8 @@
+:root {
+  /* Set by JS on load and resize — 1 at ≤600px, 2 at ≥1200px */
+  --card-scale: 1;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -12,7 +17,7 @@ body {
 }
 
 #app {
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
 }
@@ -191,17 +196,22 @@ select {
 
 .box-card {
   position: absolute;
-  width: 110px;
+  width: calc(110px * var(--card-scale));
   transform: translate(-50%, -50%);
   background: #0f3460;
-  border: 6px solid var(--faction-color, #334);
-  border-radius: 8px;
-  padding: 0.4rem;
+  border: calc(6px * var(--card-scale)) solid var(--faction-color, #334);
+  border-radius: calc(8px * var(--card-scale));
+  padding: calc(0.4rem * var(--card-scale));
   text-align: center;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--card-scale));
   cursor: default;
   transition: border-color 0.2s, background 0.2s;
   z-index: 1;
+}
+
+.box-card svg {
+  width: calc(44px * var(--card-scale));
+  height: calc(44px * var(--card-scale));
 }
 
 .box-card:hover {
@@ -224,7 +234,7 @@ select {
   position: absolute;
   top: 3px;
   left: 4px;
-  font-size: 0.7rem;
+  font-size: 0.933em;
   color: #446;
   cursor: grab;
   user-select: none;
@@ -234,7 +244,7 @@ select {
 .box-card.drag-over { border-color: #c9a84c !important; box-shadow: 0 0 8px #c9a84c44; }
 
 .box-virtual {
-  font-size: 0.6rem;
+  font-size: 0.8em;
   color: #888;
   text-align: right;
   margin-bottom: -0.2rem;
@@ -251,7 +261,7 @@ select {
 }
 
 .box-faction-subtitle {
-  font-size: 0.65rem;
+  font-size: 0.867em;
   margin-top: -0.1rem;
   margin-bottom: 0.1rem;
   white-space: nowrap;
@@ -278,7 +288,7 @@ select {
 }
 
 .box-status {
-  font-size: 0.65rem;
+  font-size: 0.867em;
   color: #888;
   margin-top: 0.1rem;
 }
@@ -294,12 +304,12 @@ select {
 }
 
 .badge-icon {
-  font-size: 0.8rem;
+  font-size: 1.067em;
   line-height: 1;
 }
 
 .badge-pill {
-  font-size: 0.6rem;
+  font-size: 0.8em;
   padding: 1px 4px;
   border-radius: 3px;
   color: #fff;
@@ -313,7 +323,7 @@ select {
 }
 
 .badge-text {
-  font-size: 0.65rem;
+  font-size: 0.867em;
   width: 100%;
   text-align: center;
   white-space: nowrap;
@@ -351,7 +361,7 @@ select {
 
 .box-btn {
   padding: 2px 4px;
-  font-size: 0.65rem;
+  font-size: 0.867em;
   background: #1a1a3e;
   color: #aaa;
   border: 1px solid #334;
@@ -366,7 +376,7 @@ select {
 }
 
 .box-sim select {
-  font-size: 0.65rem;
+  font-size: 0.867em;
   padding: 1px 2px;
   background: #1a1a3e;
   color: #aaa;

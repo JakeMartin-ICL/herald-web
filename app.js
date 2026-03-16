@@ -2237,7 +2237,15 @@ function debugSkipPhase() {
 
 // ---- Init ----
 
+function updateCardScale() {
+  const scale = Math.min(2, Math.max(1, (window.innerWidth - 600) / 600 + 1));
+  document.documentElement.style.setProperty('--card-scale', scale);
+}
+
+window.addEventListener('resize', updateCardScale);
+
 async function init() {
+  updateCardScale();
   migrateLegacyTiTags();
   addSimTags();
   await loadFactions();
