@@ -47,14 +47,6 @@
             <label>Speaker</label>
             <select id="ti-speaker"></select>
             </div>
-        <div class="setup-row" id="ti-secondary-row" style="display:none">
-        <label>Secondary</label>
-        <select id="ti-secondary-mode">
-            <option value="fastest">Fastest — all light up immediately</option>
-            <option value="fast" selected>Fast — light up on end turn</option>
-            <option value="standard">Standard — sequential</option>
-        </select>
-        </div>
         <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning()">
         Learn Tags
         </button>
@@ -81,6 +73,15 @@
             <input type="checkbox" id="ti-mecatol-active" onchange="tiMecatolActiveChanged()" />
             Mecatol Rex controlled
           </label>
+          <div style="margin-top:0.4rem;">
+            <label style="font-size:0.85rem; color:#aaa;">Secondary:
+              <select id="ti-secondary-mode" onchange="tiSecondaryModeChanged()" style="font-size:0.85rem;">
+                <option value="fastest">Fastest</option>
+                <option value="fast">Fast</option>
+                <option value="standard" selected>Standard</option>
+              </select>
+            </label>
+          </div>
         </div>
         </section>
 

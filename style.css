@@ -234,6 +234,25 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.box-name-input {
+  font-weight: bold;
+  color: #e0e0e0;
+  margin-bottom: 0.2rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #555;
+  outline: none;
+  text-align: center;
+  width: 100%;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.box-name-input:focus {
+  border-bottom-color: #aaa;
 }
 
 .box-status {

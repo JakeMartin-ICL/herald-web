@@ -33,7 +33,7 @@ const state = {
   round: 0,
   speakerHwid: null,
   turnOrder: [],      // sorted by initiative during action phase
-  secondaryMode: 'fast', // 'fastest', 'fast', 'standard'
+  secondaryMode: 'standard', // 'fastest', 'fast', 'standard'
   mecatolControlled: false,
 
   // Per-player TI state, keyed by hwid
@@ -271,10 +271,13 @@ function addVirtualBox() {
   addBox(hwid, true);
 }
 
+const virtualBoxNames = {}; // session-only, never persisted
+
 function getDisplayName(hwid) {
   if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
-    const index = state.boxOrder.indexOf(hwid);
-    return `Player ${index + 1}`;
+    if (virtualBoxNames[hwid]) return virtualBoxNames[hwid];
+    const n = parseInt(hwid.slice(VIRTUAL_BOX_ID_OFFSET.length), 10);
+    return `Sim ${n + 1}`;
   }
   return getBoxName(hwid) || defaultBoxName(hwid);
 }
@@ -302,7 +305,6 @@ function updateSetupUI() {
 
   // TI rows
   document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';
-  document.getElementById('ti-secondary-row').style.display = isTi ? 'flex' : 'none';
   document.getElementById('ti-learn-tags-btn').style.display = isTi ? 'block' : 'none';
 
   if (isEclipse) {
@@ -897,9 +899,17 @@ function renderBoxes() {
     card.style.left = `${pos.x}%`;
     card.style.top = `${pos.y}%`;
 
+    const escapedHwid = CSS.escape(hwid);
+    const nameHtml = editingNameHwid === hwid
+      ? `<input id="name-input-${escapedHwid}" class="box-name-input"
+           value="${getDisplayName(hwid).replace(/"/g, '&quot;')}"
+           onblur="saveEditingName('${hwid}')"
+           onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelEditingName();}"
+           onclick="event.stopPropagation()" />`
+      : `<div class="box-name" onclick="startEditingName('${hwid}', event)">${getDisplayName(hwid)}</div>`;
+
     card.innerHTML = `
-      ${box.isVirtual ? '<div class="box-virtual">SIM</div>' : ''}
-      <div class="box-name">${getDisplayName(hwid)}</div>
+      ${nameHtml}
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
       ${renderBadges(box)}
@@ -907,8 +917,7 @@ function renderBoxes() {
     `;
 
     card.onclick = (e) => {
-      if (e.target === card || e.target.classList.contains('box-name') ||
-          e.target.classList.contains('box-status')) {
+      if (e.target === card || e.target.classList.contains('box-status')) {
         toggleSim(hwid);
       }
     };
@@ -929,6 +938,39 @@ function clearBoxBadges(hwid) {
 
 function clearAllBadges() {
   state.boxOrder.forEach(id => clearBoxBadges(id));
+}
+
+// ---- Name editing ----
+
+let editingNameHwid = null;
+
+function startEditingName(hwid, event) {
+  event.stopPropagation();
+  editingNameHwid = hwid;
+  render();
+  const input = document.getElementById(`name-input-${CSS.escape(hwid)}`);
+  if (input) { input.focus(); input.select(); }
+}
+
+function saveEditingName(hwid) {
+  if (editingNameHwid !== hwid) return; // already cancelled
+  const input = document.getElementById(`name-input-${CSS.escape(hwid)}`);
+  const newName = input ? input.value.trim() : '';
+  if (newName) {
+    if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
+      virtualBoxNames[hwid] = newName;
+    } else {
+      setBoxName(hwid, newName);
+    }
+  }
+  editingNameHwid = null;
+  updateSetupUI();
+  render();
+}
+
+function cancelEditingName() {
+  editingNameHwid = null;
+  render();
 }
 
 // ---- Sim toggle ----
@@ -1133,6 +1175,11 @@ function tiMecatolActiveChanged() {
   log(`Mecatol ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
 }
 
+function tiSecondaryModeChanged() {
+  state.ti.secondaryMode = document.getElementById('ti-secondary-mode').value;
+  log(`Secondary mode: ${state.ti.secondaryMode}`, 'system');
+}
+
 // ---- Wake Lock ----
 
 let wakeLock = null;
@@ -1182,7 +1229,6 @@ const TI_STRATEGY_COLORS = {
 function tiStart() {
   const speakerHwid = document.getElementById('ti-speaker').value;
   state.ti.speakerHwid = speakerHwid;
-  state.ti.secondaryMode = document.getElementById('ti-secondary-mode').value;
   state.ti.round = 1;
   state.ti.phase = null;
   state.ti.players = {};
