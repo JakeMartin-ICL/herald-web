@@ -55,11 +55,6 @@
             <option value="standard">Standard — sequential</option>
         </select>
         </div>
-        <div class="setup-row" id="ti-mecatol-row" style="display:none">
-        <label>Mecatol</label>
-        <input type="checkbox" id="ti-mecatol" onchange="tiMecatolChanged()" />
-        <span class="hint">Mecatol Rex is controlled</span>
-        </div>
         <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning()">
         Learn Tags
         </button>
@@ -78,13 +73,29 @@
         <div id="phase-controls" style="display:none; margin-top: 0.75rem;">
             <button onclick="advancePhase()">Advance Phase</button>
         </div>
+        <div id="ti-undo-controls" style="display:none; margin-top: 0.75rem;">
+            <button onclick="tiUndoStrategyPick(); render()">Undo Pick</button>
+        </div>
+        <div id="ti-game-controls" style="display:none; margin-top:0.75rem; text-align:center;">
+          <label style="font-size:0.85rem; color:#aaa;">
+            <input type="checkbox" id="ti-mecatol-active" onchange="tiMecatolActiveChanged()" />
+            Mecatol Rex controlled
+          </label>
+        </div>
         </section>
 
       <section id="log-section">
         <h2>Event Log <button onclick="clearLog()">Clear</button></h2>
         <div id="log"></div>
       </section>
+
     </main>
+    <div id="debug-bar" style="text-align:center; padding:0.5rem; opacity:0.3">
+      <button onclick="toggleDebug()" style="font-size:0.7rem; background:none; border:none; color:#888; cursor:pointer">debug</button>
+      <div id="debug-panel" style="display:none; margin-top:0.5rem">
+        <button onclick="debugSkipPhase()">Skip Phase</button>
+      </div>
+    </div>
   </div>
     <div id="tag-learning-overlay" style="display:none">
     <div id="tag-learning-modal">

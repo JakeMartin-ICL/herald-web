@@ -236,7 +236,7 @@ function addBox(hwid, isVirtual) {
 
   // Assign default name if not previously seen
   const seatIndex = state.boxOrder.length;
-  if (!getBoxName(hwid)) {
+  if (!isVirtual && !getBoxName(hwid)) {
     setBoxName(hwid, `Player ${seatIndex + 1}`);
   }
 
@@ -272,6 +272,10 @@ function addVirtualBox() {
 }
 
 function getDisplayName(hwid) {
+  if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
+    const index = state.boxOrder.indexOf(hwid);
+    return `Player ${index + 1}`;
+  }
   return getBoxName(hwid) || defaultBoxName(hwid);
 }
 
@@ -299,7 +303,6 @@ function updateSetupUI() {
   // TI rows
   document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';
   document.getElementById('ti-secondary-row').style.display = isTi ? 'flex' : 'none';
-  document.getElementById('ti-mecatol-row').style.display = isTi ? 'flex' : 'none';
   document.getElementById('ti-learn-tags-btn').style.display = isTi ? 'block' : 'none';
 
   if (isEclipse) {
@@ -347,7 +350,23 @@ function ledRainbow(n) {
   });
 }
 
-function ledStateForStatus(status) {
+function ledAlternatePair(n, a, b) {
+  return Array.from({ length: n }, (_, i) => i % 2 === 0 ? a : b);
+}
+
+function ledHalf(n, color, first) {
+  return Array.from({ length: n }, (_, i) => (i < n / 2) === first ? color : '#000000');
+}
+
+function ledSectors(n, colors) {
+  const count = colors.length;
+  return Array.from({ length: n }, (_, i) => {
+    const sector = Math.floor(i / (n / count));
+    return colors[Math.min(sector, count - 1)];
+  });
+}
+
+function ledStateForStatus(status, box = null) {
   switch (status) {
     case 'active':       return ledSolid(LED_COUNT, '#c9a84c');
     case 'can-react':    return ledOff(LED_COUNT);
@@ -356,15 +375,26 @@ function ledStateForStatus(status) {
     case 'combat':       return ledSolid(LED_COUNT, '#8a0000');
     case 'upkeep':       return ledThirds(LED_COUNT, '#ff69b4', '#ffff00', '#ffa500');
     case 'disconnected': return ledOff(LED_COUNT);
+    case 'choosing':     return box?.choosingLeds || ledRainbow(LED_COUNT);
+    case 'strategy':     return ledSolid(LED_COUNT, box?.strategyColor || '#ffffff');
+    case 'secondary':    return ledAlternate(LED_COUNT, box?.strategyColor || '#ffffff');
+    case 'status':       return ledSolid(LED_COUNT, '#8a0000');
+    case 'status2':      return ledSolid(LED_COUNT, '#8a0000');
+    case 'agenda_speaker': return ledAlternatePair(LED_COUNT, '#4444ff', '#ffffff');
+    case 'when_agenda_revealed':  return ledHalf(LED_COUNT, '#ff6600', false);
+    case 'after_agenda_revealed': return ledHalf(LED_COUNT, '#ff6600', true);
+    case 'agenda_vote':  return ledSolid(LED_COUNT, '#0000ff');
     default:             return state.gameActive ? ledOff(LED_COUNT) : ledRainbow(LED_COUNT);
   }
 }
 
 function syncLeds() {
+  const now = Date.now();
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
     if (!box || box.status === 'disconnected') return;
-    const leds = ledStateForStatus(box.status);
+    if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
+    const leds = ledStateForStatus(box.status, box);
     box.leds = leds;
     if (!box.isVirtual) {
       sendToBox(hwid, { type: 'led', leds });
@@ -376,6 +406,7 @@ function syncLeds() {
 
 function startGame() {
   state.gameActive = true;
+  document.getElementById('setup-panel').style.display = 'none';
   state.gameMode = document.getElementById('game-mode').value;
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
@@ -397,6 +428,9 @@ function gameModeStart() {
     case 'eclipse_advanced':
       eclipseStart();
       break;
+    case 'ti':
+      tiStart();
+      break;
   }
 }
 
@@ -412,6 +446,9 @@ function handleEndTurn(hwid) {
     case 'eclipse_advanced':
       eclipseEndTurn(hwid);
       break;
+    case 'ti':
+      tiEndTurn(hwid);
+      break;
   }
 }
 
@@ -426,6 +463,9 @@ function handlePass(hwid) {
     case 'eclipse_advanced':
       eclipsePass(hwid);
       break;
+    case 'ti':
+      tiPass(hwid);
+      break;
   }
 }
 
@@ -435,6 +475,9 @@ function handleLongPress(hwid) {
     case 'eclipse_simple':
     case 'eclipse_advanced':
       eclipseLongPress(hwid);
+      break;
+    case 'ti':
+      tiLongPress(hwid);
       break;
   }
 }
@@ -732,25 +775,44 @@ function render() {
 function renderTableLabel() {
   const el = document.getElementById('table-label');
   const phaseControls = document.getElementById('phase-controls');
+  const tiGameControls = document.getElementById('ti-game-controls');
 
   if (!state.gameActive) {
     el.innerHTML = '';
     phaseControls.style.display = 'none';
+    const tiUndoControls = document.getElementById('ti-undo-controls');
+    if (tiUndoControls) tiUndoControls.style.display = 'none';
+    if (tiGameControls) tiGameControls.style.display = 'none';
     return;
   }
 
+  const isTi = state.gameMode === 'ti';
   const isEclipse = state.gameMode.startsWith('eclipse');
-  const roundDisplay = isEclipse
-    ? `<div class="round-counter">Round ${state.eclipse.round} / 8</div>`
-    : '';
-  const phaseDisplay = state.eclipse.phase
-    ? `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()} — ${state.eclipse.phase.toUpperCase()}</div>`
-    : `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()}</div>`;
 
-  el.innerHTML = roundDisplay + phaseDisplay;
-
-  const showAdvance = ['combat', 'upkeep'].includes(state.eclipse.phase);
-  phaseControls.style.display = showAdvance ? 'block' : 'none';
+  if (isTi) {
+    const phase = state.ti.phase || '';
+    const phaseLabel = phase.replace(/_/g, ' ').toUpperCase();
+    el.innerHTML = `
+      <div class="round-counter">Round ${state.ti.round}</div>
+      <div class="game-mode-label">TWILIGHT IMPERIUM${phase ? ` — ${phaseLabel}` : ''}</div>
+    `;
+    const tiAdvancePhases = ['status', 'status2', 'agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'];
+    phaseControls.style.display = tiAdvancePhases.includes(phase) ? 'block' : 'none';
+    const tiUndoControls = document.getElementById('ti-undo-controls');
+    if (tiUndoControls) tiUndoControls.style.display = phase === 'strategy' ? 'block' : 'none';
+    if (tiGameControls) tiGameControls.style.display = 'block';
+  } else {
+    if (tiGameControls) tiGameControls.style.display = 'none';
+    const roundDisplay = isEclipse
+      ? `<div class="round-counter">Round ${state.eclipse.round} / 8</div>`
+      : '';
+    const phaseDisplay = state.eclipse.phase
+      ? `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()} — ${state.eclipse.phase.toUpperCase()}</div>`
+      : `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()}</div>`;
+    el.innerHTML = roundDisplay + phaseDisplay;
+    const showAdvance = ['combat', 'upkeep'].includes(state.eclipse.phase);
+    phaseControls.style.display = showAdvance ? 'block' : 'none';
+  }
 }
 
 function renderLedRing(leds) {
@@ -800,12 +862,13 @@ function renderBadges(box) {
 }
 
 function renderSimControls(hwid) {
+  const isOpen = simOpenCards.has(hwid);
   const rfidOptions = getSimRfidOptions();
   const rfidBtn = rfidOptions.length > 0
     ? `<button class="box-btn" onclick="openRfidDialog('${hwid}')">RFID</button>`
     : '';
 
-  return `<div class="box-sim">
+  return `<div class="box-sim ${isOpen ? 'sim-open' : ''}">
     <div class="box-sim-row">
       <button class="box-btn" onclick="simulateButton('${hwid}', 'endturn')">End</button>
       <button class="box-btn" onclick="simulateButton('${hwid}', 'pass')">Pass</button>
@@ -827,7 +890,7 @@ function renderBoxes() {
   ids.forEach((hwid, index) => {
     const box = state.boxes[hwid];
     const pos = positions[index];
-    const leds = box.leds || ledStateForStatus(box.status);
+    const leds = box.leds || ledStateForStatus(box.status, box);
 
     const card = document.createElement('div');
     card.className = `box-card ${box.status}`;
@@ -842,6 +905,13 @@ function renderBoxes() {
       ${renderBadges(box)}
       ${renderSimControls(hwid)}
     `;
+
+    card.onclick = (e) => {
+      if (e.target === card || e.target.classList.contains('box-name') ||
+          e.target.classList.contains('box-status')) {
+        toggleSim(hwid);
+      }
+    };
 
     container.appendChild(card);
   });
@@ -859,6 +929,19 @@ function clearBoxBadges(hwid) {
 
 function clearAllBadges() {
   state.boxOrder.forEach(id => clearBoxBadges(id));
+}
+
+// ---- Sim toggle ----
+
+const simOpenCards = new Set();
+
+function toggleSim(hwid) {
+  if (simOpenCards.has(hwid)) {
+    simOpenCards.delete(hwid);
+  } else {
+    simOpenCards.add(hwid);
+  }
+  render();
 }
 
 // ---- RFID dialog ----
@@ -916,8 +999,38 @@ function setStatus(status) {
 // ---- Phase advance ----
 
 function advancePhase() {
-  handleLongPress(state.hubHwid || state.boxOrder[0]);
+  // UI button bypasses hub restriction — directly call phase logic
+  switch (state.gameMode) {
+    case 'ti':
+      tiAdvancePhase();
+      break;
+    case 'eclipse_simple':
+    case 'eclipse_advanced':
+      eclipseLongPress(state.hubHwid || state.boxOrder[0]);
+      break;
+  }
   render();
+}
+
+function tiAdvancePhase() {
+  switch (state.ti.phase) {
+    case 'status':
+      if (state.ti.mecatolControlled) {
+        tiStartAgendaPhase();
+      } else {
+        tiEndRound();
+      }
+      break;
+    case 'status2':
+      tiEndRound();
+      break;
+    case 'agenda_reveal':
+    case 'when_agenda_revealed':
+    case 'after_agenda_revealed':
+    case 'agenda_vote':
+      tiAdvanceAgendaPhase();
+      break;
+  }
 }
 
 // ---- TI Tag Learning ----
@@ -1015,6 +1128,11 @@ function tiMecatolChanged() {
   log(`Mecatol Rex ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
 }
 
+function tiMecatolActiveChanged() {
+  state.ti.mecatolControlled = document.getElementById('ti-mecatol-active').checked;
+  log(`Mecatol ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
+}
+
 // ---- Wake Lock ----
 
 let wakeLock = null;
@@ -1047,6 +1165,757 @@ document.addEventListener('visibilitychange', async () => {
     await requestWakeLock();
   }
 });
+
+// ---- TI mode ----
+
+const TI_STRATEGY_COLORS = {
+  leadership:   '#cc0000',
+  diplomacy:    '#ff8800',
+  politics:     '#dddd00',
+  construction: '#00aa00',
+  trade:        '#00aaaa',
+  warfare:      '#0055ff',
+  technology:   '#000066',
+  imperial:     '#660088',
+};
+
+function tiStart() {
+  const speakerHwid = document.getElementById('ti-speaker').value;
+  state.ti.speakerHwid = speakerHwid;
+  state.ti.secondaryMode = document.getElementById('ti-secondary-mode').value;
+  state.ti.round = 1;
+  state.ti.phase = null;
+  state.ti.players = {};
+
+  // Initialise per-player state
+  state.boxOrder.forEach(hwid => {
+    state.ti.players[hwid] = {
+      hwid,
+      strategyCards: [],
+      passed: false,
+      confirmedSecondary: false,
+    };
+  });
+
+  log(`TI started — Round 1, Speaker: ${getDisplayName(speakerHwid)}`, 'system');
+  tiStartStrategyPhase();
+}
+
+// ---- TI Status Phase ----
+
+function tiStartStatusPhase(isPostAgenda = false) {
+  state.ti.phase = isPostAgenda ? 'status2' : 'status';
+  state.activeBoxId = null;
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = isPostAgenda ? 'status2' : 'status';
+  });
+  log(`Status phase — long press hub to continue`, 'system');
+  updateTiBadges();
+}
+
+function tiLongPress(hwid) {
+  if (hwid !== state.hubHwid) return;
+  switch (state.ti.phase) {
+    case 'status':
+      if (state.ti.mecatolControlled) {
+        tiStartAgendaPhase();
+      } else {
+        tiEndRound();
+      }
+      break;
+    case 'status2':
+      tiEndRound();
+      break;
+    case 'agenda_reveal':
+    case 'when_agenda_revealed':
+    case 'after_agenda_revealed':
+    case 'agenda_vote':
+      tiAdvanceAgendaPhase();
+      break;
+  }
+}
+
+// ---- TI Strategy Phase ----
+
+function tiStartStrategyPhase() {
+  state.ti.phase = 'strategy';
+  state.activeBoxId = null;
+
+  // Reset all strategy cards
+  state.boxOrder.forEach(hwid => {
+    state.ti.players[hwid].strategyCards = [];
+    state.ti.players[hwid].passed = false;
+    state.boxes[hwid].status = 'idle';
+  });
+
+  // Build clockwise order from speaker
+  const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid);
+  state.ti.turnOrder = [
+    ...state.boxOrder.slice(speakerIndex),
+    ...state.boxOrder.slice(0, speakerIndex),
+  ];
+
+  // For 4 or fewer players, go around twice
+  if (state.boxOrder.length <= 4) {
+    state.ti.turnOrder = [...state.ti.turnOrder, ...state.ti.turnOrder];
+  }
+
+  state.ti.strategyTurnIndex = 0;
+  tiActivateStrategyTurn();
+  log('Strategy phase', 'system');
+}
+
+function tiActivateStrategyTurn() {
+  // Skip players who already have 2 cards (4- player case)
+  while (state.ti.strategyTurnIndex < state.ti.turnOrder.length) {
+    const hwid = state.ti.turnOrder[state.ti.strategyTurnIndex];
+    const player = state.ti.players[hwid];
+    if (player.strategyCards.length < 2) break;
+    state.ti.strategyTurnIndex++;
+  }
+
+  if (state.ti.strategyTurnIndex >= state.ti.turnOrder.length) {
+    // All players have their cards
+    tiEndStrategyPhase();
+    return;
+  }
+
+  const hwid = state.ti.turnOrder[state.ti.strategyTurnIndex];
+  if (state.activeBoxId && state.activeBoxId !== hwid) {
+    state.boxes[state.activeBoxId].status = 'idle';
+  }
+  state.activeBoxId = hwid;
+  state.boxes[hwid].status = 'choosing';
+  state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT, [
+    '#cc0000', '#ff8800', '#dddd00', '#00aa00',
+    '#00aaaa', '#0055ff', '#000066', '#660088',
+  ]);
+  log(`${getDisplayName(hwid)} picks a strategy card`, 'system');
+  updateTiBadges();
+}
+
+function tiUndoStrategyPick() {
+  // Find previous player who has a card and remove their last pick
+  let idx = state.ti.strategyTurnIndex - 1;
+  while (idx >= 0) {
+    const hwid = state.ti.turnOrder[idx];
+    const player = state.ti.players[hwid];
+    if (player.strategyCards.length > 0) {
+      const removed = player.strategyCards.pop();
+      log(`Undid ${getDisplayName(hwid)}'s pick: ${removed.label}`, 'system');
+      state.ti.strategyTurnIndex = idx;
+      // Reactivate that player
+      if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
+      state.activeBoxId = hwid;
+      state.boxes[hwid].status = 'choosing';
+      state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT, [
+        '#cc0000', '#ff8800', '#dddd00', '#00aa00',
+        '#00aaaa', '#0055ff', '#000066', '#660088',
+      ]);
+      updateTiBadges();
+      return;
+    }
+    idx--;
+  }
+  log('Nothing to undo', 'system');
+}
+
+function tiEndStrategyPhase() {
+  log('Strategy phase complete', 'system');
+  if (state.activeBoxId) {
+    state.boxes[state.activeBoxId].status = 'idle';
+    state.activeBoxId = null;
+  }
+  tiStartActionPhase();
+}
+
+// ---- TI Action Phase ----
+
+function tiStartActionPhase() {
+  state.ti.phase = 'action';
+  state.ti.secondary = null;
+
+  // Reset passed state
+  state.boxOrder.forEach(hwid => {
+    state.ti.players[hwid].passed = false;
+    state.ti.players[hwid].confirmedSecondary = false;
+    state.boxes[hwid].status = 'idle';
+  });
+
+  // Build turn order by lowest initiative
+  state.ti.turnOrder = [...state.boxOrder].sort((a, b) => {
+    const aInit = tiLowestInitiative(a);
+    const bInit = tiLowestInitiative(b);
+    return aInit - bInit;
+  });
+
+  state.ti.actionTurnIndex = 0;
+  tiActivateActionTurn();
+  log('Action phase', 'system');
+}
+
+function tiLowestInitiative(hwid) {
+  const cards = state.ti.players[hwid].strategyCards;
+  if (cards.length === 0) return 999;
+  return Math.min(...cards.map(c => c.initiative));
+}
+
+function tiActivateActionTurn() {
+  // Find next non-passed player
+  const order = state.ti.turnOrder;
+  let found = false;
+
+  for (let i = 0; i < order.length; i++) {
+    const idx = (state.ti.actionTurnIndex + i) % order.length;
+    const hwid = order[idx];
+    const player = state.ti.players[hwid];
+    if (!player.passed && state.boxes[hwid].status !== 'disconnected') {
+      if (state.activeBoxId && state.activeBoxId !== hwid) {
+        state.boxes[state.activeBoxId].status = 'idle';
+      }
+      state.ti.actionTurnIndex = idx;
+      state.activeBoxId = hwid;
+      state.boxes[hwid].status = 'active';
+      log(`${getDisplayName(hwid)}'s turn`, 'system');
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    tiEndActionPhase();
+  }
+  updateTiBadges();
+}
+
+function tiEndTurn(hwid) {
+  switch (state.ti.phase) {
+    case 'strategy':
+      // End turn without picking — shouldn't normally happen
+      // but allow advancing if hub presses
+      if (hwid === state.hubHwid) {
+        state.ti.strategyTurnIndex++;
+        tiActivateStrategyTurn();
+      }
+      break;
+
+    case 'action':
+      if (state.ti.secondary) {
+        tiConfirmSecondary(hwid);
+      } else {
+        if (hwid !== state.activeBoxId) return;
+        // Regular action end turn
+        state.ti.actionTurnIndex =
+          (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
+        tiActivateActionTurn();
+      }
+      break;
+
+    case 'agenda_reveal':
+      if (hwid === state.activeBoxId) tiAdvanceAgendaPhase();
+      break;
+    case 'when_agenda_revealed':
+    case 'after_agenda_revealed':
+    case 'agenda_vote':
+      tiAgendaEndTurn(hwid);
+      break;
+  }
+}
+
+function tiPass(hwid) {
+  switch (state.ti.phase) {
+    case 'strategy':
+      // Pass on hub undoes previous pick
+      if (hwid === state.hubHwid) {
+        tiUndoStrategyPick();
+      }
+      break;
+
+    case 'action':
+      if (state.ti.secondary) {
+        if (hwid === state.ti.secondary.activeHwid) {
+          // Active player cancels their strategy card use
+          const secondary = state.ti.secondary;
+          const card = state.ti.players[hwid].strategyCards.find(c => c.id === secondary.cardId);
+          if (card) card.used = false;
+          // Reset all secondary boxes to idle
+          secondary.pendingHwids.forEach(id => {
+            if (state.boxes[id].status === 'secondary') {
+              state.boxes[id].status = 'idle';
+            }
+          });
+          state.ti.secondary = null;
+          state.boxes[hwid].status = 'active';
+          log(`${getDisplayName(hwid)} cancels ${secondary.cardId} use`, 'system');
+          updateTiBadges();
+        } else {
+          // Other player skips secondary
+          tiConfirmSecondary(hwid);
+        }
+      } else {
+        if (hwid !== state.activeBoxId) return;
+        // Can only pass if all strategy cards used
+        const player = state.ti.players[hwid];
+        const allUsed = player.strategyCards.every(c => c.used);
+        if (!allUsed) {
+          log(`${getDisplayName(hwid)} can't pass — strategy cards not used`, 'system');
+          return;
+        }
+        player.passed = true;
+        state.boxes[hwid].status = 'passed';
+        log(`${getDisplayName(hwid)} passes`, 'system');
+
+        const allPassed = state.boxOrder.every(id =>
+          state.ti.players[id].passed ||
+          state.boxes[id].status === 'disconnected'
+        );
+
+        if (allPassed) {
+          tiEndActionPhase();
+        } else {
+          state.ti.actionTurnIndex =
+            (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
+          tiActivateActionTurn();
+        }
+      }
+      break;
+  }
+}
+
+// ---- TI Strategy Card Use ----
+
+function tiUseStrategyCard(hwid, card) {
+  if (hwid !== state.activeBoxId) return;
+  if (state.ti.phase !== 'action') return;
+  if (card.used) {
+    // Cancel strategy card use — return to normal active state
+    state.boxes[hwid].status = 'active';
+    state.ti.secondary = null;
+    log(`${getDisplayName(hwid)} cancels ${card.label} use`, 'system');
+    updateTiBadges();
+    return;
+  }
+
+  // Mark card as being used — light box in card colour alternating white
+  state.boxes[hwid].status = 'strategy';
+  state.boxes[hwid].strategyColor = card.color;
+  card.used = true;
+
+  const otherPlayers = state.boxOrder.filter(id =>
+    id !== hwid && state.boxes[id].status !== 'disconnected'
+  );
+
+  state.ti.secondary = {
+    activeHwid: hwid,
+    cardId: card.id,
+    cardColor: card.color,
+    pendingHwids: [...otherPlayers],
+  };
+
+  // Reset all confirmed secondary flags
+  state.boxOrder.forEach(id => {
+    state.ti.players[id].confirmedSecondary = false;
+  });
+
+  log(`${getDisplayName(hwid)} uses ${card.label} — secondaries pending`, 'system');
+
+  const mode = state.ti.secondaryMode;
+  if (mode === 'fastest') {
+    // Light up all other players immediately
+    otherPlayers.forEach(id => {
+      state.boxes[id].status = 'secondary';
+      state.boxes[id].strategyColor = card.color;
+    });
+  } else if (mode === 'fast') {
+    // Will light up when active player presses end turn
+    // Nothing to do yet
+  } else if (mode === 'standard') {
+    // Light up first player clockwise from active
+    tiActivateNextSecondary();
+  }
+
+  updateTiBadges();
+}
+
+function tiActivateNextSecondary() {
+  const secondary = state.ti.secondary;
+  if (!secondary) return;
+
+  // Find next unconfirmed player clockwise from active
+  const activeIndex = state.boxOrder.indexOf(secondary.activeHwid);
+  for (let i = 1; i <= state.boxOrder.length; i++) {
+    const idx = (activeIndex + i) % state.boxOrder.length;
+    const hwid = state.boxOrder[idx];
+    if (secondary.pendingHwids.includes(hwid) &&
+        !state.ti.players[hwid].confirmedSecondary &&
+        state.boxes[hwid].status !== 'disconnected') {
+      state.boxes[hwid].status = 'secondary';
+      state.boxes[hwid].strategyColor = secondary.cardColor;
+      log(`${getDisplayName(hwid)} secondary`, 'system');
+      return;
+    }
+  }
+}
+
+function tiConfirmSecondary(hwid) {
+  const secondary = state.ti.secondary;
+  if (!secondary) return;
+
+  if (hwid === secondary.activeHwid) {
+    if (state.ti.secondaryMode === 'fast') {
+      // Active player ends their turn — light up all others for secondary
+      secondary.pendingHwids.forEach(id => {
+        if (state.boxes[id].status !== 'disconnected') {
+          state.boxes[id].status = 'secondary';
+          state.boxes[id].strategyColor = secondary.cardColor;
+        }
+      });
+      secondary.activeTurnEnded = true;
+      state.boxes[hwid].status = 'idle';
+      state.activeBoxId = null;
+    } else if (state.ti.secondaryMode === 'fastest') {
+      // Active player finished primary — secondaries already running
+      secondary.activeTurnEnded = true;
+      state.boxes[hwid].status = 'idle';
+      state.activeBoxId = null;
+      // Secondaries may have all confirmed already — check and advance if so
+      const allConfirmed = secondary.pendingHwids.every(id =>
+        state.ti.players[id].confirmedSecondary ||
+        state.boxes[id].status === 'disconnected'
+      );
+      if (allConfirmed) {
+        log('All secondaries confirmed — advancing turn', 'system');
+        state.ti.secondary = null;
+        state.ti.actionTurnIndex =
+          (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
+        tiActivateActionTurn();
+      }
+    }
+    // In standard mode the active player doesn't end turn while secondaries run
+    return;
+  }
+
+  // Other players confirming secondary
+  if (!secondary.pendingHwids.includes(hwid)) return;
+  state.ti.players[hwid].confirmedSecondary = true;
+  state.boxes[hwid].status = 'idle';
+
+  if (state.ti.secondaryMode === 'standard') {
+    tiActivateNextSecondary();
+  }
+
+  // Check if all confirmed
+  const allConfirmed = secondary.pendingHwids.every(id =>
+    state.ti.players[id].confirmedSecondary ||
+    state.boxes[id].status === 'disconnected'
+  );
+
+  if (allConfirmed) {
+    log('All secondaries confirmed — advancing turn', 'system');
+    state.ti.secondary = null;
+
+    if (secondary.activeTurnEnded) {
+      // Active player already ended their turn (fast mode) — advance now
+      state.ti.actionTurnIndex =
+        (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
+      tiActivateActionTurn();
+    } else {
+      // Fastest/standard — active player still needs to end their turn
+      // In fastest mode they're still executing their primary (strategy status);
+      // in standard mode secondaries go sequentially so active is done with primary.
+      const wasStrategy = state.boxes[secondary.activeHwid].status === 'strategy';
+      state.boxes[secondary.activeHwid].status = wasStrategy ? 'strategy' : 'active';
+      state.activeBoxId = secondary.activeHwid;
+    }
+    updateTiBadges();
+    render();
+  }
+
+  updateTiBadges();
+}
+
+function tiEndActionPhase() {
+  log('Action phase over', 'system');
+  state.activeBoxId = null;
+  tiStartStatusPhase();
+}
+
+// ---- TI Agenda Phase ----
+
+function tiStartAgendaPhase() {
+  state.ti.phase = 'agenda_reveal';
+  state.ti.agendaCount = 0; // 0 or 1 (two agendas per round)
+  state.activeBoxId = null;
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = 'idle';
+  });
+
+  // Speaker lights up blue+white
+  state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
+  state.activeBoxId = state.ti.speakerHwid;
+  log('Agenda phase — speaker reads agenda', 'system');
+  updateTiBadges();
+}
+
+function tiAdvanceAgendaPhase() {
+  switch (state.ti.phase) {
+    case 'agenda_reveal':
+      // Move to "when revealed" action cards
+      tiStartAgendaWhen();
+      break;
+    case 'when_agenda_revealed':
+      tiStartAgendaAfter();
+      break;
+    case 'after_agenda_revealed':
+      tiStartAgendaVote();
+      break;
+    case 'agenda_vote':
+      state.ti.agendaCount++;
+      if (state.ti.agendaCount < 2) {
+        // Second agenda
+        state.ti.phase = 'agenda_reveal';
+        state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
+        state.activeBoxId = state.ti.speakerHwid;
+        log('Second agenda — speaker reads', 'system');
+      } else {
+        // Agenda phase complete
+        tiStartStatusPhase(true);
+      }
+      break;
+  }
+  updateTiBadges();
+}
+
+function tiStartAgendaWhen() {
+  state.ti.phase = 'when_agenda_revealed';
+  // Build clockwise order from speaker
+  const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid);
+  state.ti.agendaTurnOrder = [
+    ...state.boxOrder.slice(speakerIndex),
+    ...state.boxOrder.slice(0, speakerIndex),
+  ];
+  state.ti.agendaTurnIndex = 0;
+  if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
+  tiActivateAgendaTurn('when_agenda_revealed');
+  log('Agenda — "when revealed" action cards', 'system');
+}
+
+function tiStartAgendaAfter() {
+  state.ti.phase = 'after_agenda_revealed';
+  state.ti.agendaTurnIndex = 0;
+  if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
+  tiActivateAgendaTurn('after_agenda_revealed');
+  log('Agenda — "after revealed" action cards', 'system');
+}
+
+function tiStartAgendaVote() {
+  state.ti.phase = 'agenda_vote';
+  // Voting starts with player left of speaker
+  const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid);
+  const leftIndex = (speakerIndex + 1) % state.boxOrder.length;
+  state.ti.agendaTurnOrder = [
+    ...state.boxOrder.slice(leftIndex),
+    ...state.boxOrder.slice(0, leftIndex),
+  ];
+  state.ti.agendaTurnIndex = 0;
+  if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
+  tiActivateAgendaTurn('agenda_vote');
+  log('Agenda — voting', 'system');
+}
+
+function tiActivateAgendaTurn(phase) {
+  const order = state.ti.agendaTurnOrder;
+  if (state.ti.agendaTurnIndex >= order.length) {
+    state.activeBoxId = null;
+    tiAdvanceAgendaPhase();
+    return;
+  }
+  const hwid = order[state.ti.agendaTurnIndex];
+  if (state.activeBoxId && state.activeBoxId !== hwid) {
+    state.boxes[state.activeBoxId].status = 'idle';
+  }
+  state.activeBoxId = hwid;
+  state.boxes[hwid].status = phase;
+}
+
+function tiAgendaEndTurn(hwid) {
+  if (hwid !== state.activeBoxId) return;
+  state.boxes[hwid].status = 'idle';
+  state.ti.agendaTurnIndex++;
+  tiActivateAgendaTurn(state.ti.phase);
+  updateTiBadges();
+}
+
+// ---- TI Round end ----
+
+function tiEndRound() {
+  log(`Round ${state.ti.round} complete`, 'system');
+  state.ti.round++;
+
+  // Advance speaker if politics was played
+  // (handled via RFID tap on speaker token during action phase)
+  // Reset all boxes
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = 'idle';
+    state.ti.players[hwid].strategyCards = [];
+    state.ti.players[hwid].passed = false;
+  });
+  state.activeBoxId = null;
+  state.ti.secondary = null;
+
+  tiStartStrategyPhase();
+}
+
+// ---- TI RFID ----
+
+function handleTiRfid(hwid, tagId) {
+  const tag = state.ti.tagMap[tagId];
+  if (!tag) {
+    log(`Unknown tag: ${tagId}`, 'error');
+    return;
+  }
+
+  if (tag.type === 'speaker') {
+    // Active player taps speaker token — they become speaker
+    if (hwid === state.activeBoxId) {
+      state.ti.speakerHwid = hwid;
+      log(`${getDisplayName(hwid)} takes the speaker token`, 'system');
+      updateTiBadges();
+    }
+    return;
+  }
+
+  if (tag.type === 'strategy') {
+    if (state.ti.phase === 'strategy') {
+      // Assign card to active player
+      if (hwid !== state.activeBoxId) return;
+      const player = state.ti.players[hwid];
+
+      // Check card not already taken
+      const alreadyTaken = state.boxOrder.some(id =>
+        state.ti.players[id].strategyCards.some(c => c.id === tag.id)
+      );
+      if (alreadyTaken) {
+        log(`${tag.label} already taken`, 'error');
+        return;
+      }
+
+      player.strategyCards.push({
+        id: tag.id,
+        label: tag.label,
+        color: tag.color,
+        initiative: tag.initiative,
+        used: false,
+      });
+
+      log(`${getDisplayName(hwid)} takes ${tag.label}`, 'system');
+      updateTiBadges();
+
+      // Temporarily override leds for pulse, bypassing syncLeds
+      const pulseLeds = ledSolid(LED_COUNT, tag.color);
+      state.boxes[hwid].leds = pulseLeds;
+      state.boxes[hwid].ledOverrideUntil = Date.now() + 800;
+      if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds: pulseLeds });
+      renderBoxes();
+      setTimeout(() => {
+        state.boxes[hwid].ledOverrideUntil = null;
+        state.ti.strategyTurnIndex++;
+        tiActivateStrategyTurn();
+        render();
+      }, 800);
+
+    } else if (state.ti.phase === 'action') {
+      // Use strategy card as primary action
+      if (hwid !== state.activeBoxId) return;
+      const player = state.ti.players[hwid];
+      const card = player.strategyCards.find(c => c.id === tag.id);
+      if (!card) {
+        log(`${getDisplayName(hwid)} doesn't have ${tag.label}`, 'error');
+        return;
+      }
+      tiUseStrategyCard(hwid, card);
+    }
+  }
+}
+
+// ---- TI Badges ----
+
+function updateTiBadges() {
+  if (state.gameMode !== 'ti') return;
+  state.boxOrder.forEach(hwid => {
+    const player = state.ti.players[hwid];
+    if (!player) return;
+    const badges = [];
+
+    // Speaker crown
+    if (hwid === state.ti.speakerHwid) {
+      badges.push({ type: 'icon', value: '👑', label: 'Speaker' });
+    }
+
+    // Strategy cards
+    player.strategyCards.forEach(card => {
+      badges.push({
+        type: 'pill',
+        value: card.label.substring(0, 4),
+        color: card.color,
+        faded: card.used,
+      });
+    });
+
+    setBoxBadges(hwid, badges);
+  });
+}
+
+// ---- Debug ----
+
+function toggleDebug() {
+  const panel = document.getElementById('debug-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function debugSkipPhase() {
+  if (!state.gameActive) {
+    log('[DEBUG] No active game', 'system');
+    return;
+  }
+
+  if (state.gameMode === 'ti') {
+    const phase = state.ti.phase;
+    log(`[DEBUG] Skipping TI phase: ${phase}`, 'system');
+    // Reset all box statuses and secondary state before jumping
+    state.boxOrder.forEach(hwid => { state.boxes[hwid].status = 'idle'; });
+    state.activeBoxId = null;
+    state.ti.secondary = null;
+
+    switch (phase) {
+      case 'strategy': tiStartActionPhase(); break;
+      case 'action':   tiStartStatusPhase(); break;
+      case 'status':
+        if (state.ti.mecatolControlled) tiStartAgendaPhase();
+        else tiEndRound();
+        break;
+      case 'agenda_reveal': tiStartAgendaWhen(); break;
+      case 'when_agenda_revealed':   tiStartAgendaAfter(); break;
+      case 'after_agenda_revealed':  tiStartAgendaVote(); break;
+      case 'agenda_vote':   tiStartStatusPhase(true); break;
+      case 'status2':       tiEndRound(); break;
+      default: log('[DEBUG] Unknown TI phase', 'system');
+    }
+  } else if (state.gameMode.startsWith('eclipse')) {
+    const phase = state.eclipse.phase;
+    log(`[DEBUG] Skipping Eclipse phase: ${phase}`, 'system');
+    switch (phase) {
+      case 'action': eclipseEndActionPhase(); break;
+      case 'combat': eclipseStartUpkeep(); break;
+      case 'upkeep': eclipseEndRound(); break;
+      default: log('[DEBUG] Unknown Eclipse phase', 'system');
+    }
+  } else {
+    log('[DEBUG] Skip not supported for this game mode', 'system');
+  }
+
+  render();
+}
 
 // ---- Init ----
 
