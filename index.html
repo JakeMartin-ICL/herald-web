@@ -63,32 +63,17 @@
             </div>
             <div id="box-positions"></div>
         </div>
-        <div id="phase-controls" style="display:none; margin-top: 0.75rem;">
-            <button onclick="advancePhase()">Advance Phase</button>
-        </div>
-        <div id="ti-undo-controls" style="display:none; margin-top: 0.75rem;">
-            <button onclick="tiUndoStrategyPick(); render()">Undo Pick</button>
-        </div>
         <div id="faction-scan-banner" style="display:none" class="faction-scan-banner">
           <span>Faction scan active — each player tap your faction tile/card on your own box</span>
           <button onclick="stopFactionScan()">Done</button>
         </div>
-        <div id="ti-game-controls" style="display:none; margin-top:0.75rem; text-align:center;">
-          <label style="font-size:0.85rem; color:#aaa;">
-            <input type="checkbox" id="ti-mecatol-active" onchange="tiMecatolActiveChanged()" />
-            Mecatol Rex controlled
-          </label>
-          <div style="margin-top:0.4rem;">
-            <label style="font-size:0.85rem; color:#aaa;">Secondary:
-              <select id="ti-secondary-mode" onchange="tiSecondaryModeChanged()" style="font-size:0.85rem;">
-                <option value="fastest">Fastest</option>
-                <option value="fast">Fast</option>
-                <option value="standard" selected>Standard</option>
-              </select>
-            </label>
-          </div>
-        </div>
         </section>
+
+      <section id="game-controls" style="display:none">
+        <h2 id="gc-mode-name"></h2>
+        <div id="gc-status"></div>
+        <div id="gc-actions"></div>
+      </section>
 
       <section id="log-section">
         <h2>Event Log <button onclick="clearLog()">Clear</button></h2>
@@ -119,6 +104,17 @@
         <button onclick="closeRfidDialog()">Cancel</button>
     </div>
     </div>
+
+  <div id="end-game-overlay" style="display:none" onclick="cancelEndGame()">
+    <div id="end-game-dialog" onclick="event.stopPropagation()">
+      <h2>End Game?</h2>
+      <p style="margin-bottom:1rem; color:#aaa;">End game and return to setup?</p>
+      <div style="display:flex; gap:0.5rem;">
+        <button onclick="endGame()" style="flex:1">Confirm</button>
+        <button onclick="cancelEndGame()" style="flex:1; background:#1a1a3e; color:#aaa;">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

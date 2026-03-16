@@ -819,49 +819,193 @@ function render() {
   syncLeds();
   renderBoxes();
   renderTableLabel();
+  renderGameControls();
 }
 
 function renderTableLabel() {
   const el = document.getElementById('table-label');
-  const phaseControls = document.getElementById('phase-controls');
-  const tiGameControls = document.getElementById('ti-game-controls');
-
   if (!state.gameActive) {
-    el.innerHTML = '';
-    phaseControls.style.display = 'none';
-    const tiUndoControls = document.getElementById('ti-undo-controls');
-    if (tiUndoControls) tiUndoControls.style.display = 'none';
-    if (tiGameControls) tiGameControls.style.display = 'none';
+    el.innerHTML = 'No game in progress';
     return;
   }
-
-  const isTi = state.gameMode === 'ti';
-  const isEclipse = state.gameMode.startsWith('eclipse');
-
-  if (isTi) {
+  if (state.gameMode === 'ti') {
     const phase = state.ti.phase || '';
-    const phaseLabel = phase.replace(/_/g, ' ').toUpperCase();
     el.innerHTML = `
       <div class="round-counter">Round ${state.ti.round}</div>
-      <div class="game-mode-label">TWILIGHT IMPERIUM${phase ? ` — ${phaseLabel}` : ''}</div>
+      <div class="game-mode-label">TI${phase ? ` — ${phase.replace(/_/g,' ').toUpperCase()}` : ''}</div>
     `;
-    const tiAdvancePhases = ['status', 'status2', 'agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'];
-    phaseControls.style.display = tiAdvancePhases.includes(phase) ? 'block' : 'none';
-    const tiUndoControls = document.getElementById('ti-undo-controls');
-    if (tiUndoControls) tiUndoControls.style.display = phase === 'strategy' ? 'block' : 'none';
-    if (tiGameControls) tiGameControls.style.display = 'block';
+  } else if (state.gameMode.startsWith('eclipse')) {
+    el.innerHTML = `
+      <div class="round-counter">Round ${state.eclipse.round} / 8</div>
+      <div class="game-mode-label">${state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE'}</div>
+    `;
   } else {
-    if (tiGameControls) tiGameControls.style.display = 'none';
-    const roundDisplay = isEclipse
-      ? `<div class="round-counter">Round ${state.eclipse.round} / 8</div>`
-      : '';
-    const phaseDisplay = state.eclipse.phase
-      ? `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()} — ${state.eclipse.phase.toUpperCase()}</div>`
-      : `<div class="game-mode-label">${state.gameMode.replace(/_/g, ' ').toUpperCase()}</div>`;
-    el.innerHTML = roundDisplay + phaseDisplay;
-    const showAdvance = ['combat', 'upkeep'].includes(state.eclipse.phase);
-    phaseControls.style.display = showAdvance ? 'block' : 'none';
+    el.innerHTML = `<div class="game-mode-label">ROUND IN PROGRESS</div>`;
   }
+}
+
+function renderGameControls() {
+  const panel = document.getElementById('game-controls');
+  if (!state.gameActive) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const modeNames = {
+    clockwise: 'Clockwise',
+    clockwise_pass: 'Clockwise with Passing',
+    eclipse_simple: 'Eclipse — Simple',
+    eclipse_advanced: 'Eclipse — Advanced',
+    ti: 'Twilight Imperium',
+  };
+  document.getElementById('gc-mode-name').textContent = modeNames[state.gameMode] || state.gameMode;
+
+  const statusEl = document.getElementById('gc-status');
+  const actionsEl = document.getElementById('gc-actions');
+  const statusLines = [];
+  const actionDefs = []; // { html, id, event, fn }
+
+  if (state.gameMode === 'ti') {
+    const phase = state.ti.phase || '';
+    const phaseNames = {
+      strategy: 'Strategy Phase',
+      action: 'Action Phase',
+      status: 'Status Phase',
+      status2: 'Status Phase II',
+      agenda_reveal: 'Agenda Phase — Reveal',
+      when_agenda_revealed: 'Agenda Phase — When',
+      after_agenda_revealed: 'Agenda Phase — After',
+      agenda_vote: 'Agenda Phase — Vote',
+    };
+    statusLines.push(`Round ${state.ti.round} · ${phaseNames[phase] || phase || '—'}`);
+    if (state.ti.speakerHwid) statusLines.push(`Speaker: ${getDisplayName(state.ti.speakerHwid)}`);
+    if (state.activeBoxId) statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
+    if (['agenda_reveal','when_agenda_revealed','after_agenda_revealed','agenda_vote'].includes(phase)) {
+      statusLines.push(`Agenda ${(state.ti.agendaCount || 0) + 1} of 2`);
+    }
+
+    const tiAdvancePhases = ['status','status2','agenda_reveal','when_agenda_revealed','after_agenda_revealed','agenda_vote'];
+    if (tiAdvancePhases.includes(phase)) {
+      actionDefs.push({ html: '<button id="gc-advance">Advance Phase</button>', id: 'gc-advance', fn: advancePhase });
+    }
+    if (phase === 'strategy') {
+      actionDefs.push({ html: '<button id="gc-undo">Undo Strategy Pick</button>', id: 'gc-undo', fn: () => { tiUndoStrategyPick(); render(); } });
+    }
+    actionDefs.push({
+      html: `<div class="gc-secondary-row">
+        <span>Secondary:</span>
+        <select id="gc-secondary">
+          <option value="fastest"${state.ti.secondaryMode === 'fastest' ? ' selected' : ''}>Fastest</option>
+          <option value="fast"${state.ti.secondaryMode === 'fast' ? ' selected' : ''}>Fast</option>
+          <option value="standard"${state.ti.secondaryMode === 'standard' ? ' selected' : ''}>Standard</option>
+        </select>
+      </div>`,
+      id: 'gc-secondary', event: 'change',
+      fn: (e) => { state.ti.secondaryMode = e.target.value; log(`Secondary mode: ${e.target.value}`, 'system'); },
+    });
+    actionDefs.push({
+      html: `<label class="gc-check-row">
+        <input type="checkbox" id="gc-mecatol"${state.ti.mecatolControlled ? ' checked' : ''}>
+        Mecatol Rex controlled
+      </label>`,
+      id: 'gc-mecatol', event: 'change',
+      fn: (e) => { state.ti.mecatolControlled = e.target.checked; log(`Mecatol ${e.target.checked ? 'controlled' : 'not controlled'}`, 'system'); },
+    });
+    if (state.factions) {
+      actionDefs.push({ html: '<button id="gc-factions">Set Factions</button>', id: 'gc-factions', fn: startFactionScan });
+    }
+
+  } else if (state.gameMode.startsWith('eclipse')) {
+    const phase = state.eclipse.phase || '';
+    const phaseLabel = phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    statusLines.push(`Round ${state.eclipse.round} / 8${phaseLabel ? ` · ${phaseLabel}` : ''}`);
+    if (state.activeBoxId) statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
+
+    // Next turn order — shown during action phase once someone has passed
+    if (phase === 'action' && state.eclipse.passOrder.length > 0) {
+      const isAdvanced = state.gameMode === 'eclipse_advanced';
+      let nextOrder;
+      if (isAdvanced) {
+        // Confirmed positions from passOrder; remaining active players are TBD
+        nextOrder = state.eclipse.passOrder.map(id => getDisplayName(id));
+        const remaining = state.boxOrder.filter(id =>
+          !state.eclipse.passOrder.includes(id) &&
+          state.boxes[id].status !== 'disconnected' &&
+          state.boxes[id].status !== 'passed'
+        );
+        if (remaining.length > 0) nextOrder.push('…');
+      } else {
+        // Simple: full clockwise order starting from first passer
+        const firstNext = state.eclipse.passOrder[0];
+        const firstIdx = state.boxOrder.indexOf(firstNext);
+        nextOrder = [
+          ...state.boxOrder.slice(firstIdx),
+          ...state.boxOrder.slice(0, firstIdx),
+        ].filter(id => state.boxes[id].status !== 'disconnected')
+         .map(id => getDisplayName(id));
+      }
+      statusLines.push(`Next order: ${nextOrder.join(' → ')}`);
+    }
+
+    if (['combat', 'upkeep'].includes(phase)) {
+      actionDefs.push({ html: '<button id="gc-advance">Advance Phase</button>', id: 'gc-advance', fn: advancePhase });
+    }
+    if (phase === 'upkeep') {
+      actionDefs.push({
+        html: `<div class="gc-swatch-row">
+          <span class="gc-swatch" style="background:#e64da0"></span>Pink
+          <span class="gc-swatch" style="background:#d4a017"></span>Yellow
+          <span class="gc-swatch" style="background:#cc7700"></span>Orange
+        </div>`,
+      });
+    }
+
+  } else {
+    // Clockwise modes
+    if (!state.activeBoxId) {
+      statusLines.push('Round over — all passed');
+      actionDefs.push({ html: '<button id="gc-new-round">New Round</button>', id: 'gc-new-round', fn: () => { clockwiseStart(); render(); } });
+    } else {
+      statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
+    }
+  }
+
+  actionDefs.push({ html: '<button class="end-game-btn" id="gc-end-game">End Game</button>', id: 'gc-end-game', fn: confirmEndGame });
+
+  statusEl.innerHTML = statusLines.map(l => `<div>${l}</div>`).join('');
+  actionsEl.innerHTML = actionDefs.map(a => a.html).join('');
+  actionDefs.forEach(({ id, event, fn }) => {
+    if (!id || !fn) return;
+    const el = actionsEl.querySelector(`#${id}`);
+    if (el) el.addEventListener(event || 'click', fn);
+  });
+}
+
+function confirmEndGame() {
+  document.getElementById('end-game-overlay').style.display = 'flex';
+}
+
+function cancelEndGame() {
+  document.getElementById('end-game-overlay').style.display = 'none';
+}
+
+function endGame() {
+  cancelEndGame();
+  state.gameActive = false;
+  state.activeBoxId = null;
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = 'idle';
+    state.boxes[hwid].badges = [];
+    state.boxes[hwid].factionId = null;
+    state.boxes[hwid].leds = null;
+  });
+  state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null, round: 0 };
+  state.ti = { ...state.ti, phase: null, round: 0, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
+  state.factionScanActive = false;
+  document.getElementById('faction-scan-banner').style.display = 'none';
+  releaseWakeLock();
+  document.getElementById('setup-panel').style.display = '';
+  log('Game ended', 'system');
+  render();
+  updateSetupUI();
 }
 
 function renderLedRing(leds) {
@@ -1410,15 +1554,6 @@ function tiMecatolChanged() {
   log(`Mecatol Rex ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
 }
 
-function tiMecatolActiveChanged() {
-  state.ti.mecatolControlled = document.getElementById('ti-mecatol-active').checked;
-  log(`Mecatol ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
-}
-
-function tiSecondaryModeChanged() {
-  state.ti.secondaryMode = document.getElementById('ti-secondary-mode').value;
-  log(`Secondary mode: ${state.ti.secondaryMode}`, 'system');
-}
 
 // ---- Wake Lock ----
 
