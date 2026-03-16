@@ -373,6 +373,10 @@ function ledOff(n) {
   return Array(n).fill('#000000');
 }
 
+function ledEveryFourth(n, color) {
+  return Array.from({ length: n }, (_, i) => i % 4 === 0 ? color : '#000000');
+}
+
 function ledRainbow(n) {
   return Array.from({ length: n }, (_, i) => {
     const hue = Math.round((i / n) * 360);
@@ -396,10 +400,14 @@ function ledSectors(n, colors) {
   });
 }
 
-function ledStateForStatus(status, box = null) {
+function ledStateForStatus(status, box = null, hwid = null) {
   switch (status) {
     case 'active':       return ledSolid(LED_COUNT, '#c9a84c');
-    case 'can-react':    return ledOff(LED_COUNT);
+    case 'can-react':
+      if (hwid && state.gameMode.startsWith('eclipse') && hwid === state.eclipse.passOrder[0]) {
+        return ledEveryFourth(LED_COUNT, '#d4a017'); // gold — first to pass, gains 2 money
+      }
+      return ledOff(LED_COUNT);
     case 'reacting':     return ledAlternate(LED_COUNT, '#3a3aff');
     case 'passed':       return ledSolid(LED_COUNT, '#1a1a3a');
     case 'combat':       return ledSolid(LED_COUNT, '#8a0000');
@@ -425,7 +433,7 @@ function syncLeds() {
     const box = state.boxes[hwid];
     if (!box || box.status === 'disconnected') return;
     if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
-    const leds = ledStateForStatus(box.status, box);
+    const leds = ledStateForStatus(box.status, box, hwid);
     box.leds = leds;
     if (!box.isVirtual) {
       sendToBox(hwid, { type: 'led', leds });
@@ -1096,7 +1104,7 @@ function renderBoxes() {
   ids.forEach((hwid, index) => {
     const box = state.boxes[hwid];
     const pos = positions[index];
-    const leds = box.leds || ledStateForStatus(box.status, box);
+    const leds = box.leds || ledStateForStatus(box.status, box, hwid);
 
     const card = document.createElement('div');
     card.className = `box-card ${box.status}`;
