@@ -52,6 +52,7 @@
         <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagLearning(buildEclipseFactionTagQueue(), 'Learn Eclipse Faction Tags')">Learn Faction Tags</button>
         <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
+        <button id="prev-stats-btn" style="display:none" onclick="openGraphOverlay('prev')">Previous game stats</button>
         <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
       </section>
 
@@ -113,6 +114,25 @@
         <button onclick="endGame()" style="flex:1">Confirm</button>
         <button onclick="cancelEndGame()" style="flex:1; background:#1a1a3e; color:#aaa;">Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <div id="graph-overlay" style="display:none" onclick="closeGraphOverlay()">
+    <div id="graph-dialog" onclick="event.stopPropagation()">
+      <div id="graph-dialog-title" style="font-size:0.85rem; color:#888; margin-bottom:-0.25rem;"></div>
+      <div id="graph-header">
+        <select id="graph-type-select" onchange="onGraphTypeChange(this.value)">
+          <option value="total">Total turn time</option>
+          <option value="longest">Longest turn</option>
+          <option value="average">Average turn time</option>
+          <option value="turns">Number of turns</option>
+          <option value="by_round">Avg turn time by round</option>
+          <option value="stats">Stats</option>
+        </select>
+        <button id="graph-sort-btn" onclick="cycleGraphSort()">Sort: Table order</button>
+      </div>
+      <div id="graph-content"></div>
+      <button onclick="closeGraphOverlay()">Close</button>
     </div>
   </div>
 
