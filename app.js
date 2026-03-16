@@ -411,7 +411,7 @@ function ledStateForStatus(status, box = null, hwid = null) {
     case 'reacting':     return ledAlternate(LED_COUNT, '#3a3aff');
     case 'passed':       return ledSolid(LED_COUNT, '#1a1a3a');
     case 'combat':       return ledSolid(LED_COUNT, '#8a0000');
-    case 'upkeep':       return ledThirds(LED_COUNT, '#ff69b4', '#ffff00', '#ffa500');
+    case 'upkeep':       return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
     case 'disconnected': return ledOff(LED_COUNT);
     case 'choosing':     return box?.choosingLeds || ledRainbow(LED_COUNT);
     case 'strategy':     return ledSolid(LED_COUNT, box?.strategyColor || '#ffffff');
@@ -433,6 +433,7 @@ function syncLeds() {
     const box = state.boxes[hwid];
     if (!box || box.status === 'disconnected') return;
     if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
+    if (box.status === 'upkeep') return; // upkeep animation manages its own LEDs
     const leds = ledStateForStatus(box.status, box, hwid);
     box.leds = leds;
     if (!box.isVirtual) {
@@ -705,6 +706,90 @@ function eclipseLongPress(hwid) {
   eclipseAdvancePhase();
 }
 
+// ---- Upkeep animation ----
+
+const UPKEEP_GOLD  = '#d4a017';
+const UPKEEP_PINK  = '#e64da0';
+const UPKEEP_BROWN = '#cc7700';
+
+function buildUpkeepFrames() {
+  const N = LED_COUNT;
+  const T = N / 3; // 8 LEDs per third
+  const OFF = '#000000';
+  const frames = [];
+
+  // 1. Brief reset
+  frames.push({ leds: Array(N).fill(OFF), duration: 100 });
+
+  // 2. Gold third fills clockwise one LED at a time
+  for (let i = 1; i <= T; i++) {
+    const leds = Array(N).fill(OFF);
+    for (let j = 0; j < i; j++) leds[j] = UPKEEP_GOLD;
+    frames.push({ leds, duration: 80 });
+  }
+
+  // 3. Pause — players do gold upkeep
+  const afterGold = Array(N).fill(OFF);
+  for (let j = 0; j < T; j++) afterGold[j] = UPKEEP_GOLD;
+  frames.push({ leds: [...afterGold], duration: 2000 });
+
+  // 4. Science (pink) fills clockwise, then materials (brown) fills clockwise
+  for (let i = 1; i <= T; i++) {
+    const leds = [...afterGold];
+    for (let j = 0; j < i; j++) leds[T + j] = UPKEEP_PINK;
+    frames.push({ leds, duration: 80 });
+  }
+  const afterPink = [...afterGold];
+  for (let j = 0; j < T; j++) afterPink[T + j] = UPKEEP_PINK;
+  for (let i = 1; i <= T; i++) {
+    const leds = [...afterPink];
+    for (let j = 0; j < i; j++) leds[T * 2 + j] = UPKEEP_BROWN;
+    frames.push({ leds, duration: 80 });
+  }
+
+  // 5. Hold full ring
+  const full = [...afterGold];
+  for (let j = 0; j < T; j++) {
+    full[T + j]     = UPKEEP_PINK;
+    full[T * 2 + j] = UPKEEP_BROWN;
+  }
+  frames.push({ leds: full, duration: 5000 });
+
+  return frames;
+}
+
+let upkeepAnimTimer = null;
+
+function startUpkeepAnimation() {
+  stopUpkeepAnimation();
+  const frames = buildUpkeepFrames();
+  let frameIndex = 0;
+
+  function tick() {
+    if (!state.gameActive || state.eclipse.phase !== 'upkeep') return;
+    const { leds, duration } = frames[frameIndex];
+    frameIndex = (frameIndex + 1) % frames.length;
+    state.boxOrder.forEach(hwid => {
+      const box = state.boxes[hwid];
+      if (box?.status === 'upkeep') {
+        box.leds = leds;
+        if (!box.isVirtual) sendToBox(hwid, { type: 'led', leds });
+      }
+    });
+    renderBoxes();
+    upkeepAnimTimer = setTimeout(tick, duration);
+  }
+
+  tick();
+}
+
+function stopUpkeepAnimation() {
+  if (upkeepAnimTimer !== null) {
+    clearTimeout(upkeepAnimTimer);
+    upkeepAnimTimer = null;
+  }
+}
+
 function eclipseStartUpkeep() {
   log('Upkeep phase', 'system');
   state.eclipse.phase = 'upkeep';
@@ -713,9 +798,11 @@ function eclipseStartUpkeep() {
       state.boxes[id].status = 'upkeep';
     }
   });
+  startUpkeepAnimation();
 }
 
 function eclipseEndRound() {
+  stopUpkeepAnimation();
   state.eclipse.round++;
 
   if (state.eclipse.round > 8) {
@@ -959,9 +1046,9 @@ function renderGameControls() {
     if (phase === 'upkeep') {
       actionDefs.push({
         html: `<div class="gc-swatch-row">
-          <span class="gc-swatch" style="background:#e64da0"></span>Pink
-          <span class="gc-swatch" style="background:#d4a017"></span>Yellow
-          <span class="gc-swatch" style="background:#cc7700"></span>Orange
+          <span class="gc-swatch" style="background:${UPKEEP_GOLD}"></span>Money
+          <span class="gc-swatch" style="background:${UPKEEP_PINK}"></span>Science
+          <span class="gc-swatch" style="background:${UPKEEP_BROWN}"></span>Materials
         </div>`,
       });
     }
