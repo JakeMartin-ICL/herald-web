@@ -1,6 +1,7 @@
 // ---- Constants ----
 
-const VIRTUAL_BOX_ID_OFFSET = 100;
+const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
+const RECONNECT_INTERVAL_MS = 5000;
 
 // ---- State ----
 
@@ -8,24 +9,52 @@ const state = {
   connected: false,
   gameActive: false,
   gameMode: 'clockwise',
-  boxes: {},
-  boxOrder: [],        // seat order, fixed for the session
+  boxes: {},        // keyed by hwid
+  boxOrder: [],     // hwiDs in seat order
   activeBoxId: null,
-  nextVirtualId: VIRTUAL_BOX_ID_OFFSET,
+  nextVirtualIndex: 0,
+  hubHwid: null,
+
+  // Box display names — persisted in localStorage
+  // hwid -> { name }
+  boxNames: JSON.parse(localStorage.getItem('herald-box-names') || '{}'),
 
   // Eclipse state
   eclipse: {
-    phase: null,       // 'action', 'combat', 'upkeep', 'end'
-    passOrder: [],     // box ids in the order they entered can-react
-    turnOrder: [],     // derived each round: seat order starting from first player
+    phase: null,
+    passOrder: [],
+    turnOrder: [],
     firstPlayerId: null,
     round: 0,
   },
 };
 
+// ---- Box name persistence ----
+
+function saveBoxNames() {
+  localStorage.setItem('herald-box-names', JSON.stringify(state.boxNames));
+}
+
+function getBoxName(hwid) {
+  return state.boxNames[hwid]?.name || null;
+}
+
+function setBoxName(hwid, name) {
+  if (!state.boxNames[hwid]) state.boxNames[hwid] = {};
+  state.boxNames[hwid].name = name;
+  saveBoxNames();
+}
+
+function defaultBoxName(hwid) {
+  // Generate default name based on seat position
+  const index = state.boxOrder.indexOf(hwid);
+  return `Player ${index + 1}`;
+}
+
 // ---- WebSocket ----
 
 let ws = null;
+let reconnectTimer = null;
 
 function toggleConnect() {
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -44,6 +73,10 @@ function connect() {
 
   ws.onopen = () => {
     send({ type: 'hello', client: 'app' });
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
   };
 
   ws.onmessage = (event) => {
@@ -62,10 +95,26 @@ function connect() {
     document.getElementById('connect-btn').textContent = 'Connect';
     ws = null;
     render();
+    scheduleReconnect();
   };
 }
 
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      log('Attempting reconnect...', 'system');
+      connect();
+    }
+  }, RECONNECT_INTERVAL_MS);
+}
+
 function disconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (ws) ws.close();
 }
 
@@ -76,11 +125,12 @@ function send(msg) {
   }
 }
 
-function sendToBox(boxId, msg) {
-  if (boxId >= VIRTUAL_BOX_ID_OFFSET) {
-    return; // virtual boxes derive state from status, no message needed
+function sendToBox(hwid, msg) {
+  if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
+    handleBoxCommand(hwid, msg);
+    return;
   }
-  send({ ...msg, box: boxId });
+  send({ ...msg, hwid });
 }
 
 // ---- Message handling ----
@@ -95,56 +145,96 @@ function handleMessage(msg) {
       setStatus('connected');
       log('Connected to hub', 'system');
       document.getElementById('connect-btn').textContent = 'Disconnect';
+      // Resync LED state if game is active
+      if (state.gameActive) {
+        syncLeds();
+      }
       break;
     case 'connected':
-      addBox(msg.box, false);
+      addBox(msg.hwid, false);
       break;
     case 'disconnected':
-      removeBox(msg.box);
+      handleBoxDisconnect(msg.hwid);
       break;
     case 'endturn':
-      handleEndTurn(msg.box);
+      handleEndTurn(msg.hwid);
       break;
     case 'pass':
-      handlePass(msg.box);
+      handlePass(msg.hwid);
       break;
     case 'longpress':
-      handleLongPress(msg.box);
+      handleLongPress(msg.hwid);
       break;
   }
 
   render();
 }
 
+// ---- Box command handler (virtual boxes) ----
+
+function handleBoxCommand(hwid, msg) {
+  // Virtual boxes derive appearance from status, nothing to do here
+}
+
 // ---- Box management ----
 
-function addBox(id, isVirtual) {
-  if (state.boxes[id]) return;
+function addBox(hwid, isVirtual) {
+  console.log('addBox called', hwid, 'existing:', !!state.boxes[hwid], 'boxOrder:', state.boxOrder);
+  if (state.boxes[hwid]) {
+    // Box reconnected — update status
+    state.boxes[hwid].status = 'idle';
+    log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
+    // Resync its LED if game active
+    if (state.gameActive) syncLeds();
+    updateSetupUI();
+    render();
+    return;
+  }
 
-  state.boxes[id] = {
-    id,
+  if (!isVirtual && !state.hubHwid) {
+    state.hubHwid = hwid;
+    log(`Hub identified: ${getDisplayName(hwid)}`, 'system');
+  }
+
+  // Assign default name if not previously seen
+  const seatIndex = state.boxOrder.length;
+  if (!getBoxName(hwid)) {
+    setBoxName(hwid, `Player ${seatIndex + 1}`);
+  }
+
+  state.boxes[hwid] = {
+    hwid,
     isVirtual,
-    name: `Player ${Object.keys(state.boxes).length + 1}`,
     status: 'idle',
   };
-  state.boxOrder.push(id);
-  log(`${isVirtual ? 'Virtual box' : 'Box'} ${id} connected`, 'system');
+  state.boxOrder.push(hwid);
+  log(`${isVirtual ? 'Virtual box' : 'Box'} ${getDisplayName(hwid)} connected`, 'system');
   updateSetupUI();
   render();
 }
 
-function removeBox(id) {
-  if (!state.boxes[id]) return;
-  delete state.boxes[id];
-  state.boxOrder = state.boxOrder.filter(b => b !== id);
-  if (state.activeBoxId === id) state.activeBoxId = null;
-  log(`Box ${id} disconnected`, 'system');
+function handleBoxDisconnect(hwid) {
+  if (!state.boxes[hwid]) return;
+  state.boxes[hwid].status = 'disconnected';
+  log(`Box ${getDisplayName(hwid)} disconnected`, 'system');
   updateSetupUI();
-  render();
+}
+
+function removeBox(hwid) {
+  if (!state.boxes[hwid]) return;
+  delete state.boxes[hwid];
+  state.boxOrder = state.boxOrder.filter(b => b !== hwid);
+  if (state.activeBoxId === hwid) state.activeBoxId = null;
+  updateSetupUI();
 }
 
 function addVirtualBox() {
-  addBox(state.nextVirtualId++, true);
+  const hwid = `${VIRTUAL_BOX_ID_OFFSET}${state.nextVirtualIndex++}`;
+  addBox(hwid, true);
+}
+
+function getDisplayName(hwid) {
+  return getBoxName(hwid) || defaultBoxName(hwid);
 }
 
 // ---- Setup UI ----
@@ -164,24 +254,23 @@ function updateSetupUI() {
   document.getElementById('start-btn').disabled =
     count < 2 || state.gameActive;
 
-  // Show first player picker for Eclipse
   const firstPlayerRow = document.getElementById('first-player-row');
   firstPlayerRow.style.display = isEclipse ? 'flex' : 'none';
 
-  // Show reaction card option for Eclipse
   const eclipseModeRow = document.getElementById('eclipse-mode-row');
   eclipseModeRow.style.display = isEclipse ? 'flex' : 'none';
 
-  // Populate first player dropdown
   if (isEclipse) {
     const select = document.getElementById('first-player');
-    select.innerHTML = state.boxOrder.map(id =>
-      `<option value="${id}">${state.boxes[id].name} (Box ${id})</option>`
+    select.innerHTML = state.boxOrder.map(hwid =>
+      `<option value="${hwid}">${getDisplayName(hwid)}</option>`
     ).join('');
   }
 }
 
-// ---- LED array helpers ----
+// ---- LED helpers ----
+
+const LED_COUNT = 24;
 
 function ledSolid(n, color) {
   return Array(n).fill(color);
@@ -198,6 +287,10 @@ function ledThirds(n, a, b, c) {
   });
 }
 
+function ledOff(n) {
+  return Array(n).fill('#000000');
+}
+
 function ledRainbow(n) {
   return Array.from({ length: n }, (_, i) => {
     const hue = Math.round((i / n) * 360);
@@ -205,35 +298,27 @@ function ledRainbow(n) {
   });
 }
 
-function ledOff(n) {
-  return Array(n).fill('#000000');
-}
-
-// ---- LED state derivation ----
-
-const LED_COUNT = 12;
-
 function ledStateForStatus(status) {
   switch (status) {
-    case 'active':    return ledSolid(LED_COUNT, '#c9a84c');
-    case 'can-react': return ledOff(LED_COUNT);
-    case 'reacting':  return ledAlternate(LED_COUNT, '#3a3aff');
-    case 'passed':    return ledSolid(LED_COUNT, '#1a1a3a');
-    case 'combat':    return ledSolid(LED_COUNT, '#8a0000');
-    case 'upkeep':    return ledThirds(LED_COUNT, '#ff69b4', '#ffff00', '#ffa500');
-    default:          return state.gameActive ? ledOff(LED_COUNT) : ledRainbow(LED_COUNT);
+    case 'active':       return ledSolid(LED_COUNT, '#c9a84c');
+    case 'can-react':    return ledOff(LED_COUNT);
+    case 'reacting':     return ledAlternate(LED_COUNT, '#3a3aff');
+    case 'passed':       return ledSolid(LED_COUNT, '#1a1a3a');
+    case 'combat':       return ledSolid(LED_COUNT, '#8a0000');
+    case 'upkeep':       return ledThirds(LED_COUNT, '#ff69b4', '#ffff00', '#ffa500');
+    case 'disconnected': return ledOff(LED_COUNT);
+    default:             return state.gameActive ? ledOff(LED_COUNT) : ledRainbow(LED_COUNT);
   }
 }
 
-// ---- LED sync ----
-
 function syncLeds() {
-  state.boxOrder.forEach(id => {
-    const box = state.boxes[id];
+  state.boxOrder.forEach(hwid => {
+    const box = state.boxes[hwid];
+    if (!box || box.status === 'disconnected') return;
     const leds = ledStateForStatus(box.status);
     box.leds = leds;
     if (!box.isVirtual) {
-      sendToBox(id, { type: 'led', leds });
+      sendToBox(hwid, { type: 'led', leds });
     }
   });
 }
@@ -243,8 +328,8 @@ function syncLeds() {
 function startGame() {
   state.gameActive = true;
   state.gameMode = document.getElementById('game-mode').value;
-  state.boxOrder.forEach(id => {
-    state.boxes[id].status = 'idle';
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = 'idle';
   });
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
   gameModeStart();
@@ -264,39 +349,41 @@ function gameModeStart() {
   }
 }
 
-function handleEndTurn(boxId) {
+function handleEndTurn(hwid) {
   if (!state.gameActive) return;
+  if (state.boxes[hwid]?.status === 'disconnected') return;
   switch (state.gameMode) {
     case 'clockwise':
     case 'clockwise_pass':
-      clockwiseEndTurn(boxId);
+      clockwiseEndTurn(hwid);
       break;
     case 'eclipse_simple':
     case 'eclipse_advanced':
-      eclipseEndTurn(boxId);
+      eclipseEndTurn(hwid);
       break;
   }
 }
 
-function handlePass(boxId) {
+function handlePass(hwid) {
   if (!state.gameActive) return;
+  if (state.boxes[hwid]?.status === 'disconnected') return;
   switch (state.gameMode) {
     case 'clockwise_pass':
-      clockwisePass(boxId);
+      clockwisePass(hwid);
       break;
     case 'eclipse_simple':
     case 'eclipse_advanced':
-      eclipsePass(boxId);
+      eclipsePass(hwid);
       break;
   }
 }
 
-function handleLongPress(boxId) {
+function handleLongPress(hwid) {
   if (!state.gameActive) return;
   switch (state.gameMode) {
     case 'eclipse_simple':
     case 'eclipse_advanced':
-      eclipseLongPress(boxId);
+      eclipseLongPress(hwid);
       break;
   }
 }
@@ -307,7 +394,7 @@ function clockwiseStart() {
   const firstId = state.boxOrder[0];
   state.activeBoxId = firstId;
   state.boxes[firstId].status = 'active';
-  log(`Box ${firstId} goes first`, 'system');
+  log(`Box ${getDisplayName(firstId)} goes first`, 'system');
 }
 
 function clockwiseNextPlayer() {
@@ -315,34 +402,36 @@ function clockwiseNextPlayer() {
   for (let i = 1; i <= state.boxOrder.length; i++) {
     const nextIndex = (currentIndex + i) % state.boxOrder.length;
     const nextId = state.boxOrder[nextIndex];
-    if (state.boxes[nextId].status !== 'passed') {
+    const status = state.boxes[nextId].status;
+    if (status !== 'passed' && status !== 'disconnected') {
       if (state.boxes[state.activeBoxId].status !== 'passed') {
         state.boxes[state.activeBoxId].status = 'idle';
       }
       state.activeBoxId = nextId;
       state.boxes[nextId].status = 'active';
-      log(`Box ${nextId}'s turn`, 'system');
+      log(`${getDisplayName(nextId)}'s turn`, 'system');
       return;
     }
   }
   clockwiseEndRound();
 }
 
-function clockwiseEndTurn(boxId) {
-  if (boxId !== state.activeBoxId) return;
+function clockwiseEndTurn(hwid) {
+  if (hwid !== state.activeBoxId) return;
   clockwiseNextPlayer();
 }
 
-function clockwisePass(boxId) {
-  if (boxId !== state.activeBoxId) return;
-  state.boxes[boxId].status = 'passed';
-  log(`Box ${boxId} passed`, 'system');
+function clockwisePass(hwid) {
+  if (hwid !== state.activeBoxId) return;
+  state.boxes[hwid].status = 'passed';
+  log(`${getDisplayName(hwid)} passed`, 'system');
 
-  const allPassed = state.boxOrder.every(
-    id => state.boxes[id].status === 'passed'
+  const allDone = state.boxOrder.every(id =>
+    state.boxes[id].status === 'passed' ||
+    state.boxes[id].status === 'disconnected'
   );
 
-  if (allPassed) {
+  if (allDone) {
     clockwiseEndRound();
   } else {
     clockwiseNextPlayer();
@@ -352,7 +441,9 @@ function clockwisePass(boxId) {
 function clockwiseEndRound() {
   log('Round over — all players passed', 'system');
   state.boxOrder.forEach(id => {
-    state.boxes[id].status = 'idle';
+    if (state.boxes[id].status !== 'disconnected') {
+      state.boxes[id].status = 'idle';
+    }
   });
   state.activeBoxId = null;
 }
@@ -360,32 +451,29 @@ function clockwiseEndRound() {
 // ---- Eclipse mode ----
 
 function eclipseStart() {
-  const firstPlayerId = parseInt(document.getElementById('first-player').value);
+  const firstPlayerId = document.getElementById('first-player').value;
   state.eclipse.firstPlayerId = firstPlayerId;
   state.eclipse.passOrder = [];
   state.eclipse.phase = 'action';
   state.eclipse.round = 1;
   eclipseBuildTurnOrder(firstPlayerId);
   eclipseActivateNext();
-  log(`Eclipse started — Box ${firstPlayerId} goes first`, 'system');
+  log(`Eclipse started — ${getDisplayName(firstPlayerId)} goes first`, 'system');
 }
 
 function eclipseBuildTurnOrder(firstPlayerId) {
   if (state.gameMode === 'eclipse_advanced' && state.eclipse.passOrder.length > 0) {
-    // Advanced: turn order IS the pass order
     state.eclipse.turnOrder = [...state.eclipse.passOrder];
   } else {
-    // Simple (or first round of Advanced): clockwise from first player by seat
     const firstIndex = state.boxOrder.indexOf(firstPlayerId);
     state.eclipse.turnOrder = [
       ...state.boxOrder.slice(firstIndex),
       ...state.boxOrder.slice(0, firstIndex),
-    ];
+    ].filter(id => state.boxes[id].status !== 'disconnected');
   }
 }
 
 function eclipseActivateNext() {
-  // Find next active or can-react player in turn order
   const current = state.activeBoxId;
   const order = state.eclipse.turnOrder;
   const currentIndex = current !== null ? order.indexOf(current) : -1;
@@ -393,70 +481,63 @@ function eclipseActivateNext() {
   for (let i = 1; i <= order.length; i++) {
     const nextIndex = (currentIndex + i) % order.length;
     const nextId = order[nextIndex];
-    const status = state.boxes[nextId].status;
+    const status = state.boxes[nextId]?.status;
 
     if (status === 'idle') {
-      // Normal active turn
-      if (current !== null && state.boxes[current].status === 'idle') {
+      if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
       state.activeBoxId = nextId;
       state.boxes[nextId].status = 'active';
-      log(`Box ${nextId}'s turn`, 'system');
+      log(`${getDisplayName(nextId)}'s turn`, 'system');
       return;
     }
 
     if (status === 'can-react') {
-      // Reaction opportunity
-      if (current !== null && state.boxes[current].status === 'idle') {
+      if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
       state.activeBoxId = nextId;
       state.boxes[nextId].status = 'reacting';
-      log(`Box ${nextId} reaction opportunity`, 'system');
+      log(`${getDisplayName(nextId)} reaction opportunity`, 'system');
       return;
     }
   }
 
-  // No idle or can-react players found — action phase over
   eclipseEndActionPhase();
 }
 
-function eclipseEndTurn(boxId) {
-  if (boxId !== state.activeBoxId) return;
-  const box = state.boxes[boxId];
+function eclipseEndTurn(hwid) {
+  if (hwid !== state.activeBoxId) return;
+  const box = state.boxes[hwid];
 
   if (box.status === 'reacting') {
-    // Done with reaction, return to can-react
     box.status = 'can-react';
-    log(`Box ${boxId} reaction done`, 'system');
+    log(`${getDisplayName(hwid)} reaction done`, 'system');
   } else {
-    // Normal end turn
     box.status = 'idle';
   }
 
   eclipseActivateNext();
 }
 
-function eclipsePass(boxId) {
-  if (boxId !== state.activeBoxId) return;
-  const box = state.boxes[boxId];
+function eclipsePass(hwid) {
+  if (hwid !== state.activeBoxId) return;
+  const box = state.boxes[hwid];
 
   if (box.status === 'reacting') {
-    // Player opts out of reactions permanently
     box.status = 'passed';
-    log(`Box ${boxId} opts out of reactions`, 'system');
+    log(`${getDisplayName(hwid)} opts out of reactions`, 'system');
   } else if (box.status === 'active') {
-    // Player passes their action turn
     box.status = 'can-react';
-    state.eclipse.passOrder.push(boxId);
-    log(`Box ${boxId} passes — enters can-react`, 'system');
+    state.eclipse.passOrder.push(hwid);
+    log(`${getDisplayName(hwid)} passes`, 'system');
   }
 
-  // Check if action phase is over
-  const actionOver = state.boxOrder.every(
-    id => state.boxes[id].status === 'can-react' ||
-          state.boxes[id].status === 'passed'
+  const actionOver = state.boxOrder.every(id =>
+    state.boxes[id].status === 'can-react' ||
+    state.boxes[id].status === 'passed' ||
+    state.boxes[id].status === 'disconnected'
   );
 
   if (actionOver) {
@@ -471,16 +552,14 @@ function eclipseEndActionPhase() {
   state.eclipse.phase = 'combat';
   state.activeBoxId = null;
   state.boxOrder.forEach(id => {
-    state.boxes[id].status = 'combat';
+    if (state.boxes[id].status !== 'disconnected') {
+      state.boxes[id].status = 'combat';
+    }
   });
-  // Pulse red — placeholder until LED ring hardware arrives
-  // For now just set all to combat status and show in UI
 }
 
-function eclipseLongPress(boxId) {
-  // Only hub (box 0) long press advances phases
-  if (boxId !== 0) return;
-
+function eclipseLongPress(hwid) {
+  if (hwid !== state.hubHwid) return;
   switch (state.eclipse.phase) {
     case 'combat':
       eclipseStartUpkeep();
@@ -495,7 +574,9 @@ function eclipseStartUpkeep() {
   log('Upkeep phase', 'system');
   state.eclipse.phase = 'upkeep';
   state.boxOrder.forEach(id => {
-    state.boxes[id].status = 'upkeep';
+    if (state.boxes[id].status !== 'disconnected') {
+      state.boxes[id].status = 'upkeep';
+    }
   });
 }
 
@@ -523,7 +604,9 @@ function eclipseEndRound() {
     : state.eclipse.firstPlayerId;
 
   state.boxOrder.forEach(id => {
-    state.boxes[id].status = 'idle';
+    if (state.boxes[id].status !== 'disconnected') {
+      state.boxes[id].status = 'idle';
+    }
   });
 
   state.activeBoxId = null;
@@ -531,19 +614,14 @@ function eclipseEndRound() {
   eclipseBuildTurnOrder(nextFirst);
   state.eclipse.passOrder = [];
   eclipseActivateNext();
-  log(`New round — Box ${nextFirst} goes first`, 'system');
+  log(`New round — ${getDisplayName(nextFirst)} goes first`, 'system');
 }
 
 // ---- Simulator ----
 
-function simulateButton(boxId, type) {
-  log(`[SIM] Box ${boxId} pressed ${type}`, 'system');
-  handleMessage({ type, box: boxId });
-}
-
-function advancePhase() {
-  handleLongPress(0);
-  render();
+function simulateButton(hwid, type) {
+  log(`[SIM] ${getDisplayName(hwid)} pressed ${type}`, 'system');
+  handleMessage({ type, hwid });
 }
 
 // ---- Table rendering ----
@@ -589,41 +667,6 @@ function renderTableLabel() {
   phaseControls.style.display = showAdvance ? 'block' : 'none';
 }
 
-function renderBoxes() {
-  const container = document.getElementById('box-positions');
-  container.innerHTML = '';
-
-  const ids = state.boxOrder;
-  if (ids.length === 0) return;
-
-  const positions = getBoxPositions(ids.length);
-
-  ids.forEach((id, index) => {
-    const box = state.boxes[id];
-    const pos = positions[index];
-
-    const card = document.createElement('div');
-    card.className = `box-card ${box.status}`;
-    card.style.left = `${pos.x}%`;
-    card.style.top = `${pos.y}%`;
-
-    card.innerHTML = `
-      ${box.isVirtual ? '<div class="box-virtual">SIM</div>' : ''}
-      <div class="box-name">${box.name}</div>
-      ${renderLedRing(box.leds || ledOff(LED_COUNT))}
-      <div class="box-id">Box ${id}</div>
-      <div class="box-status">${box.status}</div>
-      <div class="box-buttons">
-        <button class="box-btn" onclick="simulateButton(${id}, 'endturn')">End</button>
-        <button class="box-btn" onclick="simulateButton(${id}, 'pass')">Pass</button>
-        <button class="box-btn" onclick="simulateButton(${id}, 'longpress')">Long</button>
-      </div>
-    `;
-
-    container.appendChild(card);
-  });
-}
-
 function renderLedRing(leds) {
   const size = 44;
   const cx = size / 2;
@@ -637,25 +680,51 @@ function renderLedRing(leds) {
     const x = cx + radius * Math.cos(angle);
     const y = cy + radius * Math.sin(angle);
     const isOn = color !== '#000000';
-    const glow = isOn
-      ? `filter: drop-shadow(0 0 2px ${color});`
-      : '';
-    return `<circle
-      cx="${x.toFixed(2)}"
-      cy="${y.toFixed(2)}"
-      r="${dotRadius}"
-      fill="${color}"
-      style="${glow}"
-    />`;
+    const glow = isOn ? `filter: drop-shadow(0 0 2px ${color});` : '';
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${dotRadius}"
+      fill="${color}" style="${glow}"/>`;
   }).join('');
 
-  return `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${cx}" cy="${cy}" r="${radius + dotRadius + 1}"
-        fill="none" stroke="#222" stroke-width="1"/>
-      ${dots}
-    </svg>
-  `;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${radius + dotRadius + 1}"
+      fill="none" stroke="#222" stroke-width="1"/>
+    ${dots}
+  </svg>`;
+}
+
+function renderBoxes() {
+  const container = document.getElementById('box-positions');
+  container.innerHTML = '';
+
+  const ids = state.boxOrder;
+  if (ids.length === 0) return;
+
+  const positions = getBoxPositions(ids.length);
+
+  ids.forEach((hwid, index) => {
+    const box = state.boxes[hwid];
+    const pos = positions[index];
+    const leds = box.leds || ledStateForStatus(box.status);
+
+    const card = document.createElement('div');
+    card.className = `box-card ${box.status}`;
+    card.style.left = `${pos.x}%`;
+    card.style.top = `${pos.y}%`;
+
+    card.innerHTML = `
+      ${box.isVirtual ? '<div class="box-virtual">SIM</div>' : ''}
+      <div class="box-name">${getDisplayName(hwid)}</div>
+      ${renderLedRing(leds)}
+      <div class="box-status">${box.status}</div>
+      <div class="box-buttons">
+        <button class="box-btn" onclick="simulateButton('${hwid}', 'endturn')">End</button>
+        <button class="box-btn" onclick="simulateButton('${hwid}', 'pass')">Pass</button>
+        <button class="box-btn" onclick="simulateButton('${hwid}', 'longpress')">Long</button>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
 }
 
 // ---- Log ----
@@ -682,6 +751,46 @@ function setStatus(status) {
   el.className = `status ${status}`;
   el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
 }
+
+// ---- Phase advance ----
+
+function advancePhase() {
+  handleLongPress(state.hubHwid || state.boxOrder[0]);
+  render();
+}
+
+// ---- Wake Lock ----
+
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      log('Screen wake lock active', 'system');
+      wakeLock.addEventListener('release', () => {
+        log('Screen wake lock released', 'system');
+      });
+    } catch (err) {
+      log(`Wake lock failed: ${err.message}`, 'error');
+    }
+  } else {
+    log('Wake lock not supported on this device', 'error');
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+  }
+}
+
+document.addEventListener('visibilitychange', async () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    await requestWakeLock();
+  }
+});
 
 // ---- Init ----
 
