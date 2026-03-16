@@ -47,9 +47,10 @@
             <label>Speaker</label>
             <select id="ti-speaker"></select>
             </div>
-        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning()">
-        Learn Tags
-        </button>
+        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning(buildTiTagQueue(), 'Learn TI Strategy Tags')">Learn Strategy Tags</button>
+        <button id="ti-learn-faction-tags-btn" style="display:none" onclick="startTagLearning(buildTiFactionTagQueue(), 'Learn TI Faction Tags')">Learn Faction Tags</button>
+        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagLearning(buildEclipseFactionTagQueue(), 'Learn Eclipse Faction Tags')">Learn Faction Tags</button>
+        <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
         <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
       </section>
@@ -67,6 +68,10 @@
         </div>
         <div id="ti-undo-controls" style="display:none; margin-top: 0.75rem;">
             <button onclick="tiUndoStrategyPick(); render()">Undo Pick</button>
+        </div>
+        <div id="faction-scan-banner" style="display:none" class="faction-scan-banner">
+          <span>Faction scan active — each player tap your faction tile/card on your own box</span>
+          <button onclick="stopFactionScan()">Done</button>
         </div>
         <div id="ti-game-controls" style="display:none; margin-top:0.75rem; text-align:center;">
           <label style="font-size:0.85rem; color:#aaa;">
@@ -100,7 +105,7 @@
   </div>
     <div id="tag-learning-overlay" style="display:none">
     <div id="tag-learning-modal">
-        <h2>Learn Tags</h2>
+        <h2 id="tag-learning-title">Learn Tags</h2>
         <div id="tag-learning-prompt"></div>
         <div id="tag-learning-status"></div>
         <button onclick="simulateTagTap()">Simulate Tap</button>

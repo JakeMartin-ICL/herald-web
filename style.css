@@ -191,10 +191,10 @@ select {
 
 .box-card {
   position: absolute;
-  width: 80px;
+  width: 110px;
   transform: translate(-50%, -50%);
   background: #0f3460;
-  border: 2px solid #334;
+  border: 6px solid var(--faction-color, #334);
   border-radius: 8px;
   padding: 0.4rem;
   text-align: center;
@@ -220,6 +220,19 @@ select {
 .box-card.choosing    { border-color: #888; background: #1a1a2e; }
 .box-card.upkeep      { border-color: #8a6a1a; background: #2a1a0a; }
 
+.drag-handle {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 0.7rem;
+  color: #446;
+  cursor: grab;
+  user-select: none;
+}
+
+.box-card.dragging  { opacity: 0.4; border-style: dashed; }
+.box-card.drag-over { border-color: #c9a84c !important; box-shadow: 0 0 8px #c9a84c44; }
+
 .box-virtual {
   font-size: 0.6rem;
   color: #888;
@@ -235,6 +248,15 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
+}
+
+.box-faction-subtitle {
+  font-size: 0.65rem;
+  margin-top: -0.1rem;
+  margin-bottom: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .box-name-input {
@@ -477,4 +499,17 @@ select {
 .rfid-option:hover {
   background: #1a4a7a;
   border-color: #c9a84c;
+}
+
+.faction-scan-banner {
+  background: #1a3a1a;
+  border: 1px solid #70c070;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #70c070;
 }

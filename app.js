@@ -19,6 +19,16 @@ const state = {
   // hwid -> { name }
   boxNames: JSON.parse(localStorage.getItem('herald-box-names') || '{}'),
 
+  // Unified tag map — persisted in localStorage
+  // physicalTagId -> internalId (e.g. 'ti:strategy:leadership')
+  tagMap: JSON.parse(localStorage.getItem('herald-tag-map') || '{}'),
+
+  // Faction data loaded from factions.json
+  factions: null,
+
+  // Whether faction scan mode is active
+  factionScanActive: false,
+
   // Eclipse state
   eclipse: {
     phase: null,
@@ -44,10 +54,6 @@ const state = {
   //   passed: false,
   //   confirmedSecondary: false,
   // }
-
-  // Tag mappings — persisted in localStorage
-  // tagId -> { type: 'strategy'|'speaker'|'homesystem', id, label, color, initiative }
-  tagMap: JSON.parse(localStorage.getItem('herald-ti-tags') || '{}'),
 
   // Active secondary state
   secondary: null,
@@ -82,8 +88,16 @@ function defaultBoxName(hwid) {
   return `Player ${index + 1}`;
 }
 
-function saveTiTags() {
-  localStorage.setItem('herald-ti-tags', JSON.stringify(state.ti.tagMap));
+function saveTagMap() {
+  const persisted = {};
+  Object.entries(state.tagMap).forEach(([k, v]) => {
+    if (!k.startsWith('sim:')) persisted[k] = v;
+  });
+  localStorage.setItem('herald-tag-map', JSON.stringify(persisted));
+}
+
+function resolveTag(physicalId) {
+  return state.tagMap[physicalId] || null;
 }
 
 // ---- WebSocket ----
@@ -244,6 +258,7 @@ function addBox(hwid, isVirtual) {
     hwid,
     isVirtual,
     status: 'idle',
+    factionId: null,
   };
   state.boxOrder.push(hwid);
   log(`${isVirtual ? 'Virtual box' : 'Box'} ${getDisplayName(hwid)} connected`, 'system');
@@ -307,18 +322,31 @@ function updateSetupUI() {
   document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';
   document.getElementById('ti-learn-tags-btn').style.display = isTi ? 'block' : 'none';
 
+  // Faction buttons — only shown when factions.json is loaded
+  const factionsLoaded = !!state.factions;
+  document.getElementById('ti-learn-faction-tags-btn').style.display =
+    (isTi && factionsLoaded) ? 'block' : 'none';
+  document.getElementById('eclipse-learn-faction-tags-btn').style.display =
+    (isEclipse && factionsLoaded) ? 'block' : 'none';
+  document.getElementById('set-factions-btn').style.display =
+    ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
+
   if (isEclipse) {
     const select = document.getElementById('first-player');
-    select.innerHTML = state.boxOrder.map(hwid =>
-      `<option value="${hwid}">${getDisplayName(hwid)}</option>`
-    ).join('');
+    select.innerHTML = state.boxOrder.map(hwid => {
+      const faction = state.factions ? getFactionForBox(hwid) : null;
+      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
+      return `<option value="${hwid}">${label}</option>`;
+    }).join('');
   }
 
   if (isTi) {
     const select = document.getElementById('ti-speaker');
-    select.innerHTML = state.boxOrder.map(hwid =>
-      `<option value="${hwid}">${getDisplayName(hwid)}</option>`
-    ).join('');
+    select.innerHTML = state.boxOrder.map(hwid => {
+      const faction = state.factions ? getFactionForBox(hwid) : null;
+      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
+      return `<option value="${hwid}">${label}</option>`;
+    }).join('');
   }
 }
 
@@ -391,6 +419,7 @@ function ledStateForStatus(status, box = null) {
 }
 
 function syncLeds() {
+  if (state.factionScanActive) return; // faction scan manages its own LEDs
   const now = Date.now();
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
@@ -413,6 +442,7 @@ function startGame() {
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
     state.boxes[hwid].badges = [];
+    state.boxes[hwid].factionId = null;
   });
   requestWakeLock();
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
@@ -555,6 +585,7 @@ function eclipseStart() {
   eclipseBuildTurnOrder(firstPlayerId);
   eclipseActivateNext();
   log(`Eclipse started — ${getDisplayName(firstPlayerId)} goes first`, 'system');
+  updateEclipseBadges();
 }
 
 function eclipseBuildTurnOrder(firstPlayerId) {
@@ -685,6 +716,7 @@ function eclipseEndRound() {
     state.eclipse.phase = null;
     state.boxOrder.forEach(id => {
       state.boxes[id].status = 'idle';
+      state.boxes[id].factionId = null;
     });
     state.activeBoxId = null;
     document.getElementById('start-btn').disabled = false;
@@ -711,6 +743,7 @@ function eclipseEndRound() {
   state.eclipse.passOrder = [];
   eclipseActivateNext();
   log(`New round — ${getDisplayName(nextFirst)} goes first`, 'system');
+  updateEclipseBadges();
 }
 
 // ---- Simulator ----
@@ -721,20 +754,35 @@ function simulateButton(hwid, type) {
 }
 
 function getSimRfidOptions() {
-  const mode = state.gameMode;
-  if (mode === 'ti') {
-    return Object.entries(state.ti.tagMap).map(([tagId, info]) => ({
-      id: tagId,
-      label: info.label,
+  if (state.factionScanActive) {
+    // During faction scan, return factions for current game mode
+    if (!state.factions) return [];
+    const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
+    const factions = state.factions[gameKey] || [];
+    return factions.map(f => ({
+      id: `sim:${state.gameMode === 'ti' ? 'ti' : 'eclipse'}:faction:${f.id}`,
+      label: f.name,
     }));
   }
-  if (mode.startsWith('eclipse')) {
-    return Object.entries(state.eclipse?.tagMap || {}).map(([id, info]) => ({
-      id,
-      label: info.label,
-    }));
-  }
-  return [];
+
+  // Normal gameplay: show sim-prefixed tags matching current game mode
+  const gamePrefix = state.gameMode === 'ti' ? 'ti' : 'eclipse';
+  return Object.entries(state.tagMap)
+    .filter(([k, v]) => k.startsWith('sim:') && v.startsWith(gamePrefix + ':'))
+    .map(([k, v]) => {
+      const parts = v.split(':');
+      const category = parts[1];
+      const id = parts.slice(2).join(':');
+      let label = id;
+      if (category === 'strategy') label = TI_STRATEGY_LABELS[id] || id;
+      else if (category === 'token') label = id === 'speaker' ? 'Speaker Token' : id;
+      else if (category === 'faction' && state.factions) {
+        const gameKey = gamePrefix === 'ti' ? 'twilight_imperium' : 'eclipse';
+        const f = state.factions[gameKey]?.find(f => f.id === id);
+        if (f) label = f.name;
+      }
+      return { id: k, label };
+    });
 }
 
 function simulateRfid(hwid) {
@@ -749,10 +797,9 @@ function simulateRfid(hwid) {
 
 function simulateTagTap() {
   if (!tagLearningActive) return;
-  // Generate a fake unique tag ID for this slot
-  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
-  const fakeTagId = `sim-tag-${tag.id}`;
-  handleTagLearning(fakeTagId);
+  const item = tagLearningQueue[tagLearningIndex];
+  if (!item) return;
+  handleTagLearning(item.simId);
 }
 
 // ---- Table rendering ----
@@ -880,6 +927,18 @@ function renderSimControls(hwid) {
   </div>`;
 }
 
+// ---- Drag-to-reorder state ----
+
+let dragSourceHwid = null;
+let dragOverHwid = null;
+
+function swapBoxOrder(a, b) {
+  const ia = state.boxOrder.indexOf(a);
+  const ib = state.boxOrder.indexOf(b);
+  if (ia === -1 || ib === -1 || ia === ib) return;
+  [state.boxOrder[ia], state.boxOrder[ib]] = [state.boxOrder[ib], state.boxOrder[ia]];
+}
+
 function renderBoxes() {
   const container = document.getElementById('box-positions');
   container.innerHTML = '';
@@ -888,6 +947,7 @@ function renderBoxes() {
   if (ids.length === 0) return;
 
   const positions = getBoxPositions(ids.length);
+  const canDrag = !state.gameActive;
 
   ids.forEach((hwid, index) => {
     const box = state.boxes[hwid];
@@ -898,17 +958,28 @@ function renderBoxes() {
     card.className = `box-card ${box.status}`;
     card.style.left = `${pos.x}%`;
     card.style.top = `${pos.y}%`;
+    card.dataset.hwid = hwid;
+    const faction = getFactionForBox(hwid);
+    if (faction) {
+      card.style.setProperty('--faction-color', faction.color);
+    }
 
     const escapedHwid = CSS.escape(hwid);
+    const factionSubtitle = (faction && isManuallyRenamed(hwid))
+      ? `<div class="box-faction-subtitle" style="color:${faction.color}">${faction.name}</div>`
+      : '';
     const nameHtml = editingNameHwid === hwid
       ? `<input id="name-input-${escapedHwid}" class="box-name-input"
            value="${getDisplayName(hwid).replace(/"/g, '&quot;')}"
            onblur="saveEditingName('${hwid}')"
            onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelEditingName();}"
            onclick="event.stopPropagation()" />`
-      : `<div class="box-name" onclick="startEditingName('${hwid}', event)">${getDisplayName(hwid)}</div>`;
+      : `<div class="box-name" onclick="startEditingName('${hwid}', event)">${getDisplayName(hwid)}</div>${factionSubtitle}`;
+
+    const dragHandle = canDrag ? `<div class="drag-handle">⠿</div>` : '';
 
     card.innerHTML = `
+      ${dragHandle}
       ${nameHtml}
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
@@ -921,6 +992,80 @@ function renderBoxes() {
         toggleSim(hwid);
       }
     };
+
+    if (canDrag) {
+      card.draggable = true;
+
+      card.addEventListener('dragstart', (e) => {
+        dragSourceHwid = hwid;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      card.addEventListener('dragend', () => {
+        dragSourceHwid = null;
+        document.querySelectorAll('.box-card.dragging, .box-card.drag-over')
+          .forEach(el => el.classList.remove('dragging', 'drag-over'));
+      });
+
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOverHwid !== hwid) {
+          document.querySelectorAll('.box-card.drag-over')
+            .forEach(el => el.classList.remove('drag-over'));
+          dragOverHwid = hwid;
+          card.classList.add('drag-over');
+        }
+      });
+
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('drag-over');
+        if (dragOverHwid === hwid) dragOverHwid = null;
+      });
+
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragSourceHwid && dragSourceHwid !== hwid) {
+          swapBoxOrder(dragSourceHwid, hwid);
+          dragSourceHwid = null;
+          dragOverHwid = null;
+          updateSetupUI();
+          render();
+        }
+      });
+
+      // Touch support
+      card.addEventListener('touchstart', (e) => {
+        dragSourceHwid = hwid;
+        card.classList.add('dragging');
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetCard = el && el.closest('.box-card');
+        const targetHwid = targetCard && targetCard.dataset.hwid;
+        if (targetHwid && targetHwid !== dragOverHwid) {
+          document.querySelectorAll('.box-card.drag-over')
+            .forEach(c => c.classList.remove('drag-over'));
+          dragOverHwid = targetHwid;
+          if (targetHwid !== dragSourceHwid) targetCard.classList.add('drag-over');
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', () => {
+        document.querySelectorAll('.box-card.dragging, .box-card.drag-over')
+          .forEach(el => el.classList.remove('dragging', 'drag-over'));
+        if (dragSourceHwid && dragOverHwid && dragSourceHwid !== dragOverHwid) {
+          swapBoxOrder(dragSourceHwid, dragOverHwid);
+          updateSetupUI();
+          render();
+        }
+        dragSourceHwid = null;
+        dragOverHwid = null;
+      });
+    }
 
     container.appendChild(card);
   });
@@ -959,8 +1104,11 @@ function saveEditingName(hwid) {
   if (newName) {
     if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
       virtualBoxNames[hwid] = newName;
+      manuallyRenamedBoxes.add(hwid);
     } else {
       setBoxName(hwid, newName);
+      state.boxNames[hwid].manual = true;
+      saveBoxNames();
     }
   }
   editingNameHwid = null;
@@ -974,6 +1122,13 @@ function cancelEditingName() {
 }
 
 // ---- Sim toggle ----
+
+const manuallyRenamedBoxes = new Set();
+
+function isManuallyRenamed(hwid) {
+  if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) return manuallyRenamedBoxes.has(hwid);
+  return !!state.boxNames[hwid]?.manual;
+}
 
 const simOpenCards = new Set();
 
@@ -1075,59 +1230,72 @@ function tiAdvancePhase() {
   }
 }
 
-// ---- TI Tag Learning ----
+// ---- Tag Learning ----
 
-const TI_TAGS_TO_LEARN = [
-  { type: 'speaker',    id: 'speaker',     label: 'Speaker Token',  color: '#ffffff', initiative: null },
-  { type: 'strategy',   id: 'leadership',  label: 'Leadership',     color: '#cc0000', initiative: 1 },
-  { type: 'strategy',   id: 'diplomacy',   label: 'Diplomacy',      color: '#ff8800', initiative: 2 },
-  { type: 'strategy',   id: 'politics',    label: 'Politics',       color: '#dddd00', initiative: 3 },
-  { type: 'strategy',   id: 'construction',label: 'Construction',   color: '#00aa00', initiative: 4 },
-  { type: 'strategy',   id: 'trade',       label: 'Trade',          color: '#00aaaa', initiative: 5 },
-  { type: 'strategy',   id: 'warfare',     label: 'Warfare',        color: '#0055ff', initiative: 6 },
-  { type: 'strategy',   id: 'technology',  label: 'Technology',     color: '#000066', initiative: 7 },
-  { type: 'strategy',   id: 'imperial',    label: 'Imperial',       color: '#660088', initiative: 8 },
-];
-
+let tagLearningQueue = [];
 let tagLearningIndex = 0;
 let tagLearningActive = false;
 
-function startTagLearning() {
+function buildTiTagQueue() {
+  return [
+    { prompt: 'Tap the Speaker Token on the hub box', internalId: 'ti:token:speaker', simId: 'sim:ti:token:speaker' },
+    { prompt: 'Tap the Leadership card on the hub box', internalId: 'ti:strategy:leadership', simId: 'sim:ti:strategy:leadership' },
+    { prompt: 'Tap the Diplomacy card on the hub box', internalId: 'ti:strategy:diplomacy', simId: 'sim:ti:strategy:diplomacy' },
+    { prompt: 'Tap the Politics card on the hub box', internalId: 'ti:strategy:politics', simId: 'sim:ti:strategy:politics' },
+    { prompt: 'Tap the Construction card on the hub box', internalId: 'ti:strategy:construction', simId: 'sim:ti:strategy:construction' },
+    { prompt: 'Tap the Trade card on the hub box', internalId: 'ti:strategy:trade', simId: 'sim:ti:strategy:trade' },
+    { prompt: 'Tap the Warfare card on the hub box', internalId: 'ti:strategy:warfare', simId: 'sim:ti:strategy:warfare' },
+    { prompt: 'Tap the Technology card on the hub box', internalId: 'ti:strategy:technology', simId: 'sim:ti:strategy:technology' },
+    { prompt: 'Tap the Imperial card on the hub box', internalId: 'ti:strategy:imperial', simId: 'sim:ti:strategy:imperial' },
+  ];
+}
+
+function buildTiFactionTagQueue() {
+  if (!state.factions) return [];
+  return state.factions.twilight_imperium.map(f => ({
+    prompt: `Tap ${f.name}'s home system tile on the hub box`,
+    internalId: `ti:faction:${f.id}`,
+    simId: `sim:ti:faction:${f.id}`,
+  }));
+}
+
+function buildEclipseFactionTagQueue() {
+  if (!state.factions) return [];
+  return state.factions.eclipse.map(f => ({
+    prompt: `Tap ${f.name}'s faction box on the hub box`,
+    internalId: `eclipse:faction:${f.id}`,
+    simId: `sim:eclipse:faction:${f.id}`,
+  }));
+}
+
+function startTagLearning(queue, title) {
+  tagLearningQueue = queue;
   tagLearningIndex = 0;
   tagLearningActive = true;
+  document.getElementById('tag-learning-title').textContent = title || 'Learn Tags';
   document.getElementById('tag-learning-overlay').style.display = 'flex';
   showNextTagPrompt();
 }
 
 function showNextTagPrompt() {
-  if (tagLearningIndex >= TI_TAGS_TO_LEARN.length) {
+  if (tagLearningIndex >= tagLearningQueue.length) {
     finishTagLearning();
     return;
   }
-  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
-  document.getElementById('tag-learning-prompt').textContent =
-    `Tap the ${tag.label} on the hub box`;
-  document.getElementById('tag-learning-status').textContent = 
-    `${tagLearningIndex} of ${TI_TAGS_TO_LEARN.length} learned`;
+  const item = tagLearningQueue[tagLearningIndex];
+  document.getElementById('tag-learning-prompt').textContent = item.prompt;
+  document.getElementById('tag-learning-status').textContent =
+    `${tagLearningIndex} of ${tagLearningQueue.length} learned`;
 }
 
-function handleTagLearning(tagId) {
+function handleTagLearning(physicalTagId) {
   if (!tagLearningActive) return false;
-  const tag = TI_TAGS_TO_LEARN[tagLearningIndex];
-
-  // Store mapping
-  state.ti.tagMap[tagId] = {
-    type: tag.type,
-    id: tag.id,
-    label: tag.label,
-    color: tag.color,
-    initiative: tag.initiative,
-  };
-  saveTiTags();
-
-  document.getElementById('tag-learning-status').textContent =
-    `✓ ${tag.label} learned`;
-
+  const item = tagLearningQueue[tagLearningIndex];
+  state.tagMap[physicalTagId] = item.internalId;
+  if (!physicalTagId.startsWith('sim:')) {
+    saveTagMap();
+  }
+  document.getElementById('tag-learning-status').textContent = `✓ Learned`;
   tagLearningIndex++;
   setTimeout(showNextTagPrompt, 800);
   return true;
@@ -1143,26 +1311,98 @@ function finishTagLearning() {
 function cancelTagLearning() {
   tagLearningActive = false;
   tagLearningIndex = 0;
+  tagLearningQueue = [];
   document.getElementById('tag-learning-overlay').style.display = 'none';
 }
 
-function handleRfid(hwid, tagId) {
-  // Tag learning intercepts all RFID during learning mode
+function handleRfid(hwid, physicalTagId) {
   if (tagLearningActive) {
-    // Only accept taps on the hub
-    if (hwid === state.hubHwid) {
-      handleTagLearning(tagId);
+    if (hwid === state.hubHwid) handleTagLearning(physicalTagId);
+    return;
+  }
+
+  if (state.factionScanActive) {
+    handleFactionScan(hwid, physicalTagId);
+    return;
+  }
+
+  if (!state.gameActive) return;
+
+  const internalId = resolveTag(physicalTagId);
+  if (!internalId) {
+    log(`Unknown tag: ${physicalTagId}`, 'error');
+    return;
+  }
+
+  const parts = internalId.split(':');
+  const game = parts[0];
+  const category = parts[1];
+  const id = parts.slice(2).join(':');
+
+  if (state.gameMode === 'ti') {
+    handleTiTag(hwid, game, category, id);
+  } else if (state.gameMode.startsWith('eclipse')) {
+    handleEclipseTag(hwid, game, category, id);
+  }
+}
+
+function handleTiTag(hwid, game, category, id) {
+  if (game !== 'ti') { log(`Tag game mismatch: expected ti, got ${game}`, 'error'); return; }
+
+  if (category === 'token' && id === 'speaker') {
+    if (hwid === state.activeBoxId) {
+      state.ti.speakerHwid = hwid;
+      log(`${getDisplayName(hwid)} takes the speaker token`, 'system');
+      updateTiBadges();
     }
     return;
   }
 
-  // During gameplay, route to game mode handler
-  if (!state.gameActive) return;
-  switch (state.gameMode) {
-    case 'ti':
-      handleTiRfid(hwid, tagId);
-      break;
+  if (category === 'strategy') {
+    // Look up label/color/initiative from factions data or fallback constants
+    const label = TI_STRATEGY_LABELS[id] || id;
+    const color = TI_STRATEGY_COLORS[id] || '#ffffff';
+    const initiative = TI_STRATEGY_INITIATIVES[id] || 99;
+
+    if (state.ti.phase === 'strategy') {
+      if (hwid !== state.activeBoxId) return;
+      const player = state.ti.players[hwid];
+      const alreadyTaken = state.boxOrder.some(pid =>
+        state.ti.players[pid].strategyCards.some(c => c.id === id)
+      );
+      if (alreadyTaken) { log(`${label} already taken`, 'error'); return; }
+      player.strategyCards.push({ id, label, color, initiative, used: false });
+      log(`${getDisplayName(hwid)} takes ${label}`, 'system');
+      updateTiBadges();
+      const pulseLeds = ledSolid(LED_COUNT, color);
+      state.boxes[hwid].leds = pulseLeds;
+      state.boxes[hwid].ledOverrideUntil = Date.now() + 800;
+      if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds: pulseLeds });
+      renderBoxes();
+      setTimeout(() => {
+        state.boxes[hwid].ledOverrideUntil = null;
+        state.ti.strategyTurnIndex++;
+        tiActivateStrategyTurn();
+        render();
+      }, 800);
+    } else if (state.ti.phase === 'action') {
+      if (hwid !== state.activeBoxId) return;
+      const player = state.ti.players[hwid];
+      const card = player.strategyCards.find(c => c.id === id);
+      if (!card) { log(`${getDisplayName(hwid)} doesn't have ${label}`, 'error'); return; }
+      tiUseStrategyCard(hwid, card);
+    }
+    return;
   }
+
+  if (category === 'faction') {
+    // no-op during gameplay
+  }
+}
+
+function handleEclipseTag(hwid, game, category, id) {
+  if (game !== 'eclipse') { log(`Tag game mismatch: expected eclipse, got ${game}`, 'error'); return; }
+  // faction: no-op during gameplay
 }
 
 function tiMecatolChanged() {
@@ -1224,6 +1464,17 @@ const TI_STRATEGY_COLORS = {
   warfare:      '#0055ff',
   technology:   '#000066',
   imperial:     '#660088',
+};
+
+const TI_STRATEGY_INITIATIVES = {
+  leadership: 1, diplomacy: 2, politics: 3, construction: 4,
+  trade: 5, warfare: 6, technology: 7, imperial: 8,
+};
+
+const TI_STRATEGY_LABELS = {
+  leadership: 'Leadership', diplomacy: 'Diplomacy', politics: 'Politics',
+  construction: 'Construction', trade: 'Trade', warfare: 'Warfare',
+  technology: 'Technology', imperial: 'Imperial',
 };
 
 function tiStart() {
@@ -1812,76 +2063,91 @@ function tiEndRound() {
   tiStartStrategyPhase();
 }
 
-// ---- TI RFID ----
+// ---- Faction Scan ----
 
-function handleTiRfid(hwid, tagId) {
-  const tag = state.ti.tagMap[tagId];
-  if (!tag) {
-    log(`Unknown tag: ${tagId}`, 'error');
-    return;
-  }
+function startFactionScan() {
+  state.factionScanActive = true;
+  // Blank all LEDs to signal scan mode
+  state.boxOrder.forEach(hwid => {
+    const box = state.boxes[hwid];
+    if (!box || box.status === 'disconnected') return;
+    const leds = ledOff(LED_COUNT);
+    box.leds = leds;
+    if (!box.isVirtual) sendToBox(hwid, { type: 'led', leds });
+  });
+  document.getElementById('faction-scan-banner').style.display = 'flex';
+  render();
+}
 
-  if (tag.type === 'speaker') {
-    // Active player taps speaker token — they become speaker
-    if (hwid === state.activeBoxId) {
-      state.ti.speakerHwid = hwid;
-      log(`${getDisplayName(hwid)} takes the speaker token`, 'system');
-      updateTiBadges();
-    }
-    return;
-  }
+function stopFactionScan() {
+  state.factionScanActive = false;
+  // Clear stored LEDs so syncLeds recalculates from status
+  state.boxOrder.forEach(hwid => {
+    if (state.boxes[hwid]) state.boxes[hwid].leds = null;
+  });
+  document.getElementById('faction-scan-banner').style.display = 'none';
+  render();
+}
 
-  if (tag.type === 'strategy') {
-    if (state.ti.phase === 'strategy') {
-      // Assign card to active player
-      if (hwid !== state.activeBoxId) return;
-      const player = state.ti.players[hwid];
-
-      // Check card not already taken
-      const alreadyTaken = state.boxOrder.some(id =>
-        state.ti.players[id].strategyCards.some(c => c.id === tag.id)
-      );
-      if (alreadyTaken) {
-        log(`${tag.label} already taken`, 'error');
-        return;
-      }
-
-      player.strategyCards.push({
-        id: tag.id,
-        label: tag.label,
-        color: tag.color,
-        initiative: tag.initiative,
-        used: false,
-      });
-
-      log(`${getDisplayName(hwid)} takes ${tag.label}`, 'system');
-      updateTiBadges();
-
-      // Temporarily override leds for pulse, bypassing syncLeds
-      const pulseLeds = ledSolid(LED_COUNT, tag.color);
-      state.boxes[hwid].leds = pulseLeds;
-      state.boxes[hwid].ledOverrideUntil = Date.now() + 800;
-      if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds: pulseLeds });
-      renderBoxes();
-      setTimeout(() => {
-        state.boxes[hwid].ledOverrideUntil = null;
-        state.ti.strategyTurnIndex++;
-        tiActivateStrategyTurn();
-        render();
-      }, 800);
-
-    } else if (state.ti.phase === 'action') {
-      // Use strategy card as primary action
-      if (hwid !== state.activeBoxId) return;
-      const player = state.ti.players[hwid];
-      const card = player.strategyCards.find(c => c.id === tag.id);
-      if (!card) {
-        log(`${getDisplayName(hwid)} doesn't have ${tag.label}`, 'error');
-        return;
-      }
-      tiUseStrategyCard(hwid, card);
+function handleFactionScan(hwid, physicalTagId) {
+  let internalId;
+  if (physicalTagId.startsWith('sim:')) {
+    internalId = physicalTagId.slice(4); // strip 'sim:'
+  } else {
+    internalId = resolveTag(physicalTagId);
+    if (!internalId) {
+      log('Unknown tag — learn faction tags first', 'error');
+      return;
     }
   }
+
+  const parts = internalId.split(':');
+  const game = parts[0];
+  const category = parts[1];
+  const factionId = parts.slice(2).join(':');
+
+  if (category !== 'faction') return;
+
+  const gameKey = game === 'ti' ? 'twilight_imperium' : 'eclipse';
+  if (!state.factions || !state.factions[gameKey]) return;
+
+  const faction = state.factions[gameKey].find(f => f.id === factionId);
+  if (!faction) return;
+
+  state.boxes[hwid].factionId = factionId;
+
+  // Auto-rename to faction name unless the box has been manually renamed
+  if (!isManuallyRenamed(hwid)) {
+    if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
+      virtualBoxNames[hwid] = faction.nickname || faction.name;
+    } else {
+      setBoxName(hwid, faction.nickname || faction.name);
+      // Don't set manual flag — this is an auto-rename, user can still override
+    }
+  }
+
+  // Light box in faction colour during scan
+  const leds = ledSolid(LED_COUNT, faction.color);
+  state.boxes[hwid].leds = leds;
+  if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds });
+  log(`${getDisplayName(hwid)} identified as ${faction.name}`, 'system');
+  updateTiBadges();
+  updateSetupUI();
+  render();
+}
+
+// ---- Faction display helpers ----
+
+function getFaction(gameKey, factionId) {
+  if (!state.factions || !factionId) return null;
+  return state.factions[gameKey]?.find(f => f.id === factionId) || null;
+}
+
+function getFactionForBox(hwid) {
+  const box = state.boxes[hwid];
+  if (!box || !box.factionId) return null;
+  const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
+  return getFaction(gameKey, box.factionId);
 }
 
 // ---- TI Badges ----
@@ -1892,23 +2158,29 @@ function updateTiBadges() {
     const player = state.ti.players[hwid];
     if (!player) return;
     const badges = [];
-
-    // Speaker crown
     if (hwid === state.ti.speakerHwid) {
       badges.push({ type: 'icon', value: '👑', label: 'Speaker' });
     }
-
-    // Strategy cards
+    const faction = getFactionForBox(hwid);
+    if (faction) {
+      badges.push({ type: 'text', value: faction.name, color: faction.color });
+    }
     player.strategyCards.forEach(card => {
-      badges.push({
-        type: 'pill',
-        value: card.label.substring(0, 4),
-        color: card.color,
-        faded: card.used,
-      });
+      badges.push({ type: 'pill', value: card.label.substring(0, 4), color: card.color, faded: card.used });
     });
-
     setBoxBadges(hwid, badges);
+  });
+}
+
+function updateEclipseBadges() {
+  if (!state.gameMode.startsWith('eclipse')) return;
+  state.boxOrder.forEach(hwid => {
+    const faction = getFactionForBox(hwid);
+    if (faction) {
+      setBoxBadges(hwid, [{ type: 'text', value: faction.name, color: faction.color }]);
+    } else {
+      clearBoxBadges(hwid);
+    }
   });
 }
 
@@ -1965,4 +2237,51 @@ function debugSkipPhase() {
 
 // ---- Init ----
 
-render();
+async function init() {
+  migrateLegacyTiTags();
+  addSimTags();
+  await loadFactions();
+  render();
+  updateSetupUI();
+}
+
+function migrateLegacyTiTags() {
+  const old = localStorage.getItem('herald-ti-tags');
+  if (!old) return;
+  try {
+    const oldMap = JSON.parse(old);
+    Object.entries(oldMap).forEach(([physicalId, info]) => {
+      if (info.type === 'strategy') {
+        state.tagMap[physicalId] = `ti:strategy:${info.id}`;
+      } else if (info.type === 'speaker') {
+        state.tagMap[physicalId] = 'ti:token:speaker';
+      }
+    });
+    saveTagMap();
+    localStorage.removeItem('herald-ti-tags');
+    log('Migrated legacy TI tags to unified tag map', 'system');
+  } catch (e) {
+    log('Failed to migrate legacy TI tags', 'error');
+  }
+}
+
+async function loadFactions() {
+  try {
+    const res = await fetch('./factions.json');
+    state.factions = await res.json();
+    log('Factions loaded', 'system');
+  } catch (e) {
+    log('Warning: could not load factions.json — faction features disabled', 'error');
+  }
+}
+
+function addSimTags() {
+  // Strategy cards
+  Object.keys(TI_STRATEGY_LABELS).forEach(id => {
+    state.tagMap[`sim:ti:strategy:${id}`] = `ti:strategy:${id}`;
+  });
+  state.tagMap['sim:ti:token:speaker'] = 'ti:token:speaker';
+  // Faction sim tags added dynamically in handleFactionScan by stripping 'sim:'
+}
+
+init();
