@@ -693,16 +693,16 @@ function eclipseEndActionPhase() {
   });
 }
 
+function eclipseAdvancePhase() {
+  switch (state.eclipse.phase) {
+    case 'combat':  eclipseStartUpkeep(); break;
+    case 'upkeep':  eclipseEndRound(); break;
+  }
+}
+
 function eclipseLongPress(hwid) {
   if (hwid !== state.hubHwid) return;
-  switch (state.eclipse.phase) {
-    case 'combat':
-      eclipseStartUpkeep();
-      break;
-    case 'upkeep':
-      eclipseEndRound();
-      break;
-  }
+  eclipseAdvancePhase();
 }
 
 function eclipseStartUpkeep() {
@@ -1355,7 +1355,7 @@ function advancePhase() {
       break;
     case 'eclipse_simple':
     case 'eclipse_advanced':
-      eclipseLongPress(state.hubHwid || state.boxOrder[0]);
+      eclipseAdvancePhase();
       break;
   }
   render();
