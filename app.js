@@ -442,6 +442,77 @@ function syncLeds() {
   });
 }
 
+// ---- Turn timers ----
+
+const timerSettings = { showCurrent: false, showTotal: false };
+let _timerTrackedActiveId = null;
+let _currentTimerInterval = null;
+
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rs = s % 60;
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  if (m > 0) return rs > 0 ? `${m}m ${rs}s` : `${m}m`;
+  return `${rs}s`;
+}
+
+function onTurnStart(hwid) {
+  if (!state.boxes[hwid]) return;
+  state.boxes[hwid].turnStartTime = Date.now();
+}
+
+function onTurnEnd(hwid) {
+  const box = state.boxes[hwid];
+  if (!box || !box.turnStartTime) return;
+  box.totalTurnTime = (box.totalTurnTime || 0) + (Date.now() - box.turnStartTime);
+  box.turnStartTime = null;
+}
+
+function updateTurnTimers() {
+  const current = state.activeBoxId;
+  if (current === _timerTrackedActiveId) return;
+  if (_timerTrackedActiveId) onTurnEnd(_timerTrackedActiveId);
+  if (current) onTurnStart(current);
+  _timerTrackedActiveId = current;
+}
+
+function resetTurnTimers() {
+  _timerTrackedActiveId = null;
+  state.boxOrder.forEach(hwid => {
+    if (state.boxes[hwid]) {
+      state.boxes[hwid].turnStartTime = null;
+      state.boxes[hwid].totalTurnTime = 0;
+    }
+  });
+}
+
+function startCurrentTimerInterval() {
+  if (_currentTimerInterval) return;
+  _currentTimerInterval = setInterval(() => {
+    if (state.gameActive && timerSettings.showCurrent) renderBoxes();
+  }, 1000);
+}
+
+function stopCurrentTimerInterval() {
+  if (_currentTimerInterval) { clearInterval(_currentTimerInterval); _currentTimerInterval = null; }
+}
+
+function renderTimerInfo(hwid, box) {
+  if (!timerSettings.showCurrent && !timerSettings.showTotal) return '';
+  const parts = [];
+  if (timerSettings.showCurrent && box.turnStartTime) {
+    parts.push(formatDuration(Date.now() - box.turnStartTime));
+  }
+  if (timerSettings.showTotal) {
+    const total = (box.totalTurnTime || 0) + (box.turnStartTime ? Date.now() - box.turnStartTime : 0);
+    if (total > 0) parts.push(`Σ ${formatDuration(total)}`);
+  }
+  if (parts.length === 0) return '';
+  return `<div class="box-timer">${parts.join(' · ')}</div>`;
+}
+
 // ---- Game logic dispatch ----
 
 function startGame() {
@@ -453,6 +524,7 @@ function startGame() {
     state.boxes[hwid].badges = [];
     state.boxes[hwid].factionId = null;
   });
+  resetTurnTimers();
   requestWakeLock();
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
   gameModeStart();
@@ -911,6 +983,7 @@ function getBoxPositions(count) {
 }
 
 function render() {
+  updateTurnTimers();
   syncLeds();
   renderBoxes();
   renderTableLabel();
@@ -1063,6 +1136,26 @@ function renderGameControls() {
     }
   }
 
+  actionDefs.push({
+    html: `<label class="gc-check-row">
+      <input type="checkbox" id="gc-timer-current"${timerSettings.showCurrent ? ' checked' : ''}>
+      Show turn time
+    </label>`,
+    id: 'gc-timer-current', event: 'change',
+    fn: (e) => {
+      timerSettings.showCurrent = e.target.checked;
+      if (timerSettings.showCurrent) startCurrentTimerInterval(); else stopCurrentTimerInterval();
+      renderBoxes();
+    },
+  });
+  actionDefs.push({
+    html: `<label class="gc-check-row">
+      <input type="checkbox" id="gc-timer-total"${timerSettings.showTotal ? ' checked' : ''}>
+      Show total time
+    </label>`,
+    id: 'gc-timer-total', event: 'change',
+    fn: (e) => { timerSettings.showTotal = e.target.checked; renderBoxes(); },
+  });
   actionDefs.push({ html: '<button class="end-game-btn" id="gc-end-game">End Game</button>', id: 'gc-end-game', fn: confirmEndGame });
 
   statusEl.innerHTML = statusLines.map(l => `<div>${l}</div>`).join('');
@@ -1094,6 +1187,8 @@ function endGame() {
   });
   state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null, round: 0 };
   state.ti = { ...state.ti, phase: null, round: 0, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
+  resetTurnTimers();
+  stopCurrentTimerInterval();
   state.factionScanActive = false;
   document.getElementById('faction-scan-banner').style.display = 'none';
   releaseWakeLock();
@@ -1223,6 +1318,7 @@ function renderBoxes() {
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
       ${renderBadges(box)}
+      ${renderTimerInfo(hwid, box)}
       ${renderSimControls(hwid)}
     `;
 

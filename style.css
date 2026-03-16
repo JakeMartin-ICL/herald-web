@@ -333,6 +333,13 @@ select {
 
 /* ---- Sim controls ---- */
 
+.box-timer {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-top: 0.2rem;
+  letter-spacing: 0.02em;
+}
+
 .box-sim {
   position: absolute;
   top: calc(100% - 4px);
