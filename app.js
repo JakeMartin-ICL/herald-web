@@ -324,8 +324,10 @@ function handleBoxCommand(hwid, msg) {
 function addBox(hwid, isVirtual) {
   console.log('addBox called', hwid, 'existing:', !!state.boxes[hwid], 'boxOrder:', state.boxOrder);
   if (state.boxes[hwid]) {
-    // Box reconnected — update status
+    // Box reconnected — update status and clear any in-progress OTA state
     state.boxes[hwid].status = 'idle';
+    state.boxes[hwid].otaUpdating = false;
+    state.boxes[hwid].otaProgress = null;
     log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
     // Resync its LED if game active
     if (state.gameActive) syncLeds();
