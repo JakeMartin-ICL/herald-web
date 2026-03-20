@@ -786,7 +786,7 @@ select {
 
 /* ---- Tag learning overlay ---- */
 
-#tag-learning-overlay {
+#tag-writing-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.8);
@@ -796,7 +796,7 @@ select {
   z-index: 100;
 }
 
-#tag-learning-modal {
+#tag-writing-modal {
   background: #16213e;
   border: 2px solid #c9a84c;
   border-radius: 8px;
@@ -806,18 +806,18 @@ select {
   text-align: center;
 }
 
-#tag-learning-modal h2 {
+#tag-writing-modal h2 {
   color: #c9a84c;
   margin-bottom: 1rem;
 }
 
-#tag-learning-prompt {
+#tag-writing-prompt {
   font-size: 1rem;
   margin-bottom: 1rem;
   line-height: 1.4;
 }
 
-#tag-learning-status {
+#tag-writing-status {
   font-size: 0.85rem;
   color: #70c070;
   min-height: 1.2rem;

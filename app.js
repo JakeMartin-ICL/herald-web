@@ -19,10 +19,6 @@ const state = {
   // hwid -> { name }
   boxNames: {},
 
-  // Unified tag map — persisted in localStorage
-  // physicalTagId -> internalId (e.g. 'ti:strategy:leadership')
-  tagMap: JSON.parse(localStorage.getItem('herald-tag-map') || '{}'),
-
   // Faction data loaded from factions.json
   factions: null,
 
@@ -132,18 +128,6 @@ function defaultBoxName(hwid) {
   // Generate default name based on seat position
   const index = state.boxOrder.indexOf(hwid);
   return `Player ${index + 1}`;
-}
-
-function saveTagMap() {
-  const persisted = {};
-  Object.entries(state.tagMap).forEach(([k, v]) => {
-    if (!k.startsWith('sim:')) persisted[k] = v;
-  });
-  localStorage.setItem('herald-tag-map', JSON.stringify(persisted));
-}
-
-function resolveTag(physicalId) {
-  return state.tagMap[physicalId] || null;
 }
 
 // ---- WebSocket ----
@@ -260,6 +244,9 @@ function handleMessage(msg) {
       break;
     case 'rfid':
       handleRfid(msg.hwid, msg.tagId);
+      break;
+    case 'rfid_write_result':
+      handleRfidWriteResult(msg);
       break;
     case 'ota_progress':
       if (state.boxes[msg.hwid]) {
@@ -1416,24 +1403,11 @@ function getSimRfidOptions() {
     }));
   }
 
-  // Normal gameplay: show sim-prefixed tags matching current game mode
-  const gamePrefix = state.gameMode === 'ti' ? 'ti' : 'eclipse';
-  return Object.entries(state.tagMap)
-    .filter(([k, v]) => k.startsWith('sim:') && v.startsWith(gamePrefix + ':'))
-    .map(([k, v]) => {
-      const parts = v.split(':');
-      const category = parts[1];
-      const id = parts.slice(2).join(':');
-      let label = id;
-      if (category === 'strategy') label = TI_STRATEGY_LABELS[id] || id;
-      else if (category === 'token') label = id === 'speaker' ? 'Speaker Token' : id;
-      else if (category === 'faction' && state.factions) {
-        const gameKey = gamePrefix === 'ti' ? 'twilight_imperium' : 'eclipse';
-        const f = state.factions[gameKey]?.find(f => f.id === id);
-        if (f) label = f.name;
-      }
-      return { id: k, label };
-    });
+  // Build options from the write queues for the current game mode
+  const queue = state.gameMode === 'ti'
+    ? [...buildTiTagQueue(), ...buildTiFactionTagQueue()]
+    : buildEclipseFactionTagQueue();
+  return queue.map(item => ({ id: item.internalId, label: item.prompt }));
 }
 
 function simulateRfid(hwid) {
@@ -1447,10 +1421,12 @@ function simulateRfid(hwid) {
 }
 
 function simulateTagTap() {
-  if (!tagLearningActive) return;
-  const item = tagLearningQueue[tagLearningIndex];
+  if (!tagWritingActive) return;
+  const item = tagWritingQueue[tagWritingIndex];
   if (!item) return;
-  handleTagLearning(item.simId);
+  document.getElementById('tag-writing-status').textContent = 'Written (simulated)';
+  tagWritingIndex++;
+  setTimeout(showNextTagPrompt, 800);
 }
 
 // ---- Table rendering ----
@@ -2093,11 +2069,12 @@ function tiAdvancePhase() {
   }
 }
 
-// ---- Tag Learning ----
+// ---- Tag Writing ----
 
-let tagLearningQueue = [];
-let tagLearningIndex = 0;
-let tagLearningActive = false;
+let tagWritingQueue = [];
+let tagWritingIndex = 0;
+let tagWritingActive = false;
+let tagWritingPending = false;
 
 function buildTiTagQueue() {
   return [
@@ -2131,73 +2108,82 @@ function buildEclipseFactionTagQueue() {
   }));
 }
 
-function startTagLearning(queue, title) {
-  tagLearningQueue = queue;
-  tagLearningIndex = 0;
-  tagLearningActive = true;
-  document.getElementById('tag-learning-title').textContent = title || 'Learn Tags';
-  document.getElementById('tag-learning-overlay').style.display = 'flex';
+function startTagWriting(queue, title) {
+  tagWritingQueue = queue;
+  tagWritingIndex = 0;
+  tagWritingActive = true;
+  document.getElementById('tag-writing-title').textContent = title || 'Write Tags';
+  document.getElementById('tag-writing-overlay').style.display = 'flex';
   showNextTagPrompt();
 }
 
 function showNextTagPrompt() {
-  if (tagLearningIndex >= tagLearningQueue.length) {
-    finishTagLearning();
+  if (tagWritingIndex >= tagWritingQueue.length) {
+    finishTagWriting();
     return;
   }
-  const item = tagLearningQueue[tagLearningIndex];
-  document.getElementById('tag-learning-prompt').textContent = item.prompt;
-  document.getElementById('tag-learning-status').textContent =
-    `${tagLearningIndex} of ${tagLearningQueue.length} learned`;
+  const item = tagWritingQueue[tagWritingIndex];
+  document.getElementById('tag-writing-prompt').textContent = item.prompt;
+  document.getElementById('tag-writing-status').textContent =
+    `${tagWritingIndex} of ${tagWritingQueue.length} written`;
 }
 
-function handleTagLearning(physicalTagId) {
-  if (!tagLearningActive) return false;
-  const item = tagLearningQueue[tagLearningIndex];
-  state.tagMap[physicalTagId] = item.internalId;
-  if (!physicalTagId.startsWith('sim:')) {
-    saveTagMap();
+function handleTagWriting(internalId) {
+  if (!tagWritingActive || tagWritingPending) return;
+  tagWritingPending = true;
+  document.getElementById('tag-writing-status').textContent = 'Writing…';
+  sendRfidWrite(tagWritingQueue[tagWritingIndex].internalId);
+}
+
+function handleRfidWriteResult(msg) {
+  tagWritingPending = false;
+  if (msg.success) {
+    document.getElementById('tag-writing-status').textContent = '✓ Written';
+    tagWritingIndex++;
+    setTimeout(showNextTagPrompt, 800);
+  } else {
+    document.getElementById('tag-writing-status').textContent = `✗ Failed: ${msg.error || 'Unknown error'}`;
   }
-  document.getElementById('tag-learning-status').textContent = `✓ Learned`;
-  tagLearningIndex++;
-  setTimeout(showNextTagPrompt, 800);
-  return true;
 }
 
-function finishTagLearning() {
-  tagLearningActive = false;
-  document.getElementById('tag-learning-overlay').style.display = 'none';
-  log('Tag learning complete', 'system');
+function sendRfidWrite(internalId) {
+  if (!state.hubHwid) return;
+  sendToBox(state.hubHwid, { type: 'rfid_write', hwid: state.hubHwid, internalId });
+}
+
+function finishTagWriting() {
+  tagWritingActive = false;
+  document.getElementById('tag-writing-overlay').style.display = 'none';
+  log('Tag writing complete', 'system');
   updateSetupUI();
 }
 
-function cancelTagLearning() {
-  tagLearningActive = false;
-  tagLearningIndex = 0;
-  tagLearningQueue = [];
-  document.getElementById('tag-learning-overlay').style.display = 'none';
+function cancelTagWriting() {
+  tagWritingActive = false;
+  tagWritingPending = false;
+  tagWritingIndex = 0;
+  tagWritingQueue = [];
+  document.getElementById('tag-writing-overlay').style.display = 'none';
 }
 
-function handleRfid(hwid, physicalTagId) {
-  if (tagLearningActive) {
-    if (hwid === state.hubHwid) handleTagLearning(physicalTagId);
+function handleRfid(hwid, internalId) {
+  if (tagWritingActive) {
+    if (hwid === state.hubHwid) handleTagWriting(internalId);
     return;
   }
 
   if (state.factionScanActive) {
-    handleFactionScan(hwid, physicalTagId);
+    handleFactionScan(hwid, internalId);
     return;
   }
 
   if (!state.gameActive) return;
 
-  const internalId = resolveTag(physicalTagId);
-  if (!internalId) {
-    log(`Unknown tag: ${physicalTagId}`, 'error');
+  const parts = internalId.split(':');
+  if (parts.length < 2) {
+    log(`Unknown tag: ${internalId}`, 'error');
     return;
   }
-
-  const parts = internalId.split(':');
   const game = parts[0];
   const category = parts[1];
   const id = parts.slice(2).join(':');
@@ -3285,18 +3271,7 @@ function stopFactionScan() {
   render();
 }
 
-function handleFactionScan(hwid, physicalTagId) {
-  let internalId;
-  if (physicalTagId.startsWith('sim:')) {
-    internalId = physicalTagId.slice(4); // strip 'sim:'
-  } else {
-    internalId = resolveTag(physicalTagId);
-    if (!internalId) {
-      log('Unknown tag — learn faction tags first', 'error');
-      return;
-    }
-  }
-
+function handleFactionScan(hwid, internalId) {
   const parts = internalId.split(':');
   const game = parts[0];
   const category = parts[1];
@@ -3443,31 +3418,9 @@ window.addEventListener('resize', updateCardScale);
 async function init() {
   updateCardScale();
   localStorage.removeItem('herald-box-names');
-  migrateLegacyTiTags();
-  addSimTags();
   await loadFactions();
   render();
   updateSetupUI();
-}
-
-function migrateLegacyTiTags() {
-  const old = localStorage.getItem('herald-ti-tags');
-  if (!old) return;
-  try {
-    const oldMap = JSON.parse(old);
-    Object.entries(oldMap).forEach(([physicalId, info]) => {
-      if (info.type === 'strategy') {
-        state.tagMap[physicalId] = `ti:strategy:${info.id}`;
-      } else if (info.type === 'speaker') {
-        state.tagMap[physicalId] = 'ti:token:speaker';
-      }
-    });
-    saveTagMap();
-    localStorage.removeItem('herald-ti-tags');
-    log('Migrated legacy TI tags to unified tag map', 'system');
-  } catch (e) {
-    log('Failed to migrate legacy TI tags', 'error');
-  }
 }
 
 async function loadFactions() {
@@ -3478,15 +3431,6 @@ async function loadFactions() {
   } catch (e) {
     log('Warning: could not load factions.json — faction features disabled', 'error');
   }
-}
-
-function addSimTags() {
-  // Strategy cards
-  Object.keys(TI_STRATEGY_LABELS).forEach(id => {
-    state.tagMap[`sim:ti:strategy:${id}`] = `ti:strategy:${id}`;
-  });
-  state.tagMap['sim:ti:token:speaker'] = 'ti:token:speaker';
-  // Faction sim tags added dynamically in handleFactionScan by stripping 'sim:'
 }
 
 init();

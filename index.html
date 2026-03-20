@@ -47,9 +47,9 @@
             <label>Speaker</label>
             <select id="ti-speaker"></select>
             </div>
-        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagLearning(buildTiTagQueue(), 'Learn TI Strategy Tags')">Learn Strategy Tags</button>
-        <button id="ti-learn-faction-tags-btn" style="display:none" onclick="startTagLearning(buildTiFactionTagQueue(), 'Learn TI Faction Tags')">Learn Faction Tags</button>
-        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagLearning(buildEclipseFactionTagQueue(), 'Learn Eclipse Faction Tags')">Learn Faction Tags</button>
+        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagWriting(buildTiTagQueue(), 'Write TI Strategy Tags')">Write Strategy Tags</button>
+        <button id="ti-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildTiFactionTagQueue(), 'Write TI Faction Tags')">Write Faction Tags</button>
+        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildEclipseFactionTagQueue(), 'Write Eclipse Faction Tags')">Write Faction Tags</button>
         <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
         <button id="prev-stats-btn" style="display:none" onclick="openGraphOverlay('prev')">Previous game stats</button>
@@ -93,13 +93,13 @@
       </div>
     </div>
   </div>
-    <div id="tag-learning-overlay" style="display:none">
-    <div id="tag-learning-modal">
-        <h2 id="tag-learning-title">Learn Tags</h2>
-        <div id="tag-learning-prompt"></div>
-        <div id="tag-learning-status"></div>
-        <button onclick="simulateTagTap()">Simulate Tap</button>
-        <button onclick="cancelTagLearning()">Cancel</button>
+    <div id="tag-writing-overlay" style="display:none">
+    <div id="tag-writing-modal">
+        <h2 id="tag-writing-title">Write Tags</h2>
+        <div id="tag-writing-prompt"></div>
+        <div id="tag-writing-status"></div>
+        <button onclick="simulateTagTap()">Simulate</button>
+        <button onclick="cancelTagWriting()">Cancel</button>
     </div>
     </div>
     <div id="rfid-dialog-overlay" style="display:none" onclick="closeRfidDialog()">
