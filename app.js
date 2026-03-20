@@ -17,7 +17,7 @@ const state = {
 
   // Box display names — persisted in localStorage
   // hwid -> { name }
-  boxNames: JSON.parse(localStorage.getItem('herald-box-names') || '{}'),
+  boxNames: {},
 
   // Unified tag map — persisted in localStorage
   // physicalTagId -> internalId (e.g. 'ti:strategy:leadership')
@@ -117,11 +117,7 @@ async function fetchLatestFirmware() {
 
 fetchLatestFirmware();
 
-// ---- Box name persistence ----
-
-function saveBoxNames() {
-  localStorage.setItem('herald-box-names', JSON.stringify(state.boxNames));
-}
+// ---- Box names (session-only) ----
 
 function getBoxName(hwid) {
   return state.boxNames[hwid]?.name || null;
@@ -130,7 +126,6 @@ function getBoxName(hwid) {
 function setBoxName(hwid, name) {
   if (!state.boxNames[hwid]) state.boxNames[hwid] = {};
   state.boxNames[hwid].name = name;
-  saveBoxNames();
 }
 
 function defaultBoxName(hwid) {
@@ -3447,6 +3442,7 @@ window.addEventListener('resize', updateCardScale);
 
 async function init() {
   updateCardScale();
+  localStorage.removeItem('herald-box-names');
   migrateLegacyTiTags();
   addSimTags();
   await loadFactions();
