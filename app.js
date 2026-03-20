@@ -212,6 +212,22 @@ function sendToBox(hwid, msg) {
   send({ ...msg, hwid });
 }
 
+function enableRfid(hwid) {
+  sendToBox(hwid, { type: 'rfid_enable', hwid });
+}
+
+function disableRfid(hwid) {
+  sendToBox(hwid, { type: 'rfid_disable', hwid });
+}
+
+function disableAllRfid() {
+  state.boxOrder.forEach(hwid => {
+    const box = state.boxes[hwid];
+    if (!box || box.isVirtual || box.status === 'disconnected') return;
+    disableRfid(hwid);
+  });
+}
+
 // ---- Message handling ----
 
 function handleMessage(msg) {
@@ -311,6 +327,8 @@ function addBox(hwid, isVirtual) {
     state.boxes[hwid].otaUpdating = false;
     state.boxes[hwid].otaProgress = null;
     log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
+    // Disable RFID on the reconnected box until the game logic re-enables it
+    if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
     // Resync its LED if game active
     if (state.gameActive) syncLeds();
     updateSetupUI();
@@ -321,6 +339,8 @@ function addBox(hwid, isVirtual) {
   if (!isVirtual && !state.hubHwid) {
     state.hubHwid = hwid;
     log(`Hub identified: ${getDisplayName(hwid)}`, 'system');
+    // Hub just connected/registered — disable RFID until needed
+    disableAllRfid();
   }
 
   // Assign default name if not previously seen
@@ -1161,7 +1181,9 @@ function eclipseActivateNext() {
       if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
+      disableAllRfid();
       state.activeBoxId = nextId;
+      enableRfid(nextId);
       state.boxes[nextId].status = 'active';
       log(`${getDisplayName(nextId)}'s turn`, 'system');
       return;
@@ -1171,7 +1193,9 @@ function eclipseActivateNext() {
       if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
+      disableAllRfid();
       state.activeBoxId = nextId;
+      enableRfid(nextId);
       state.boxes[nextId].status = 'reacting';
       log(`${getDisplayName(nextId)} reaction opportunity`, 'system');
       return;
@@ -1225,6 +1249,7 @@ function eclipseEndActionPhase() {
   log('Action phase over — combat!', 'system');
   state.eclipse.phase = 'combat';
   startPhase('combat');
+  disableAllRfid();
   state.activeBoxId = null;
   state.boxOrder.forEach(id => {
     if (state.boxes[id].status !== 'disconnected') {
@@ -1663,6 +1688,7 @@ function cancelEndGame() {
 }
 
 function endGame() {
+  disableAllRfid();
   cancelEndGame();
   state.gameActive = false;
   state.activeBoxId = null;
@@ -2115,6 +2141,7 @@ function startTagWriting(queue, title) {
   document.getElementById('tag-writing-title').textContent = title || 'Write Tags';
   document.getElementById('tag-writing-overlay').style.display = 'flex';
   showNextTagPrompt();
+  if (state.hubHwid) enableRfid(state.hubHwid);
 }
 
 function showNextTagPrompt() {
@@ -2152,6 +2179,7 @@ function sendRfidWrite(internalId) {
 }
 
 function finishTagWriting() {
+  if (state.hubHwid) disableRfid(state.hubHwid);
   tagWritingActive = false;
   document.getElementById('tag-writing-overlay').style.display = 'none';
   log('Tag writing complete', 'system');
@@ -2159,6 +2187,7 @@ function finishTagWriting() {
 }
 
 function cancelTagWriting() {
+  if (state.hubHwid) disableRfid(state.hubHwid);
   tagWritingActive = false;
   tagWritingPending = false;
   tagWritingIndex = 0;
@@ -2761,7 +2790,9 @@ function tiActivateStrategyTurn() {
   if (state.activeBoxId && state.activeBoxId !== hwid) {
     state.boxes[state.activeBoxId].status = 'idle';
   }
+  disableAllRfid();
   state.activeBoxId = hwid;
+  if (hwid) enableRfid(hwid);
   state.boxes[hwid].status = 'choosing';
   state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT, [
     '#cc0000', '#ff8800', '#dddd00', '#00aa00',
@@ -2783,7 +2814,9 @@ function tiUndoStrategyPick() {
       state.ti.strategyTurnIndex = idx;
       // Reactivate that player
       if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
+      disableAllRfid();
       state.activeBoxId = hwid;
+      enableRfid(hwid);
       state.boxes[hwid].status = 'choosing';
       state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT, [
         '#cc0000', '#ff8800', '#dddd00', '#00aa00',
@@ -2852,7 +2885,9 @@ function tiActivateActionTurn() {
         state.boxes[state.activeBoxId].status = 'idle';
       }
       state.ti.actionTurnIndex = idx;
+      disableAllRfid();
       state.activeBoxId = hwid;
+      enableRfid(hwid);
       state.boxes[hwid].status = 'active';
       log(`${getDisplayName(hwid)}'s turn`, 'system');
       found = true;
@@ -3103,7 +3138,9 @@ function tiConfirmSecondary(hwid) {
       // in standard mode secondaries go sequentially so active is done with primary.
       const wasStrategy = state.boxes[secondary.activeHwid].status === 'strategy';
       state.boxes[secondary.activeHwid].status = wasStrategy ? 'strategy' : 'active';
+      disableAllRfid();
       state.activeBoxId = secondary.activeHwid;
+      enableRfid(secondary.activeHwid);
     }
     updateTiBadges();
     render();
@@ -3131,7 +3168,9 @@ function tiStartAgendaPhase() {
 
   // Speaker lights up blue+white
   state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
+  disableAllRfid();
   state.activeBoxId = state.ti.speakerHwid;
+  enableRfid(state.ti.speakerHwid);
   log('Agenda phase — speaker reads agenda', 'system');
   updateTiBadges();
 }
@@ -3154,7 +3193,9 @@ function tiAdvanceAgendaPhase() {
         // Second agenda
         state.ti.phase = 'agenda_reveal';
         state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
+        disableAllRfid();
         state.activeBoxId = state.ti.speakerHwid;
+        enableRfid(state.ti.speakerHwid);
         log('Second agenda — speaker reads', 'system');
       } else {
         // Agenda phase complete
@@ -3213,7 +3254,9 @@ function tiActivateAgendaTurn(phase) {
   if (state.activeBoxId && state.activeBoxId !== hwid) {
     state.boxes[state.activeBoxId].status = 'idle';
   }
+  disableAllRfid();
   state.activeBoxId = hwid;
+  enableRfid(hwid);
   state.boxes[hwid].status = phase;
 }
 
@@ -3249,6 +3292,13 @@ function tiEndRound() {
 
 function startFactionScan() {
   state.factionScanActive = true;
+  // Disable all RFID first, then enable each connected non-virtual box
+  disableAllRfid();
+  state.boxOrder.forEach(hwid => {
+    const box = state.boxes[hwid];
+    if (!box || box.isVirtual || box.status === 'disconnected') return;
+    enableRfid(hwid);
+  });
   // Blank all LEDs to signal scan mode
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
@@ -3262,6 +3312,7 @@ function startFactionScan() {
 }
 
 function stopFactionScan() {
+  disableAllRfid();
   state.factionScanActive = false;
   // Clear stored LEDs so syncLeds recalculates from status
   state.boxOrder.forEach(hwid => {
@@ -3286,6 +3337,8 @@ function handleFactionScan(hwid, internalId) {
   if (!faction) return;
 
   state.boxes[hwid].factionId = factionId;
+  // Stop this box from scanning further — it has been identified
+  if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
 
   // Auto-rename to faction name unless the box has been manually renamed
   if (!isManuallyRenamed(hwid)) {
@@ -3421,6 +3474,7 @@ async function init() {
   await loadFactions();
   render();
   updateSetupUI();
+  disableAllRfid();
 }
 
 async function loadFactions() {
