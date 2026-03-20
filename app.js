@@ -29,6 +29,9 @@ const state = {
   // Whether faction scan mode is active
   factionScanActive: false,
 
+  // Latest firmware info from GitHub releases
+  latestFirmware: null, // { version, binUrl, releaseNotes, publishedAt }
+
   // Current round (all game modes); totalRounds set for games with a fixed length (e.g. Eclipse = 8)
   round: 0,
   totalRounds: null,
@@ -74,6 +77,45 @@ const state = {
   // }
 },
 };
+
+// ---- Firmware version helpers ----
+
+function versionLessThan(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) < (pb[i] || 0)) return true;
+    if ((pa[i] || 0) > (pb[i] || 0)) return false;
+  }
+  return false;
+}
+
+function isVersionOutOfDate(boxVersion) {
+  if (!state.latestFirmware) return false;
+  if (boxVersion === 'unknown' || !boxVersion) return true;
+  return versionLessThan(boxVersion, state.latestFirmware.version);
+}
+
+async function fetchLatestFirmware() {
+  try {
+    const resp = await fetch('https://api.github.com/repos/jakemartin-icl/herald-firmware/releases/latest');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const binAsset = data.assets?.find(a => a.name.endsWith('.bin'));
+    state.latestFirmware = {
+      version: (data.tag_name || data.name || '').replace(/^v/, ''),
+      binUrl: binAsset?.browser_download_url || null,
+      releaseNotes: data.body || '',
+      publishedAt: data.published_at || '',
+    };
+    render();
+  } catch (e) {
+    console.warn('Failed to fetch latest firmware:', e);
+    state.latestFirmware = null;
+  }
+}
+
+fetchLatestFirmware();
 
 // ---- Box name persistence ----
 
@@ -203,13 +245,11 @@ function handleMessage(msg) {
       setStatus('connected');
       log('Connected to hub', 'system');
       document.getElementById('connect-btn').textContent = 'Disconnect';
-      // Resync LED state if game is active
-      if (state.gameActive) {
-        syncLeds();
-      }
+      if (state.gameActive) syncLeds();
       break;
     case 'connected':
       addBox(msg.hwid, false);
+      if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = msg.version || 'unknown';
       break;
     case 'disconnected':
       handleBoxDisconnect(msg.hwid);
@@ -226,6 +266,48 @@ function handleMessage(msg) {
     case 'rfid':
       handleRfid(msg.hwid, msg.tagId);
       break;
+    case 'ota_progress':
+      if (state.boxes[msg.hwid]) {
+        state.boxes[msg.hwid].otaProgress = msg.percent;
+        state.boxes[msg.hwid].otaUpdating = true;
+      }
+      renderOtaDialog();
+      break;
+    case 'ota_complete':
+      if (state.boxes[msg.hwid]) {
+        state.boxes[msg.hwid].version = msg.version;
+        state.boxes[msg.hwid].otaProgress = 100;
+        state.boxes[msg.hwid].otaUpdating = false;
+        state.boxes[msg.hwid].otaError = null;
+      }
+      log(`${getDisplayName(msg.hwid)} firmware updated to ${msg.version}`, 'system');
+      renderOtaDialog();
+      break;
+    case 'ota_error':
+      if (state.boxes[msg.hwid]) {
+        state.boxes[msg.hwid].otaError = msg.message;
+        state.boxes[msg.hwid].otaUpdating = false;
+        state.boxes[msg.hwid].otaProgress = null;
+      }
+      log(`${getDisplayName(msg.hwid)} OTA failed: ${msg.message}`, 'error');
+      renderOtaDialog();
+      break;
+    case 'debug':
+      log(`[${getDisplayName(msg.hwid)}] ${msg.msg}`, 'debug');
+      return; // skip render — no game state changed
+    case 'wifi_credentials':
+      _wifiCredentials = (msg.credentials || []).map(c => ({ ssid: c.ssid || '', password: c.password || '' }));
+      clearTimeout(_wifiCredentialsTimeout);
+      renderWifiDialog();
+      return;
+    case 'wifi_credentials_ack': {
+      const statusEl = document.getElementById('wifi-save-status');
+      if (statusEl) {
+        statusEl.textContent = 'Saved!';
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+      }
+      return;
+    }
   }
 
   render();
@@ -1664,9 +1746,18 @@ function renderLedRing(leds) {
 }
 
 function renderBadges(box) {
-  if (!box.badges || box.badges.length === 0) return '';
+  const badges = [...(box.badges || [])];
 
-  const items = box.badges.map(badge => {
+  if (state.latestFirmware && isVersionOutOfDate(box.version)) {
+    badges.push({
+      type: 'icon', value: '⚠️',
+      label: `Firmware out of date (${box.version || 'unknown'} → ${state.latestFirmware.version})`,
+    });
+  }
+
+  if (badges.length === 0) return '';
+
+  const items = badges.map(badge => {
     switch (badge.type) {
       case 'icon':
         return `<span class="badge-icon" title="${badge.label || ''}">${badge.value}</span>`;
@@ -2218,6 +2309,268 @@ document.addEventListener('visibilitychange', async () => {
     await requestWakeLock();
   }
 });
+
+// ---- OTA update dialog ----
+
+let _otaInterval = null;
+
+function openOtaDialog() {
+  document.getElementById('ota-overlay').style.display = 'flex';
+  renderOtaDialog();
+  _otaInterval = setInterval(renderOtaDialog, 1000);
+}
+
+function closeOtaDialog() {
+  const anyUpdating = state.boxOrder.some(id => state.boxes[id]?.otaUpdating);
+  if (anyUpdating) {
+    const el = document.getElementById('ota-close-warning');
+    if (el) el.style.display = '';
+    return;
+  }
+  document.getElementById('ota-overlay').style.display = 'none';
+  clearInterval(_otaInterval);
+  _otaInterval = null;
+}
+
+function forceCloseOtaDialog() {
+  document.getElementById('ota-overlay').style.display = 'none';
+  clearInterval(_otaInterval);
+  _otaInterval = null;
+}
+
+function startOtaUpdate(hwid) {
+  if (!state.latestFirmware?.binUrl) return;
+  const box = state.boxes[hwid];
+  if (!box) return;
+  box.otaUpdating = true;
+  box.otaProgress = 0;
+  box.otaError = null;
+  send({ type: 'ota_update', hwid, url: state.latestFirmware.binUrl, version: state.latestFirmware.version });
+  renderOtaDialog();
+}
+
+function startOtaUpdateAll() {
+  if (!state.latestFirmware?.binUrl) return;
+  state.boxOrder.forEach(hwid => {
+    const box = state.boxes[hwid];
+    if (box && isVersionOutOfDate(box.version) && !box.otaUpdating) {
+      box.otaUpdating = true;
+      box.otaProgress = 0;
+      box.otaError = null;
+    }
+  });
+  send({ type: 'ota_update', hwid: 'all', url: state.latestFirmware.binUrl, version: state.latestFirmware.version });
+  renderOtaDialog();
+}
+
+function renderOtaDialog() {
+  const el = document.getElementById('ota-dialog-content');
+  if (!el || document.getElementById('ota-overlay').style.display === 'none') return;
+
+  const fw = state.latestFirmware;
+  const anyUpdating = state.boxOrder.some(id => state.boxes[id]?.otaUpdating);
+  const allCurrent = state.boxOrder.every(id => !isVersionOutOfDate(state.boxes[id]?.version));
+
+  const headerHtml = fw ? `
+    <div class="ota-latest">
+      Latest: <strong>${fw.version}</strong>
+      <span class="ota-published">${fw.publishedAt ? new Date(fw.publishedAt).toLocaleDateString() : ''}</span>
+      ${fw.releaseNotes ? `<details><summary>Release notes</summary><pre class="ota-notes">${fw.releaseNotes}</pre></details>` : ''}
+    </div>` : `<div class="ota-latest ota-unavailable">Unable to check for updates</div>`;
+
+  const rows = state.boxOrder.map(hwid => {
+    const box = state.boxes[hwid];
+    if (!box) return '';
+    const isHub = hwid === state.hubHwid;
+    const v = box.version || 'unknown';
+    const outOfDate = isVersionOutOfDate(v);
+    const vColor = v === 'unknown' ? '#888' : outOfDate ? '#c9a84c' : '#4a7';
+    const canUpdate = fw?.binUrl && outOfDate && !box.otaUpdating;
+    const progressHtml = box.otaUpdating || box.otaProgress != null ? `
+      <div class="ota-progress-wrap">
+        <div class="ota-progress-bar" style="width:${box.otaProgress ?? 0}%"></div>
+      </div>` : '';
+    const errorHtml = box.otaError ? `<div class="ota-error">${box.otaError}</div>` : '';
+    return `<div class="ota-row">
+      <span class="ota-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>
+      <span class="ota-version" style="color:${vColor}">${v}</span>
+      <button class="ota-btn" onclick="startOtaUpdate('${hwid}')" ${canUpdate ? '' : 'disabled'}>Update</button>
+      ${progressHtml}${errorHtml}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    ${headerHtml}
+    <div class="ota-rows">${rows || '<div style="color:#888">No boxes connected</div>'}</div>
+    <div class="ota-actions">
+      <button onclick="startOtaUpdateAll()" ${fw?.binUrl && !anyUpdating && !allCurrent ? '' : 'disabled'}>Update All</button>
+    </div>`;
+}
+
+// ---- Debug logging dialog ----
+
+function openDebugDialog() {
+  document.getElementById('debug-log-overlay').style.display = 'flex';
+  renderDebugDialog();
+}
+
+function closeDebugDialog() {
+  document.getElementById('debug-log-overlay').style.display = 'none';
+}
+
+function toggleBoxDebug(hwid, enabled) {
+  if (!state.boxes[hwid]) return;
+  state.boxes[hwid].debugEnabled = enabled;
+  send({ type: enabled ? 'debug_on' : 'debug_off', hwid });
+}
+
+function renderDebugDialog() {
+  const el = document.getElementById('debug-log-content');
+  if (!el) return;
+  const rows = state.boxOrder.map(hwid => {
+    const box = state.boxes[hwid];
+    if (!box) return '';
+    const isHub = hwid === state.hubHwid;
+    const checked = box.debugEnabled ? 'checked' : '';
+    return `<div class="debug-log-row">
+      <span class="debug-log-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>
+      <label class="debug-toggle">
+        <input type="checkbox" ${checked} onchange="toggleBoxDebug('${hwid}', this.checked)">
+        <span>Debug</span>
+      </label>
+    </div>`;
+  }).join('');
+  el.innerHTML = rows || '<div style="color:#888">No boxes connected</div>';
+}
+
+// ---- WiFi credentials dialog ----
+
+let _wifiCredentials = null; // null = not loaded yet
+let _wifiCredentialsTimeout = null;
+let _wifiDragIndex = null;
+let _wifiDragOverIndex = null;
+
+function openWifiDialog() {
+  document.getElementById('wifi-overlay').style.display = 'flex';
+  _wifiCredentials = null;
+  renderWifiDialog();
+  _wifiCredentialsTimeout = setTimeout(() => {
+    if (_wifiCredentials === null) {
+      _wifiCredentials = [];
+      renderWifiDialog();
+    }
+  }, 5000);
+  if (state.hubHwid) send({ type: 'wifi_credentials_get', hwid: state.hubHwid });
+  document.addEventListener('mousemove', _onWifiDragMove);
+  document.addEventListener('mouseup', _onWifiDragEnd);
+  document.addEventListener('touchmove', _onWifiDragMove, { passive: false });
+  document.addEventListener('touchend', _onWifiDragEnd);
+}
+
+function closeWifiDialog() {
+  document.getElementById('wifi-overlay').style.display = 'none';
+  clearTimeout(_wifiCredentialsTimeout);
+  document.removeEventListener('mousemove', _onWifiDragMove);
+  document.removeEventListener('mouseup', _onWifiDragEnd);
+  document.removeEventListener('touchmove', _onWifiDragMove);
+  document.removeEventListener('touchend', _onWifiDragEnd);
+  _wifiDragIndex = null;
+  _wifiDragOverIndex = null;
+}
+
+function renderWifiDialog() {
+  const el = document.getElementById('wifi-dialog-content');
+  if (!el) return;
+
+  if (_wifiCredentials === null) {
+    el.innerHTML = '<div style="color:#888; padding:0.5rem 0;">Loading…</div>';
+    return;
+  }
+
+  let html = '<div id="wifi-cred-list">';
+  _wifiCredentials.forEach((_, i) => {
+    html += `<div class="wifi-row" data-index="${i}">
+      <span class="wifi-drag-handle">⠿</span>
+      <div class="wifi-fields">
+        <input class="wifi-ssid" type="text" placeholder="Network name" oninput="updateWifiCred(${i},'ssid',this.value)">
+        <input class="wifi-pwd" type="password" placeholder="Password" oninput="updateWifiCred(${i},'password',this.value)">
+      </div>
+      <button class="wifi-remove-btn" onclick="removeWifiCred(${i})">✕</button>
+    </div>`;
+  });
+  html += '</div>';
+  html += '<button class="wifi-add-btn" onclick="addWifiCred()">+ Add Network</button>';
+  el.innerHTML = html;
+
+  // Set values via JS to handle special characters safely
+  el.querySelectorAll('.wifi-row').forEach((row, i) => {
+    row.querySelector('.wifi-ssid').value = _wifiCredentials[i].ssid;
+    row.querySelector('.wifi-pwd').value = _wifiCredentials[i].password;
+  });
+
+  // Drag handles
+  el.querySelectorAll('.wifi-drag-handle').forEach((handle, i) => {
+    handle.addEventListener('mousedown', (e) => { _wifiDragIndex = i; e.preventDefault(); });
+    handle.addEventListener('touchstart', () => { _wifiDragIndex = i; }, { passive: true });
+  });
+}
+
+function _onWifiDragMove(e) {
+  if (_wifiDragIndex === null) return;
+  if (e.cancelable) e.preventDefault();
+  const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+  const rows = document.querySelectorAll('.wifi-row');
+  let newOver = null;
+  rows.forEach((row, i) => {
+    const rect = row.getBoundingClientRect();
+    if (y >= rect.top && y <= rect.bottom) newOver = i;
+  });
+  if (newOver !== null && newOver !== _wifiDragOverIndex) {
+    _wifiDragOverIndex = newOver;
+    rows.forEach((row, i) => {
+      row.classList.toggle('wifi-drag-over', i === _wifiDragOverIndex && i !== _wifiDragIndex);
+      row.classList.toggle('wifi-dragging', i === _wifiDragIndex);
+    });
+  }
+}
+
+function _onWifiDragEnd() {
+  if (_wifiDragIndex === null) return;
+  if (_wifiDragOverIndex !== null && _wifiDragOverIndex !== _wifiDragIndex) {
+    const [item] = _wifiCredentials.splice(_wifiDragIndex, 1);
+    _wifiCredentials.splice(_wifiDragOverIndex, 0, item);
+    renderWifiDialog();
+  } else {
+    document.querySelectorAll('.wifi-row').forEach(r => r.classList.remove('wifi-dragging', 'wifi-drag-over'));
+  }
+  _wifiDragIndex = null;
+  _wifiDragOverIndex = null;
+}
+
+function addWifiCred() {
+  if (!_wifiCredentials) _wifiCredentials = [];
+  _wifiCredentials.push({ ssid: '', password: '' });
+  renderWifiDialog();
+}
+
+function removeWifiCred(index) {
+  _wifiCredentials.splice(index, 1);
+  renderWifiDialog();
+}
+
+function updateWifiCred(index, field, value) {
+  if (_wifiCredentials && _wifiCredentials[index]) {
+    _wifiCredentials[index][field] = value;
+  }
+}
+
+function saveWifiCredentials() {
+  if (!state.hubHwid || !_wifiCredentials) return;
+  const filtered = _wifiCredentials.filter(c => c.ssid.trim() !== '');
+  send({ type: 'wifi_credentials_set', hwid: state.hubHwid, credentials: filtered });
+  const statusEl = document.getElementById('wifi-save-status');
+  if (statusEl) statusEl.textContent = 'Saving…';
+}
 
 // ---- Battery tip banner ----
 

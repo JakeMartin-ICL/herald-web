@@ -87,6 +87,9 @@
       <div id="debug-panel" style="display:none; margin-top:0.5rem">
         <button onclick="debugSkipPhase()">Skip Phase</button>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
+        <button onclick="openOtaDialog()">Firmware Updates</button>
+        <button onclick="openDebugDialog()">Debug Logging</button>
+        <button onclick="openWifiDialog()">WiFi Networks</button>
       </div>
     </div>
   </div>
@@ -106,6 +109,29 @@
         <button onclick="closeRfidDialog()">Cancel</button>
     </div>
     </div>
+
+  <div id="ota-overlay" style="display:none" onclick="closeOtaDialog()">
+    <div id="ota-dialog" onclick="event.stopPropagation()">
+      <h2>Firmware Updates</h2>
+      <div id="ota-dialog-content"></div>
+      <div id="ota-close-warning" style="display:none; color:#c9a84c; font-size:0.8rem; margin-top:0.5rem;">
+        Updates in progress — closing this dialog will not cancel them.
+      </div>
+      <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+        <button onclick="closeOtaDialog()" style="flex:1">Close</button>
+        <button onclick="forceCloseOtaDialog()" style="flex:1; background:#1a1a3e; color:#888;">Force Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="debug-log-overlay" style="display:none" onclick="closeDebugDialog()">
+    <div id="debug-log-dialog" onclick="event.stopPropagation()">
+      <h2>Debug Logging</h2>
+      <div id="debug-log-content"></div>
+      <p style="color:#555; font-size:0.75rem; margin-top:1rem;">Debug messages appear in the event log.</p>
+      <button onclick="closeDebugDialog()" style="width:100%; margin-top:0.5rem;">Close</button>
+    </div>
+  </div>
 
   <div id="sub-overlay" style="display:none" onclick="cancelSubstitution()">
     <div id="sub-dialog" onclick="event.stopPropagation()">
@@ -146,6 +172,19 @@
       </div>
       <div id="graph-content"></div>
       <button onclick="closeGraphOverlay()">Close</button>
+    </div>
+  </div>
+
+  <div id="wifi-overlay" style="display:none" onclick="closeWifiDialog()">
+    <div id="wifi-dialog" onclick="event.stopPropagation()">
+      <h2>WiFi Networks</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Networks are tried in order on boot. Changes are applied to all boxes.</p>
+      <div id="wifi-dialog-content"></div>
+      <div style="display:flex; gap:0.5rem; margin-top:1rem; align-items:center;">
+        <button onclick="saveWifiCredentials()" style="flex:1">Save</button>
+        <span id="wifi-save-status" style="color:#4a7; font-size:0.85rem; min-width:4rem;"></span>
+        <button onclick="closeWifiDialog()" style="flex:1; background:#1a1a3e; color:#aaa;">Close</button>
+      </div>
     </div>
   </div>
 

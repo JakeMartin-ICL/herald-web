@@ -688,6 +688,98 @@ select {
 .log-entry.received { color: #70c070; }
 .log-entry.system   { color: #c9a84c; }
 .log-entry.error    { color: #e07070; }
+.log-entry.debug    { color: #7788aa; }
+
+/* ---- OTA update dialog ---- */
+
+#ota-overlay, #debug-log-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#ota-dialog, #debug-log-dialog {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+#ota-dialog h2, #debug-log-dialog h2 {
+  color: #c9a84c;
+  margin: 0;
+}
+
+.ota-latest { font-size: 0.9rem; color: #aaa; }
+.ota-latest strong { color: #eee; }
+.ota-published { font-size: 0.75rem; color: #666; margin-left: 0.5rem; }
+.ota-unavailable { color: #e07070; }
+.ota-notes { font-size: 0.75rem; color: #888; white-space: pre-wrap; margin-top: 0.5rem; }
+
+.ota-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.ota-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ota-name { font-size: 0.9rem; }
+.ota-hub  { font-size: 0.75rem; color: #888; }
+.ota-version { font-size: 0.8rem; font-weight: bold; }
+.ota-btn  { font-size: 0.8rem; padding: 0.2rem 0.6rem; }
+
+.ota-progress-wrap {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: #0a1628;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ota-progress-bar {
+  height: 100%;
+  background: #c9a84c;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.ota-error { grid-column: 1 / -1; font-size: 0.8rem; color: #e07070; }
+
+.ota-actions { margin-top: 0.5rem; }
+
+/* ---- Debug logging dialog ---- */
+
+.debug-log-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #1a2a3e;
+}
+
+.debug-log-name { font-size: 0.9rem; }
+
+.debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #aaa;
+  cursor: pointer;
+}
 
 
 /* ---- Tag learning overlay ---- */
@@ -793,4 +885,113 @@ select {
   justify-content: space-between;
   font-size: 0.85rem;
   color: #70c070;
+}
+
+/* ---- WiFi credentials dialog ---- */
+
+#wifi-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+#wifi-dialog {
+  background: #16213e;
+  border: 1px solid #334;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#wifi-cred-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.wifi-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #0f3460;
+  border: 1px solid #334;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  transition: opacity 0.15s;
+}
+
+.wifi-row.wifi-dragging {
+  opacity: 0.4;
+}
+
+.wifi-row.wifi-drag-over {
+  border-color: #c9a84c;
+}
+
+.wifi-drag-handle {
+  cursor: grab;
+  color: #556;
+  font-size: 1.1rem;
+  padding: 0 0.1rem;
+  user-select: none;
+  touch-action: none;
+}
+
+.wifi-drag-handle:active {
+  cursor: grabbing;
+}
+
+.wifi-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.wifi-ssid,
+.wifi-pwd {
+  background: #1a1a3e;
+  border: 1px solid #334;
+  border-radius: 3px;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  width: 100%;
+}
+
+.wifi-remove-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.3rem;
+}
+
+.wifi-remove-btn:hover {
+  color: #c44;
+}
+
+.wifi-add-btn {
+  width: 100%;
+  background: #0f3460;
+  border: 1px dashed #446;
+  color: #aaa;
+  font-size: 0.85rem;
+  padding: 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.wifi-add-btn:hover {
+  border-color: #c9a84c;
+  color: #e0e0e0;
 }
