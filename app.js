@@ -2315,6 +2315,38 @@ document.addEventListener('visibilitychange', async () => {
 // ---- OTA update dialog ----
 
 let _otaInterval = null;
+let _identifyingHwid = null;
+let _identifyTimer = null;
+
+function identifyBox(hwid) {
+  if (_identifyTimer) clearTimeout(_identifyTimer);
+  _identifyingHwid = hwid;
+
+  state.boxOrder.forEach(id => {
+    const box = state.boxes[id];
+    if (!box || box.isVirtual || box.status === 'disconnected') return;
+    if (id === hwid) {
+      sendToBox(id, { type: 'led', pattern: 'on', leds: ledSolid(LED_COUNT, '#ffffff') });
+    } else {
+      sendToBox(id, { type: 'led', pattern: 'off', leds: ledOff(LED_COUNT) });
+    }
+  });
+
+  _identifyTimer = setTimeout(() => {
+    _identifyTimer = null;
+    _identifyingHwid = null;
+    state.boxOrder.forEach(id => {
+      const box = state.boxes[id];
+      if (!box || box.isVirtual || box.status === 'disconnected') return;
+      const leds = ledStateForStatus(box.status, box, id);
+      box.leds = leds;
+      sendToBox(id, { type: 'led', pattern: 'off', leds });
+    });
+    renderOtaDialog();
+  }, 3000);
+
+  renderOtaDialog();
+}
 
 function openOtaDialog() {
   document.getElementById('ota-overlay').style.display = 'flex';
@@ -2388,6 +2420,8 @@ function renderOtaDialog() {
     const outOfDate = isVersionOutOfDate(v);
     const vColor = v === 'unknown' ? '#888' : outOfDate ? '#c9a84c' : '#4a7';
     const canUpdate = fw?.binUrl && outOfDate && !box.otaUpdating;
+    const canIdentify = box.status !== 'disconnected' && !box.isVirtual;
+    const identifying = _identifyingHwid === hwid;
     const progressHtml = box.otaUpdating || box.otaProgress != null ? `
       <div class="ota-progress-wrap">
         <div class="ota-progress-bar" style="width:${box.otaProgress ?? 0}%"></div>
@@ -2396,6 +2430,7 @@ function renderOtaDialog() {
     return `<div class="ota-row">
       <span class="ota-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>
       <span class="ota-version" style="color:${vColor}">${v}</span>
+      <button class="ota-identify-btn${identifying ? ' identifying' : ''}" onclick="identifyBox('${hwid}')" ${canIdentify ? '' : 'disabled'}>${identifying ? 'Identifying…' : 'Identify'}</button>
       <button class="ota-btn" onclick="startOtaUpdate('${hwid}')" ${canUpdate ? '' : 'disabled'}>Update</button>
       ${progressHtml}${errorHtml}
     </div>`;

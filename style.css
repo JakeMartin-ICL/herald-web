@@ -730,7 +730,7 @@ select {
 
 .ota-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
@@ -739,7 +739,9 @@ select {
 .ota-name { font-size: 0.9rem; }
 .ota-hub  { font-size: 0.75rem; color: #888; }
 .ota-version { font-size: 0.8rem; font-weight: bold; }
-.ota-btn  { font-size: 0.8rem; padding: 0.2rem 0.6rem; }
+.ota-btn           { font-size: 0.8rem; padding: 0.2rem 0.6rem; }
+.ota-identify-btn  { font-size: 0.8rem; padding: 0.2rem 0.6rem; background: #0f3460; border-color: #446; }
+.ota-identify-btn.identifying { border-color: #ffffff; color: #ffffff; }
 
 .ota-progress-wrap {
   grid-column: 1 / -1;
