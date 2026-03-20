@@ -538,6 +538,37 @@ select {
   flex-shrink: 0;
 }
 
+/* ---- Battery tip banner ---- */
+
+#battery-tip-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a2a1a;
+  border-top: 1px solid #4a7;
+  color: #cec;
+  font-size: 0.8rem;
+  padding: 0.6rem 1rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  z-index: 500;
+}
+
+#battery-tip-banner span { flex: 1; }
+
+#battery-tip-banner button {
+  background: none;
+  border: 1px solid #4a7;
+  color: #4a7;
+  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ---- Game timer display ---- */
 
 .game-timer-display {

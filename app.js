@@ -808,6 +808,8 @@ function startGame() {
   stopCurrentTimerInterval();
   if (needsTimerInterval()) startCurrentTimerInterval();
   requestWakeLock();
+  initSilentAudio();
+  showBatteryTipIfNeeded();
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
   gameModeStart();
   render();
@@ -1471,6 +1473,14 @@ function renderGameControls() {
     id: 'gc-timer-total', event: 'change',
     fn: (e) => { timerSettings.showTotal = e.target.checked; renderBoxes(); },
   });
+  if (silentAudioContext) {
+    const running = silentAudioContext.state === 'running';
+    statusLines.push(running
+      ? '<span style="color:#4a7">🔇 Background keepalive active</span>'
+      : '<span style="color:#c94">⚠️ Background keepalive inactive</span>'
+    );
+  }
+
   actionDefs.push({ html: '<button class="end-game-btn" id="gc-end-game">End Game</button>', id: 'gc-end-game', fn: confirmEndGame });
 
   statusEl.innerHTML = statusLines.map(l => `<div>${l}</div>`).join('');
@@ -1514,6 +1524,7 @@ function endGame() {
   state.factionScanActive = false;
   document.getElementById('faction-scan-banner').style.display = 'none';
   releaseWakeLock();
+  if (silentAudioContext) silentAudioContext.suspend();
   document.getElementById('setup-panel').style.display = '';
   log('Game ended', 'system');
   render();
@@ -2100,6 +2111,47 @@ document.addEventListener('visibilitychange', async () => {
     await requestWakeLock();
   }
 });
+
+// ---- Battery tip banner ----
+
+function showBatteryTipIfNeeded() {
+  if (localStorage.getItem('herald-battery-tip-dismissed')) return;
+  document.getElementById('battery-tip-banner').style.display = 'flex';
+}
+
+function dismissBatteryTip() {
+  localStorage.setItem('herald-battery-tip-dismissed', '1');
+  document.getElementById('battery-tip-banner').style.display = 'none';
+}
+
+// ---- Silent audio keepalive ----
+
+let silentAudioContext = null;
+
+function initSilentAudio() {
+  if (silentAudioContext) {
+    if (silentAudioContext.state === 'suspended') silentAudioContext.resume();
+    return;
+  }
+  try {
+    silentAudioContext = new AudioContext();
+    const gainNode = silentAudioContext.createGain();
+    gainNode.gain.value = 0;
+    const oscillator = silentAudioContext.createOscillator();
+    oscillator.frequency.value = 0;
+    oscillator.connect(gainNode);
+    gainNode.connect(silentAudioContext.destination);
+    oscillator.start();
+    silentAudioContext.onstatechange = () => {
+      if (state.gameActive && silentAudioContext.state === 'suspended') {
+        silentAudioContext.resume();
+      }
+      renderGameControls();
+    };
+  } catch (err) {
+    log(`Silent audio init failed: ${err.message}`, 'error');
+  }
+}
 
 // ---- TI mode ----
 
