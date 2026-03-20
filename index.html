@@ -86,6 +86,7 @@
       <button onclick="toggleDebug()" style="font-size:0.7rem; background:none; border:none; color:#888; cursor:pointer">debug</button>
       <div id="debug-panel" style="display:none; margin-top:0.5rem">
         <button onclick="debugSkipPhase()">Skip Phase</button>
+        <button onclick="addVirtualBox()">Add Virtual Box</button>
       </div>
     </div>
   </div>
@@ -105,6 +106,18 @@
         <button onclick="closeRfidDialog()">Cancel</button>
     </div>
     </div>
+
+  <div id="sub-overlay" style="display:none" onclick="cancelSubstitution()">
+    <div id="sub-dialog" onclick="event.stopPropagation()">
+      <h2>Box Connected</h2>
+      <p style="margin-bottom:1rem; color:#aaa;">Which player is this box replacing?</p>
+      <select id="sub-select" style="width:100%; margin-bottom:1rem;"></select>
+      <div style="display:flex; gap:0.5rem;">
+        <button onclick="confirmSubstitution()" style="flex:1">Substitute</button>
+        <button onclick="cancelSubstitution()" style="flex:1; background:#1a1a3e; color:#aaa;">Add without replacing</button>
+      </div>
+    </div>
+  </div>
 
   <div id="end-game-overlay" style="display:none" onclick="cancelEndGame()">
     <div id="end-game-dialog" onclick="event.stopPropagation()">

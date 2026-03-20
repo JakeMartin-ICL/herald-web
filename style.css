@@ -605,6 +605,32 @@ select {
   font-weight: bold;
 }
 
+/* ---- Substitution overlay ---- */
+
+#sub-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#sub-dialog {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 320px;
+  width: 90%;
+}
+
+#sub-dialog h2 {
+  color: #c9a84c;
+  margin-bottom: 0.5rem;
+}
+
 /* ---- End game overlay ---- */
 
 #end-game-overlay {
