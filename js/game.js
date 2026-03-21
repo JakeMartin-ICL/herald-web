@@ -21,6 +21,7 @@ function startGame() {
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
   gameModeStart();
   render();
+  persistState();
 }
 
 function gameModeStart() {
@@ -55,6 +56,7 @@ function handleEndTurn(hwid) {
       tiEndTurn(hwid);
       break;
   }
+  persistState();
 }
 
 function handlePass(hwid) {
@@ -72,6 +74,7 @@ function handlePass(hwid) {
       tiPass(hwid);
       break;
   }
+  persistState();
 }
 
 function handleLongPress(hwid) {
@@ -101,6 +104,7 @@ function advancePhase() {
       break;
   }
   render();
+  persistState();
 }
 
 function tiAdvancePhase() {

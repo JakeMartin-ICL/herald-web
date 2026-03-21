@@ -248,6 +248,7 @@ function endGame() {
   state.ti = { ...state.ti, phase: null, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
   endPhase();
   captureGameStats();
+  clearPersistedState();
   state.gameStartTime = null;
   state.phaseLog = [];
   state.currentPhaseStart = null;

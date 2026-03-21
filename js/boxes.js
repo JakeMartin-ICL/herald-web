@@ -75,6 +75,7 @@ function addBox(hwid, isVirtual) {
   }
 
   state.boxOrder.push(hwid);
+  applyPendingPersistedBox(hwid);
   log(`${isVirtual ? 'Virtual box' : 'Box'} ${getDisplayName(hwid)} connected`, 'system');
   updateSetupUI();
   render();
@@ -217,6 +218,7 @@ function updateSetupUI() {
   document.getElementById('start-btn').disabled =
     count < 2 || state.gameActive;
   document.getElementById('prev-stats-btn').style.display = prevGameStats ? 'block' : 'none';
+  if (typeof updateResumeBtnState === 'function') updateResumeBtnState();
 
   // Eclipse rows
   document.getElementById('first-player-row').style.display = isEclipse ? 'flex' : 'none';

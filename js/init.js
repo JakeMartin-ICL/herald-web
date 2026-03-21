@@ -114,6 +114,18 @@ async function init() {
   render();
   updateSetupUI();
   disableAllRfid();
+  checkLocalBackup();
+}
+
+function checkLocalBackup() {
+  try {
+    const raw = localStorage.getItem('herald-game-state');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.gameActive) offerResume(parsed);
+  } catch (e) {
+    localStorage.removeItem('herald-game-state');
+  }
 }
 
 async function loadFactions() {

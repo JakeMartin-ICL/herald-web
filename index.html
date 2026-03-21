@@ -51,6 +51,15 @@
         <button id="ti-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildTiFactionTagQueue(), 'Write TI Faction Tags')">Write Faction Tags</button>
         <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildEclipseFactionTagQueue(), 'Write Eclipse Faction Tags')">Write Faction Tags</button>
         <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
+        <div id="resume-banner" style="display:none; flex-direction:column; gap:0.4rem; background:#1a1a3e; border:1px solid #4a4a8a; border-radius:6px; padding:0.75rem; margin-bottom:0.5rem;">
+          <div id="resume-mode-label" style="font-weight:bold; color:#c9a84c;"></div>
+          <div id="resume-detail-label" style="color:#aaa; font-size:0.85rem;"></div>
+          <div id="resume-waiting" style="display:none; color:#888; font-size:0.8rem;"></div>
+          <div style="display:flex; gap:0.5rem; margin-top:0.25rem;">
+            <button id="resume-btn" onclick="confirmResume()" disabled>Resume Game</button>
+            <button onclick="discardResume()" style="background:#1a1a3e; color:#aaa;">Discard</button>
+          </div>
+        </div>
         <button onclick="addVirtualBox()">Add Virtual Box</button>
         <button id="prev-stats-btn" style="display:none" onclick="openGraphOverlay('prev')">Previous game stats</button>
         <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
@@ -208,6 +217,7 @@
   <script src="js/game.js"></script>
   <script src="js/ota.js"></script>
   <script src="js/settings.js"></script>
+  <script src="js/persist.js"></script>
   <script src="js/init.js"></script>
   <script>init();</script>
 </body>

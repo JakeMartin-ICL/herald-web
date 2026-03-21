@@ -72,6 +72,12 @@ function send(msg) {
   }
 }
 
+function sendSilent(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(msg));
+  }
+}
+
 function sendToBox(hwid, msg) {
   if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
     handleBoxCommand(hwid, msg);
@@ -167,6 +173,11 @@ function handleMessage(msg) {
       _wifiCredentials = (msg.credentials || []).map(c => ({ ssid: c.ssid || '', password: c.password || '' }));
       clearTimeout(_wifiCredentialsTimeout);
       renderWifiDialog();
+      return;
+    case 'state_backup':
+      applyHubBackup(msg.payload, msg.compressed);
+      return; // async, no sync render needed
+    case 'state_backup_none':
       return;
     case 'wifi_credentials_ack': {
       const statusEl = document.getElementById('wifi-save-status');
