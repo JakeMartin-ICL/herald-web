@@ -271,13 +271,4 @@ function eclipseEndRound() {
 // ---- Eclipse badges ----
 
 function updateEclipseBadges() {
-  if (!state.gameMode.startsWith('eclipse')) return;
-  state.boxOrder.forEach(hwid => {
-    const faction = getFactionForBox(hwid);
-    if (faction) {
-      setBoxBadges(hwid, [{ type: 'text', value: faction.name, color: faction.color }]);
-    } else {
-      clearBoxBadges(hwid);
-    }
-  });
 }

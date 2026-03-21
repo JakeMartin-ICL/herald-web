@@ -371,6 +371,7 @@ function renderBoxes() {
     const faction = getFactionForBox(hwid);
     if (faction) {
       card.style.setProperty('--faction-color', faction.color);
+      card.classList.add('has-faction');
     }
 
     const escapedHwid = CSS.escape(hwid);

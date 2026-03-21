@@ -7,7 +7,6 @@ function startGame() {
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
     state.boxes[hwid].badges = [];
-    state.boxes[hwid].factionId = null;
   });
   resetTurnTimers();
   state.gameStartTime = Date.now();
