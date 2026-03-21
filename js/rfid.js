@@ -315,7 +315,7 @@ function getSimRfidOptions() {
     const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
     const factions = state.factions[gameKey] || [];
     return factions.map(f => ({
-      id: `sim:${state.gameMode === 'ti' ? 'ti' : 'eclipse'}:faction:${f.id}`,
+      id: `${state.gameMode === 'ti' ? 'ti' : 'eclipse'}:faction:${f.id}`,
       label: f.name,
     }));
   }
