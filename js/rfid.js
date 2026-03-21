@@ -4,10 +4,10 @@ let rfidDialogHwid = null;
 
 function openRfidDialog(hwid) {
   rfidDialogHwid = hwid;
-  const options = getSimRfidOptions();
+  const tags = getRelevantTagsForBox(hwid);
   const list = document.getElementById('rfid-dialog-list');
-  list.innerHTML = options.map(o =>
-    `<button class="rfid-option" onclick="selectRfidOption('${o.id}')">${o.label}</button>`
+  list.innerHTML = tags.map(t =>
+    `<button class="rfid-option" onclick="selectRfidOption('${t.id}')">${t.display}</button>`
   ).join('');
   document.getElementById('rfid-dialog-overlay').style.display = 'flex';
 }
@@ -32,35 +32,10 @@ let tagWritingIndex = 0;
 let tagWritingActive = false;
 let tagWritingPending = false;
 
-function buildTiTagQueue() {
-  return [
-    { prompt: 'Tap the Speaker Token on the hub box', internalId: 'ti:token:speaker', simId: 'sim:ti:token:speaker' },
-    { prompt: 'Tap the Leadership card on the hub box', internalId: 'ti:strategy:leadership', simId: 'sim:ti:strategy:leadership' },
-    { prompt: 'Tap the Diplomacy card on the hub box', internalId: 'ti:strategy:diplomacy', simId: 'sim:ti:strategy:diplomacy' },
-    { prompt: 'Tap the Politics card on the hub box', internalId: 'ti:strategy:politics', simId: 'sim:ti:strategy:politics' },
-    { prompt: 'Tap the Construction card on the hub box', internalId: 'ti:strategy:construction', simId: 'sim:ti:strategy:construction' },
-    { prompt: 'Tap the Trade card on the hub box', internalId: 'ti:strategy:trade', simId: 'sim:ti:strategy:trade' },
-    { prompt: 'Tap the Warfare card on the hub box', internalId: 'ti:strategy:warfare', simId: 'sim:ti:strategy:warfare' },
-    { prompt: 'Tap the Technology card on the hub box', internalId: 'ti:strategy:technology', simId: 'sim:ti:strategy:technology' },
-    { prompt: 'Tap the Imperial card on the hub box', internalId: 'ti:strategy:imperial', simId: 'sim:ti:strategy:imperial' },
-  ];
-}
-
-function buildTiFactionTagQueue() {
-  if (!state.factions) return [];
-  return state.factions.twilight_imperium.map(f => ({
-    prompt: `Tap ${f.name}'s home system tile on the hub box`,
-    internalId: `ti:faction:${f.id}`,
-    simId: `sim:ti:faction:${f.id}`,
-  }));
-}
-
-function buildEclipseFactionTagQueue() {
-  if (!state.factions) return [];
-  return state.factions.eclipse.map(f => ({
-    prompt: `Tap ${f.name}'s faction box on the hub box`,
-    internalId: `eclipse:faction:${f.id}`,
-    simId: `sim:eclipse:faction:${f.id}`,
+function buildTagQueue(game) {
+  return getTagsByGame(game).map(t => ({
+    prompt: `Tap ${t.display} on the hub box`,
+    internalId: t.id,
   }));
 }
 
@@ -212,7 +187,37 @@ function handleTiTag(hwid, game, category, id) {
 
 function handleEclipseTag(hwid, game, category, id) {
   if (game !== 'eclipse') { log(`Tag game mismatch: expected eclipse, got ${game}`, 'error'); return; }
-  // faction: no-op during gameplay
+
+  if (!state.eclipse.tapToPass) return;
+
+  if (category === 'faction') {
+    if (state.eclipse.phase === 'action' && hwid === state.activeBoxId) {
+      const box = state.boxes[hwid];
+      if (!box || box.status !== 'active') return;
+
+      // Active player taps to pass
+      box.status = 'can-react';
+      state.eclipse.passOrder.push(hwid);
+      log(`${getDisplayName(hwid)} passes (tapped)`, 'system');
+
+      const actionOver = state.boxOrder.every(id =>
+        state.boxes[id].status === 'can-react' ||
+        state.boxes[id].status === 'passed' ||
+        state.boxes[id].status === 'disconnected'
+      );
+      if (actionOver) {
+        eclipseEndActionPhase();
+      } else {
+        eclipseActivateNext();
+      }
+      render();
+      persistState();
+    } else if (state.eclipse.phase === 'upkeep') {
+      eclipseUpkeepReady(hwid, 'tap');
+      render();
+      persistState();
+    }
+  }
 }
 
 // ---- Faction Scan ----
@@ -308,34 +313,6 @@ function simulateButton(hwid, type) {
   handleMessage({ type, hwid });
 }
 
-function getSimRfidOptions() {
-  if (state.factionScanActive) {
-    // During faction scan, return factions for current game mode
-    if (!state.factions) return [];
-    const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
-    const factions = state.factions[gameKey] || [];
-    return factions.map(f => ({
-      id: `${state.gameMode === 'ti' ? 'ti' : 'eclipse'}:faction:${f.id}`,
-      label: f.name,
-    }));
-  }
-
-  // Build options from the write queues for the current game mode
-  const queue = state.gameMode === 'ti'
-    ? [...buildTiTagQueue(), ...buildTiFactionTagQueue()]
-    : buildEclipseFactionTagQueue();
-  return queue.map(item => ({ id: item.internalId, label: item.prompt }));
-}
-
-function simulateRfid(hwid) {
-  const safeId = hwid.replace(/:/g, '-');
-  const select = document.getElementById(`rfid-select-${safeId}`);
-  if (!select) return;
-  const tagId = select.value;
-  if (!tagId) return;
-  log(`[SIM] ${getDisplayName(hwid)} tapped tag ${tagId}`, 'system');
-  handleMessage({ type: 'rfid', hwid, tagId });
-}
 
 function simulateTagTap() {
   if (!tagWritingActive) return;

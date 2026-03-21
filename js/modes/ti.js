@@ -1,5 +1,29 @@
 // ---- TI mode ----
 
+// ---- Relevant tags for sim ----
+
+function tiRelevantTags(hwid) {
+  if (hwid !== state.activeBoxId) return [];
+  const phase = state.ti.phase;
+
+  if (phase === 'strategy') {
+    return filterTags('ti', t => t.id.startsWith('ti:strategy:'));
+  }
+
+  if (phase === 'action') {
+    const player = state.ti.players[hwid];
+    if (!player) return [];
+    const heldIds = new Set(player.strategyCards.map(c => c.id));
+    return filterTags('ti', t => {
+      if (t.id === 'ti:token:speaker') return true;
+      const parts = t.id.split(':');
+      return parts[1] === 'strategy' && heldIds.has(parts[2]);
+    });
+  }
+
+  return [];
+}
+
 const TI_STRATEGY_COLORS = {
   leadership:   '#cc0000',
   diplomacy:    '#ff8800',

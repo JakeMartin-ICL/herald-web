@@ -4,6 +4,7 @@ function eclipseStart() {
   const firstPlayerId = document.getElementById('first-player').value;
   state.eclipse.firstPlayerId = firstPlayerId;
   state.eclipse.passOrder = [];
+  state.eclipse.upkeepReady = [];
   state.eclipse.phase = 'action';
   state.round = 1;
   state.totalRounds = 8;
@@ -40,11 +41,10 @@ function eclipseActivateNext() {
       if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
-      disableAllRfid();
       state.activeBoxId = nextId;
-      enableRfid(nextId);
       state.boxes[nextId].status = 'active';
       log(`${getDisplayName(nextId)}'s turn`, 'system');
+      eclipseSyncActionRfid();
       return;
     }
 
@@ -52,11 +52,10 @@ function eclipseActivateNext() {
       if (current !== null && state.boxes[current]?.status === 'idle') {
         state.boxes[current].status = 'idle';
       }
-      disableAllRfid();
       state.activeBoxId = nextId;
-      enableRfid(nextId);
       state.boxes[nextId].status = 'reacting';
       log(`${getDisplayName(nextId)} reaction opportunity`, 'system');
+      eclipseSyncActionRfid();
       return;
     }
   }
@@ -64,7 +63,18 @@ function eclipseActivateNext() {
   eclipseEndActionPhase();
 }
 
+// Enable RFID on the active box (tap-to-pass: active player taps to pass on their turn).
+function eclipseSyncActionRfid() {
+  disableAllRfid();
+  if (state.activeBoxId) enableRfid(state.activeBoxId);
+}
+
 function eclipseEndTurn(hwid) {
+  if (state.eclipse.phase === 'upkeep') {
+    eclipseUpkeepReady(hwid, 'button');
+    return;
+  }
+
   if (hwid !== state.activeBoxId) return;
   const box = state.boxes[hwid];
 
@@ -78,7 +88,34 @@ function eclipseEndTurn(hwid) {
   eclipseActivateNext();
 }
 
+function eclipseUpkeepReady(hwid, source) {
+  if (state.eclipse.phase !== 'upkeep') return;
+  const box = state.boxes[hwid];
+  if (!box || box.status !== 'upkeep') return;
+
+  if (source === 'button' && state.eclipse.tapToPass) {
+    log(`${getDisplayName(hwid)}: tap your reaction card to mark upkeep done`, 'system');
+    return;
+  }
+
+  if (state.eclipse.upkeepReady.includes(hwid)) return;
+  state.eclipse.upkeepReady.push(hwid);
+  box.status = 'idle';
+  log(`${getDisplayName(hwid)} upkeep done`, 'system');
+
+  const allDone = state.boxOrder.every(id =>
+    state.boxes[id].status === 'idle' ||
+    state.boxes[id].status === 'disconnected'
+  );
+  if (allDone) eclipseEndRound();
+}
+
 function eclipsePass(hwid) {
+  if (state.eclipse.phase === 'upkeep') {
+    eclipseUpkeepReady(hwid, 'button');
+    return;
+  }
+
   if (hwid !== state.activeBoxId) return;
   const box = state.boxes[hwid];
 
@@ -86,6 +123,10 @@ function eclipsePass(hwid) {
     box.status = 'passed';
     log(`${getDisplayName(hwid)} opts out of reactions`, 'system');
   } else if (box.status === 'active') {
+    if (state.eclipse.tapToPass) {
+      log(`${getDisplayName(hwid)}: tap your reaction card to pass`, 'system');
+      return;
+    }
     box.status = 'can-react';
     state.eclipse.passOrder.push(hwid);
     log(`${getDisplayName(hwid)} passes`, 'system');
@@ -216,12 +257,19 @@ function stopUpkeepAnimation() {
 function eclipseStartUpkeep() {
   log('Upkeep phase', 'system');
   state.eclipse.phase = 'upkeep';
+  state.eclipse.upkeepReady = [];
   startPhase('upkeep');
   state.boxOrder.forEach(id => {
     if (state.boxes[id].status !== 'disconnected') {
       state.boxes[id].status = 'upkeep';
     }
   });
+  if (state.eclipse.tapToPass) {
+    disableAllRfid();
+    state.boxOrder.forEach(id => {
+      if (state.boxes[id]?.status === 'upkeep') enableRfid(id);
+    });
+  }
   startUpkeepAnimation();
 }
 
@@ -271,4 +319,23 @@ function eclipseEndRound() {
 // ---- Eclipse badges ----
 
 function updateEclipseBadges() {
+}
+
+// ---- Relevant tags for sim ----
+
+function eclipseRelevantTags(hwid) {
+  const box = state.boxes[hwid];
+  if (!box || !state.eclipse.tapToPass) return [];
+
+  const factionTag = box.factionId
+    ? [{ display: getDisplayName(hwid), id: `eclipse:faction:${box.factionId}` }]
+    : [];
+
+  if (state.eclipse.phase === 'action' && hwid === state.activeBoxId) {
+    if (box.status === 'active') return factionTag;
+  }
+  if (state.eclipse.phase === 'upkeep') {
+    if (box.status === 'upkeep') return factionTag;
+  }
+  return [];
 }

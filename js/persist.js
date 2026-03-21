@@ -42,6 +42,8 @@ function extractPersistableState() {
       firstPlayerId: state.eclipse.firstPlayerId,
       passOrder:     [...state.eclipse.passOrder],
       turnOrder:     [...state.eclipse.turnOrder],
+      tapToPass:     state.eclipse.tapToPass,
+      upkeepReady:   [...state.eclipse.upkeepReady],
     },
     ti,
     factions:  state.factions,
@@ -221,6 +223,8 @@ function restoreState(persisted) {
       firstPlayerId: persisted.eclipse.firstPlayerId ? remap(persisted.eclipse.firstPlayerId) : null,
       passOrder:     (persisted.eclipse.passOrder || []).map(remap),
       turnOrder:     (persisted.eclipse.turnOrder || []).map(remap),
+      tapToPass:     persisted.eclipse.tapToPass !== undefined ? persisted.eclipse.tapToPass : true,
+      upkeepReady:   (persisted.eclipse.upkeepReady || []).map(remap),
     };
   }
 

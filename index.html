@@ -47,9 +47,8 @@
             <label>Speaker</label>
             <select id="ti-speaker"></select>
             </div>
-        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagWriting(buildTiTagQueue(), 'Write TI Strategy Tags')">Write Strategy Tags</button>
-        <button id="ti-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildTiFactionTagQueue(), 'Write TI Faction Tags')">Write Faction Tags</button>
-        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildEclipseFactionTagQueue(), 'Write Eclipse Faction Tags')">Write Faction Tags</button>
+        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagWriting(buildTagQueue('ti'), 'Write TI Tags')">Write Tags</button>
+        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildTagQueue('eclipse'), 'Write Eclipse Tags')">Write Tags</button>
         <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
         <div id="resume-banner" style="display:none; flex-direction:column; gap:0.4rem; background:#1a1a3e; border:1px solid #4a4a8a; border-radius:6px; padding:0.75rem; margin-bottom:0.5rem;">
           <div id="resume-mode-label" style="font-weight:bold; color:#c9a84c;"></div>
@@ -207,6 +206,7 @@
   <script src="js/boxes.js"></script>
   <script src="js/websockets.js"></script>
   <script src="js/leds.js"></script>
+  <script src="js/tags.js"></script>
   <script src="js/timers.js"></script>
   <script src="js/graphs.js"></script>
   <script src="js/modes/clockwise.js"></script>

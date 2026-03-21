@@ -8,6 +8,9 @@ A plain HTML/CSS/JS app (no build tool) that connects over WebSocket to a Herald
 index.html       — Single page app shell + all dialog overlays
 style.css        — All styles
 factions.json    — Faction data for TI and Eclipse (names, colours, IDs)
+tags.json        — RFID tag definitions for each game (display name + internalId);
+                   wildcard entries { display: "*", id: "game:faction:*" } expand to
+                   faction tags at load time using factions.json
 js/
   state.js       — Global constants (VIRTUAL_BOX_ID_OFFSET etc.) and the `state` object
   firmware.js    — Firmware version comparison helpers + fetchLatestFirmware()
@@ -17,6 +20,10 @@ js/
                    RFID enable/disable helpers
   leds.js        — LED colour helpers (ledSolid, ledOff, ledSectors…), ledStateForStatus(),
                    syncLeds()
+  tags.js        — Loads and expands tags.json into state.allTags; filterTags(game, fn);
+                   getRelevantTagsForBox(hwid) — returns context-aware tag list for sim
+                   RFID dialog (empty = hide button); delegates to mode-specific
+                   *RelevantTags(hwid) functions
   timers.js      — Per-player turn timers, phase timing (startPhase/endPhase), formatDuration()
   graphs.js      — Stats/graphs overlay (openGraphOverlay, renderGraph, renderStats,
                    captureGameStats, snapshotPlayer)
@@ -24,16 +31,21 @@ js/
                    box cards, drag-to-reorder, name editing, sim toggle
   game.js        — Game start/end (startGame, endGame), mode dispatch (handleEndTurn,
                    handlePass, handleLongPress), phase advance, debug skip
-  rfid.js        — RFID dialog, tag writing flow (startTagWriting, handleRfidWriteResult),
-                   faction scan, faction display helpers, simulator helpers
+  rfid.js        — RFID dialog (openRfidDialog uses getRelevantTagsForBox),
+                   tag writing flow (buildTagQueue, startTagWriting, handleRfidWriteResult),
+                   faction scan, faction display helpers
   ota.js         — OTA firmware update dialog (openOtaDialog, renderOtaDialog, identifyBox)
   settings.js    — WiFi credentials dialog + debug logging dialog
+  persist.js     — Game state persistence: localStorage + hub SPIFFS backup (persistState,
+                   restoreState, offerResume); compression via CompressionStream (gzip/base64)
   init.js        — log(), setStatus(), wake lock, battery tip, silent audio keepalive,
-                   init() entry point, loadFactions()
+                   init() entry point, loadFactions(), loadTags()
   modes/
     clockwise.js — Clockwise and Clockwise with Passing game mode
-    eclipse.js   — Eclipse (Simple + Advanced) game mode + upkeep animation
+    eclipse.js   — Eclipse (Simple + Advanced) game mode + upkeep animation +
+                   eclipseRelevantTags(hwid)
     ti.js        — Twilight Imperium game mode (all phases: strategy, action, status, agenda)
+                   + tiRelevantTags(hwid)
 ```
 
 ## Script Load Order
@@ -52,5 +64,5 @@ Scripts must be loaded in dependency order. `state.js` first (defines the `state
 
 - **Hub/client model**: one ESP32 acts as hub (WebSocket server + connects to app), others are clients that relay through it. The app always talks to the hub.
 - **Game modes**: each mode has `*Start`, `*EndTurn`, `*Pass`, `*LongPress` functions in `modes/`. `game.js` dispatches to them.
-- **RFID tags**: tags contain an `internalId` string (e.g. `ti:strategy:leadership`, `eclipse:faction:hades`). The hub writes these via MFRC522 on request; the app drives the write flow.
+- **RFID tags**: tags contain an `internalId` string (e.g. `ti:strategy:leadership`, `eclipse:faction:hades`). Defined in `tags.json`, loaded into `state.allTags` by `tags.js`. The hub writes these via MFRC522 on request; the app drives the write flow via `buildTagQueue(game)` → `startTagWriting()`. Sim RFID options are driven by `getRelevantTagsForBox(hwid)` which returns only contextually relevant tags (e.g. active player's strategy cards during TI strategy phase).
 - **Virtual boxes**: simulate real boxes in the browser for testing. `VIRTUAL_BOX_ID_OFFSET = 'virtual-'` prefix.

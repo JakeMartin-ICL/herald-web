@@ -22,6 +22,9 @@ const state = {
   // Faction data loaded from factions.json
   factions: null,
 
+  // Expanded tag definitions loaded from tags.json
+  allTags: null,
+
   // Whether faction scan mode is active
   factionScanActive: false,
 
@@ -45,6 +48,8 @@ const state = {
     passOrder: [],
     turnOrder: [],
     firstPlayerId: null,
+    tapToPass: true,
+    upkeepReady: [], // hwiDs that have tapped ready during upkeep
   },
 
   ti: {

@@ -145,6 +145,29 @@ function renderGameControls() {
       statusLines.push(`Next order: ${nextOrder.join(' → ')}`);
     }
 
+    actionDefs.push({
+      html: `<label class="gc-check-row">
+        <input type="checkbox" id="gc-tap-to-pass"${state.eclipse.tapToPass ? ' checked' : ''}>
+        Tap to pass
+      </label>`,
+      id: 'gc-tap-to-pass', event: 'change',
+      fn: (e) => {
+        state.eclipse.tapToPass = e.target.checked;
+        log(`Tap to pass ${e.target.checked ? 'enabled' : 'disabled'}`, 'system');
+        if (state.eclipse.phase === 'action') eclipseSyncActionRfid();
+        if (state.eclipse.phase === 'upkeep') {
+          if (e.target.checked) {
+            disableAllRfid();
+            state.boxOrder.forEach(id => {
+              if (state.boxes[id]?.status === 'upkeep') enableRfid(id);
+            });
+          } else {
+            disableAllRfid();
+          }
+        }
+      },
+    });
+
     if (['combat', 'upkeep'].includes(phase)) {
       actionDefs.push({ html: '<button id="gc-advance">Advance Phase</button>', id: 'gc-advance', fn: advancePhase });
     }
@@ -244,7 +267,7 @@ function endGame() {
   });
   state.round = 0;
   state.totalRounds = null;
-  state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null };
+  state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null, tapToPass: state.eclipse.tapToPass, upkeepReady: [] };
   state.ti = { ...state.ti, phase: null, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
   endPhase();
   captureGameStats();
@@ -321,8 +344,7 @@ function renderBadges(box) {
 
 function renderSimControls(hwid) {
   const isOpen = simOpenCards.has(hwid);
-  const rfidOptions = getSimRfidOptions();
-  const rfidBtn = rfidOptions.length > 0
+  const rfidBtn = getRelevantTagsForBox(hwid).length > 0
     ? `<button class="box-btn" onclick="openRfidDialog('${hwid}')">RFID</button>`
     : '';
 

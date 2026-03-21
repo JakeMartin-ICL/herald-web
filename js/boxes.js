@@ -204,6 +204,7 @@ function substituteBox(oldHwid, newHwid) {
 // ---- Setup UI ----
 
 function onGameModeChange() {
+  state.gameMode = document.getElementById('game-mode').value;
   updateSetupUI();
 }
 
@@ -226,11 +227,8 @@ function updateSetupUI() {
 
   // TI rows
   document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';
-  document.getElementById('ti-learn-tags-btn').style.display = isTi ? 'block' : 'none';
-
-  // Faction buttons — only shown when factions.json is loaded
   const factionsLoaded = !!state.factions;
-  document.getElementById('ti-learn-faction-tags-btn').style.display =
+  document.getElementById('ti-learn-tags-btn').style.display =
     (isTi && factionsLoaded) ? 'block' : 'none';
   document.getElementById('eclipse-learn-faction-tags-btn').style.display =
     (isEclipse && factionsLoaded) ? 'block' : 'none';

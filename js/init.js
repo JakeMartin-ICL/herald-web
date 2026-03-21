@@ -110,6 +110,7 @@ async function init() {
   updateCardScale();
   localStorage.removeItem('herald-box-names');
   await loadFactions();
+  loadTags();
   fetchLatestFirmware();
   render();
   updateSetupUI();
