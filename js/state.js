@@ -49,7 +49,8 @@ const state = {
     turnOrder: [],
     firstPlayerId: null,
     tapToPass: true,
-    upkeepReady: [], // hwiDs that have tapped ready during upkeep
+    advancedOrder: false,
+    upkeepReady: [],
   },
 
   ti: {

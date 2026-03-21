@@ -25,8 +25,7 @@
           <select id="game-mode" onchange="onGameModeChange()">
             <option value="clockwise">Clockwise (Generic)</option>
             <option value="clockwise_pass">Clockwise with Passing</option>
-            <option value="eclipse_simple">Eclipse — Simple</option>
-            <option value="eclipse_advanced">Eclipse — Advanced</option>
+            <option value="eclipse">Eclipse</option>
             <option value="ti">Twilight Imperium</option>
           </select>
         </div>
@@ -40,8 +39,13 @@
         </div>
         <div class="setup-row" id="eclipse-mode-row" style="display:none">
           <label>Reaction Cards</label>
-          <input type="checkbox" id="eclipse-reaction-cards" />
+          <input type="checkbox" id="eclipse-reaction-cards" checked />
           <span class="hint">Enforce passing via RFID tap</span>
+        </div>
+        <div class="setup-row" id="eclipse-order-row" style="display:none">
+          <label>Turn Order</label>
+          <input type="checkbox" id="eclipse-advanced-order" />
+          <span class="hint">Advanced (next round order = pass order)</span>
         </div>
         <div class="setup-row" id="ti-speaker-row" style="display:none">
             <label>Speaker</label>

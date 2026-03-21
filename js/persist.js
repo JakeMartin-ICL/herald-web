@@ -43,6 +43,7 @@ function extractPersistableState() {
       passOrder:     [...state.eclipse.passOrder],
       turnOrder:     [...state.eclipse.turnOrder],
       tapToPass:     state.eclipse.tapToPass,
+      advancedOrder: state.eclipse.advancedOrder,
       upkeepReady:   [...state.eclipse.upkeepReady],
     },
     ti,
@@ -224,6 +225,7 @@ function restoreState(persisted) {
       passOrder:     (persisted.eclipse.passOrder || []).map(remap),
       turnOrder:     (persisted.eclipse.turnOrder || []).map(remap),
       tapToPass:     persisted.eclipse.tapToPass !== undefined ? persisted.eclipse.tapToPass : true,
+      advancedOrder: persisted.eclipse.advancedOrder || false,
       upkeepReady:   (persisted.eclipse.upkeepReady || []).map(remap),
     };
   }
@@ -285,8 +287,7 @@ let _pendingResumeState = null;
 const _resumeModeNames = {
   clockwise: 'Clockwise',
   clockwise_pass: 'Clockwise with Passing',
-  eclipse_simple: 'Eclipse — Simple',
-  eclipse_advanced: 'Eclipse — Advanced',
+  eclipse: 'Eclipse',
   ti: 'Twilight Imperium',
 };
 

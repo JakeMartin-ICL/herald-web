@@ -48,11 +48,11 @@ function filterTags(game, predicate) {
 // Used by the sim RFID dialog. Empty list → hide the RFID button.
 function getRelevantTagsForBox(hwid) {
   if (state.factionScanActive) {
-    const game = state.gameMode === 'ti' ? 'ti' : 'eclipse';
+    const game = state.gameMode === 'ti' ? 'ti' : 'eclipse'; // eclipse covers all eclipse modes
     return filterTags(game, t => t.id.includes(':faction:'));
   }
   if (!state.gameActive) return [];
   if (state.gameMode === 'ti') return tiRelevantTags(hwid);
-  if (state.gameMode.startsWith('eclipse')) return eclipseRelevantTags(hwid);
+  if (state.gameMode === 'eclipse') return eclipseRelevantTags(hwid);
   return [];
 }

@@ -211,7 +211,7 @@ function onGameModeChange() {
 function updateSetupUI() {
   const count = Object.keys(state.boxes).length;
   const mode = document.getElementById('game-mode').value;
-  const isEclipse = mode.startsWith('eclipse');
+  const isEclipse = mode === 'eclipse';
   const isTi = mode === 'ti';
 
   document.getElementById('player-count').textContent =
@@ -224,6 +224,7 @@ function updateSetupUI() {
   // Eclipse rows
   document.getElementById('first-player-row').style.display = isEclipse ? 'flex' : 'none';
   document.getElementById('eclipse-mode-row').style.display = isEclipse ? 'flex' : 'none';
+  document.getElementById('eclipse-order-row').style.display = isEclipse ? 'flex' : 'none';
 
   // TI rows
   document.getElementById('ti-speaker-row').style.display = isTi ? 'flex' : 'none';

@@ -36,7 +36,7 @@ function renderTableLabel() {
   if (state.gameMode === 'ti') {
     const phase = state.ti.phase || '';
     parts.push(`<div class="game-mode-label">TI${phase ? ` — ${phase.replace(/_/g,' ').toUpperCase()}` : ''}</div>`);
-  } else if (state.gameMode.startsWith('eclipse')) {
+  } else if (state.gameMode === 'eclipse') {
     parts.push(`<div class="game-mode-label">${state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE'}</div>`);
   } else {
     parts.push(`<div class="game-mode-label">ROUND IN PROGRESS</div>`);
@@ -52,8 +52,7 @@ function renderGameControls() {
   const modeNames = {
     clockwise: 'Clockwise',
     clockwise_pass: 'Clockwise with Passing',
-    eclipse_simple: 'Eclipse — Simple',
-    eclipse_advanced: 'Eclipse — Advanced',
+    eclipse: 'Eclipse',
     ti: 'Twilight Imperium',
   };
   document.getElementById('gc-mode-name').textContent = modeNames[state.gameMode] || state.gameMode;
@@ -113,7 +112,7 @@ function renderGameControls() {
       actionDefs.push({ html: '<button id="gc-factions">Set Factions</button>', id: 'gc-factions', fn: startFactionScan });
     }
 
-  } else if (state.gameMode.startsWith('eclipse')) {
+  } else if (state.gameMode === 'eclipse') {
     const phase = state.eclipse.phase || '';
     const phaseLabel = phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     statusLines.push(`Round ${state.round}${state.totalRounds ? ' / ' + state.totalRounds : ''}${phaseLabel ? ` · ${phaseLabel}` : ''}`);
@@ -121,7 +120,7 @@ function renderGameControls() {
 
     // Next turn order — shown during action phase once someone has passed
     if (phase === 'action' && state.eclipse.passOrder.length > 0) {
-      const isAdvanced = state.gameMode === 'eclipse_advanced';
+      const isAdvanced = state.eclipse.advancedOrder;
       let nextOrder;
       if (isAdvanced) {
         // Confirmed positions from passOrder; remaining active players are TBD
@@ -267,7 +266,7 @@ function endGame() {
   });
   state.round = 0;
   state.totalRounds = null;
-  state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null, tapToPass: state.eclipse.tapToPass, upkeepReady: [] };
+  state.eclipse = { phase: null, passOrder: [], turnOrder: [], firstPlayerId: null, tapToPass: state.eclipse.tapToPass, advancedOrder: state.eclipse.advancedOrder, upkeepReady: [] };
   state.ti = { ...state.ti, phase: null, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
   endPhase();
   captureGameStats();

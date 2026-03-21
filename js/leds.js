@@ -52,7 +52,7 @@ function ledStateForStatus(status, box = null, hwid = null) {
   switch (status) {
     case 'active':       return ledSolid(LED_COUNT, '#c9a84c');
     case 'can-react':
-      if (hwid && state.gameMode.startsWith('eclipse') && hwid === state.eclipse.passOrder[0]) {
+      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0]) {
         return ledEveryFourth(LED_COUNT, '#d4a017'); // gold — first to pass, gains 2 money
       }
       return ledOff(LED_COUNT);

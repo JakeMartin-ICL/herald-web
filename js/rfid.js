@@ -126,7 +126,7 @@ function handleRfid(hwid, internalId) {
 
   if (state.gameMode === 'ti') {
     handleTiTag(hwid, game, category, id);
-  } else if (state.gameMode.startsWith('eclipse')) {
+  } else if (state.gameMode === 'eclipse') {
     handleEclipseTag(hwid, game, category, id);
   }
 }
@@ -302,7 +302,7 @@ function getFaction(gameKey, factionId) {
 function getFactionForBox(hwid) {
   const box = state.boxes[hwid];
   if (!box || !box.factionId) return null;
-  const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
+  const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse'; // eclipse covers all eclipse modes
   return getFaction(gameKey, box.factionId);
 }
 

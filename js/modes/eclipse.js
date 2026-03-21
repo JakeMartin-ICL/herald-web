@@ -5,6 +5,8 @@ function eclipseStart() {
   state.eclipse.firstPlayerId = firstPlayerId;
   state.eclipse.passOrder = [];
   state.eclipse.upkeepReady = [];
+  state.eclipse.tapToPass = document.getElementById('eclipse-reaction-cards').checked;
+  state.eclipse.advancedOrder = document.getElementById('eclipse-advanced-order').checked;
   state.eclipse.phase = 'action';
   state.round = 1;
   state.totalRounds = 8;
@@ -16,7 +18,7 @@ function eclipseStart() {
 }
 
 function eclipseBuildTurnOrder(firstPlayerId) {
-  if (state.gameMode === 'eclipse_advanced' && state.eclipse.passOrder.length > 0) {
+  if (state.eclipse.advancedOrder && state.eclipse.passOrder.length > 0) {
     state.eclipse.turnOrder = [...state.eclipse.passOrder];
   } else {
     const firstIndex = state.boxOrder.indexOf(firstPlayerId);

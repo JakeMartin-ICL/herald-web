@@ -42,8 +42,9 @@ js/
                    init() entry point, loadFactions(), loadTags()
   modes/
     clockwise.js — Clockwise and Clockwise with Passing game mode
-    eclipse.js   — Eclipse (Simple + Advanced) game mode + upkeep animation +
-                   eclipseRelevantTags(hwid)
+    eclipse.js   — Eclipse game mode + upkeep animation + eclipseRelevantTags(hwid);
+                   simple vs advanced turn order is a setup-time setting
+                   (state.eclipse.advancedOrder), not a separate game mode
     ti.js        — Twilight Imperium game mode (all phases: strategy, action, status, agenda)
                    + tiRelevantTags(hwid)
 ```

@@ -29,7 +29,7 @@ function snapshotPlayer(id) {
 function captureGameStats() {
   const modeNames = {
     clockwise: 'Clockwise', clockwise_pass: 'Clockwise with Passing',
-    eclipse_simple: 'Eclipse — Simple', eclipse_advanced: 'Eclipse — Advanced',
+    eclipse: 'Eclipse',
     ti: 'Twilight Imperium',
   };
   // Snapshot current phase into log before capturing (don't mutate state)

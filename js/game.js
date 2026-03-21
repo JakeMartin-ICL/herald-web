@@ -29,8 +29,7 @@ function gameModeStart() {
     case 'clockwise_pass':
       clockwiseStart();
       break;
-    case 'eclipse_simple':
-    case 'eclipse_advanced':
+    case 'eclipse':
       eclipseStart();
       break;
     case 'ti':
@@ -47,8 +46,7 @@ function handleEndTurn(hwid) {
     case 'clockwise_pass':
       clockwiseEndTurn(hwid);
       break;
-    case 'eclipse_simple':
-    case 'eclipse_advanced':
+    case 'eclipse':
       eclipseEndTurn(hwid);
       break;
     case 'ti':
@@ -65,8 +63,7 @@ function handlePass(hwid) {
     case 'clockwise_pass':
       clockwisePass(hwid);
       break;
-    case 'eclipse_simple':
-    case 'eclipse_advanced':
+    case 'eclipse':
       eclipsePass(hwid);
       break;
     case 'ti':
@@ -79,8 +76,7 @@ function handlePass(hwid) {
 function handleLongPress(hwid) {
   if (!state.gameActive) return;
   switch (state.gameMode) {
-    case 'eclipse_simple':
-    case 'eclipse_advanced':
+    case 'eclipse':
       eclipseLongPress(hwid);
       break;
     case 'ti':
@@ -94,12 +90,11 @@ function handleLongPress(hwid) {
 function advancePhase() {
   // UI button bypasses hub restriction — directly call phase logic
   switch (state.gameMode) {
+    case 'eclipse':
+      eclipseAdvancePhase();
+      break;
     case 'ti':
       tiAdvancePhase();
-      break;
-    case 'eclipse_simple':
-    case 'eclipse_advanced':
-      eclipseAdvancePhase();
       break;
   }
   render();
@@ -140,41 +135,43 @@ function debugSkipPhase() {
     return;
   }
 
-  if (state.gameMode === 'ti') {
-    const phase = state.ti.phase;
-    log(`[DEBUG] Skipping TI phase: ${phase}`, 'system');
-    // Reset all box statuses and secondary state before jumping
-    state.boxOrder.forEach(hwid => { state.boxes[hwid].status = 'idle'; });
-    state.activeBoxId = null;
-    state.ti.secondary = null;
-
-    switch (phase) {
-      case 'strategy': tiStartActionPhase(); break;
-      case 'action':   tiStartStatusPhase(); break;
-      case 'status':
-        if (state.ti.mecatolControlled) tiStartAgendaPhase();
-        else tiEndRound();
-        break;
-      case 'agenda_reveal': tiStartAgendaWhen(); break;
-      case 'when_agenda_revealed':   tiStartAgendaAfter(); break;
-      case 'after_agenda_revealed':  tiStartAgendaVote(); break;
-      case 'agenda_vote':   tiStartStatusPhase(true); break;
-      case 'status2':       tiEndRound(); break;
-      default: log('[DEBUG] Unknown TI phase', 'system');
+  switch (state.gameMode) {
+    case 'ti': {
+      const phase = state.ti.phase;
+      log(`[DEBUG] Skipping TI phase: ${phase}`, 'system');
+      state.boxOrder.forEach(hwid => { state.boxes[hwid].status = 'idle'; });
+      state.activeBoxId = null;
+      state.ti.secondary = null;
+      switch (phase) {
+        case 'strategy': tiStartActionPhase(); break;
+        case 'action':   tiStartStatusPhase(); break;
+        case 'status':
+          if (state.ti.mecatolControlled) tiStartAgendaPhase();
+          else tiEndRound();
+          break;
+        case 'agenda_reveal':        tiStartAgendaWhen(); break;
+        case 'when_agenda_revealed': tiStartAgendaAfter(); break;
+        case 'after_agenda_revealed':tiStartAgendaVote(); break;
+        case 'agenda_vote':          tiStartStatusPhase(true); break;
+        case 'status2':              tiEndRound(); break;
+        default: log('[DEBUG] Unknown TI phase', 'system');
+      }
+      break;
     }
-  } else if (state.gameMode.startsWith('eclipse')) {
-    const phase = state.eclipse.phase;
-    log(`[DEBUG] Skipping Eclipse phase: ${phase}`, 'system');
-    switch (phase) {
-      case 'action': eclipseEndActionPhase(); break;
-      case 'combat': eclipseStartUpkeep(); break;
-      case 'upkeep': eclipseEndRound(); break;
-      default: log('[DEBUG] Unknown Eclipse phase', 'system');
+    case 'eclipse': {
+      const phase = state.eclipse.phase;
+      log(`[DEBUG] Skipping Eclipse phase: ${phase}`, 'system');
+      switch (phase) {
+        case 'action': eclipseEndActionPhase(); break;
+        case 'combat': eclipseStartUpkeep(); break;
+        case 'upkeep': eclipseEndRound(); break;
+        default: log('[DEBUG] Unknown Eclipse phase', 'system');
+      }
+      break;
     }
-  } else {
-    log('[DEBUG] Skip not supported for this game mode', 'system');
+    default:
+      log('[DEBUG] Skip not supported for this game mode', 'system');
   }
 
   render();
 }
-
