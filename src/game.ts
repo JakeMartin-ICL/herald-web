@@ -1,0 +1,87 @@
+import { state } from './state';
+import { log } from './logger';
+import { render } from './render';
+import { resetTurnTimers, stopCurrentTimerInterval, needsTimerInterval, startCurrentTimerInterval } from './timers';
+import { persistState } from './persist';
+import { currentGame, setCurrentGame } from './currentGame';
+import { createGameMode } from './modes/index';
+
+// ---- Game start ----
+
+export function startGame(): void {
+  state.gameActive = true;
+  (document.getElementById('setup-panel') as HTMLElement).style.display = 'none';
+  state.gameMode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  state.boxOrder.forEach(hwid => {
+    state.boxes[hwid].status = 'idle';
+    state.boxes[hwid].badges = [];
+  });
+  resetTurnTimers();
+  state.gameStartTime = Date.now();
+  state.phaseLog = [];
+  state.currentPhaseStart = null;
+  stopCurrentTimerInterval();
+  if (needsTimerInterval()) startCurrentTimerInterval();
+  void import('./init').then(({ requestWakeLock, initSilentAudio, showBatteryTipIfNeeded }) => {
+    void requestWakeLock();
+    initSilentAudio();
+    showBatteryTipIfNeeded();
+  });
+  log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
+
+  const mode = createGameMode(state.gameMode);
+  if (!mode) {
+    log(`Unknown game mode: ${state.gameMode}`, 'error');
+    return;
+  }
+  setCurrentGame(mode);
+  mode.start();
+
+  render();
+  persistState();
+}
+
+// ---- Event dispatch ----
+
+export function handleEndTurn(hwid: string): void {
+  if (!state.gameActive) return;
+  if (state.boxes[hwid]?.status === 'disconnected') return;
+  currentGame?.onEndTurn(hwid);
+  render();
+  persistState();
+}
+
+export function handlePass(hwid: string): void {
+  if (!state.gameActive) return;
+  if (state.boxes[hwid]?.status === 'disconnected') return;
+  currentGame?.onPass(hwid);
+  render();
+  persistState();
+}
+
+export function handleLongPress(hwid: string): void {
+  if (!state.gameActive) return;
+  currentGame?.onLongPress(hwid);
+  render();
+}
+
+// ---- Debug ----
+
+export function toggleDebug(): void {
+  const panel = document.getElementById('debug-panel') as HTMLElement;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+export function debugSkipPhase(): void {
+  if (!state.gameActive) {
+    log('[DEBUG] No active game', 'system');
+    return;
+  }
+  if (!currentGame?.debugSkip) {
+    log('[DEBUG] Skip not supported for this game mode', 'system');
+    render();
+    return;
+  }
+  currentGame.debugSkip();
+  render();
+}

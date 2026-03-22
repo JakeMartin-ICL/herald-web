@@ -12,7 +12,7 @@
       <h1>Herald</h1>
       <div id="connection-bar">
         <input type="text" id="hub-address" value="herald.local:8765" />
-        <button id="connect-btn" onclick="toggleConnect()">Connect</button>
+        <button id="connect-btn">Connect</button>
         <span id="connection-status" class="status disconnected">Disconnected</span>
       </div>
     </header>
@@ -22,7 +22,7 @@
         <h2>Setup</h2>
         <div class="setup-row">
           <label>Game Mode</label>
-          <select id="game-mode" onchange="onGameModeChange()">
+          <select id="game-mode">
             <option value="clockwise">Clockwise (Generic)</option>
             <option value="clockwise_pass">Clockwise with Passing</option>
             <option value="eclipse">Eclipse</option>
@@ -48,39 +48,39 @@
           <span class="hint">Advanced (next round order = pass order)</span>
         </div>
         <div class="setup-row" id="ti-speaker-row" style="display:none">
-            <label>Speaker</label>
-            <select id="ti-speaker"></select>
-            </div>
-        <button id="ti-learn-tags-btn" style="display:none" onclick="startTagWriting(buildTagQueue('ti'), 'Write TI Tags')">Write Tags</button>
-        <button id="eclipse-learn-faction-tags-btn" style="display:none" onclick="startTagWriting(buildTagQueue('eclipse'), 'Write Eclipse Tags')">Write Tags</button>
-        <button id="set-factions-btn" style="display:none" onclick="startFactionScan()">Set Factions</button>
+          <label>Speaker</label>
+          <select id="ti-speaker"></select>
+        </div>
+        <button id="ti-learn-tags-btn" style="display:none">Write Tags</button>
+        <button id="eclipse-learn-faction-tags-btn" style="display:none">Write Tags</button>
+        <button id="set-factions-btn" style="display:none">Set Factions</button>
         <div id="resume-banner" style="display:none; flex-direction:column; gap:0.4rem; background:#1a1a3e; border:1px solid #4a4a8a; border-radius:6px; padding:0.75rem; margin-bottom:0.5rem;">
           <div id="resume-mode-label" style="font-weight:bold; color:#c9a84c;"></div>
           <div id="resume-detail-label" style="color:#aaa; font-size:0.85rem;"></div>
           <div id="resume-waiting" style="display:none; color:#888; font-size:0.8rem;"></div>
           <div style="display:flex; gap:0.5rem; margin-top:0.25rem;">
-            <button id="resume-btn" onclick="confirmResume()" disabled>Resume Game</button>
-            <button onclick="discardResume()" style="background:#1a1a3e; color:#aaa;">Discard</button>
+            <button id="resume-btn" disabled>Resume Game</button>
+            <button id="discard-resume-btn" style="background:#1a1a3e; color:#aaa;">Discard</button>
           </div>
         </div>
-        <button onclick="addVirtualBox()">Add Virtual Box</button>
-        <button id="prev-stats-btn" style="display:none" onclick="openGraphOverlay('prev')">Previous game stats</button>
-        <button id="start-btn" onclick="startGame()" disabled>Start Game</button>
+        <button id="add-virtual-btn">Add Virtual Box</button>
+        <button id="prev-stats-btn" style="display:none">Previous game stats</button>
+        <button id="start-btn" disabled>Start Game</button>
       </section>
 
-        <section id="table-section">
+      <section id="table-section">
         <h2>Table</h2>
         <div id="table-container">
-            <div id="table-surface">
+          <div id="table-surface">
             <span id="table-label">No game in progress</span>
-            </div>
-            <div id="box-positions"></div>
+          </div>
+          <div id="box-positions"></div>
         </div>
         <div id="faction-scan-banner" style="display:none" class="faction-scan-banner">
           <span>Faction scan active — each player tap your faction tile/card on your own box</span>
-          <button onclick="stopFactionScan()">Done</button>
+          <button id="stop-faction-scan-btn">Done</button>
         </div>
-        </section>
+      </section>
 
       <section id="game-controls" style="display:none">
         <h2 id="gc-mode-name"></h2>
@@ -89,90 +89,92 @@
       </section>
 
       <section id="log-section">
-        <h2>Event Log <button onclick="clearLog()">Clear</button></h2>
+        <h2>Event Log <button id="clear-log-btn">Clear</button></h2>
         <div id="log"></div>
       </section>
-
     </main>
+
     <div id="debug-bar" style="text-align:center; padding:0.5rem; opacity:0.3">
-      <button onclick="toggleDebug()" style="font-size:0.7rem; background:none; border:none; color:#888; cursor:pointer">debug</button>
+      <button id="debug-toggle-btn" style="font-size:0.7rem; background:none; border:none; color:#888; cursor:pointer">debug</button>
       <div id="debug-panel" style="display:none; margin-top:0.5rem">
-        <button onclick="debugSkipPhase()">Skip Phase</button>
-        <button onclick="addVirtualBox()">Add Virtual Box</button>
-        <button onclick="openOtaDialog()">Firmware Updates</button>
-        <button onclick="openDebugDialog()">Debug Logging</button>
-        <button onclick="openWifiDialog()">WiFi Networks</button>
+        <button id="debug-skip-btn">Skip Phase</button>
+        <button id="add-virtual-debug-btn">Add Virtual Box</button>
+        <button id="ota-open-btn">Firmware Updates</button>
+        <button id="debug-open-btn">Debug Logging</button>
+        <button id="wifi-open-btn">WiFi Networks</button>
       </div>
     </div>
   </div>
-    <div id="tag-writing-overlay" style="display:none">
-    <div id="tag-writing-modal">
-        <h2 id="tag-writing-title">Write Tags</h2>
-        <div id="tag-writing-prompt"></div>
-        <div id="tag-writing-status"></div>
-        <button onclick="simulateTagTap()">Simulate</button>
-        <button onclick="cancelTagWriting()">Cancel</button>
-    </div>
-    </div>
-    <div id="rfid-dialog-overlay" style="display:none" onclick="closeRfidDialog()">
-    <div id="rfid-dialog" onclick="event.stopPropagation()">
-        <h2>Simulate RFID Tap</h2>
-        <div id="rfid-dialog-list"></div>
-        <button onclick="closeRfidDialog()">Cancel</button>
-    </div>
-    </div>
 
-  <div id="ota-overlay" style="display:none" onclick="closeOtaDialog()">
-    <div id="ota-dialog" onclick="event.stopPropagation()">
+  <div id="tag-writing-overlay" style="display:none">
+    <div id="tag-writing-modal">
+      <h2 id="tag-writing-title">Write Tags</h2>
+      <div id="tag-writing-prompt"></div>
+      <div id="tag-writing-status"></div>
+      <button id="simulate-tag-tap-btn">Simulate</button>
+      <button id="cancel-tag-writing-btn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="rfid-dialog-overlay" style="display:none">
+    <div id="rfid-dialog">
+      <h2>Simulate RFID Tap</h2>
+      <div id="rfid-dialog-list"></div>
+      <button id="rfid-dialog-cancel-btn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="ota-overlay" style="display:none">
+    <div id="ota-dialog">
       <h2>Firmware Updates</h2>
       <div id="ota-dialog-content"></div>
       <div id="ota-close-warning" style="display:none; color:#c9a84c; font-size:0.8rem; margin-top:0.5rem;">
         Updates in progress — closing this dialog will not cancel them.
       </div>
       <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-        <button onclick="closeOtaDialog()" style="flex:1">Close</button>
-        <button onclick="forceCloseOtaDialog()" style="flex:1; background:#1a1a3e; color:#888;">Force Close</button>
+        <button id="ota-close-btn" style="flex:1">Close</button>
+        <button id="ota-force-close-btn" style="flex:1; background:#1a1a3e; color:#888;">Force Close</button>
       </div>
     </div>
   </div>
 
-  <div id="debug-log-overlay" style="display:none" onclick="closeDebugDialog()">
-    <div id="debug-log-dialog" onclick="event.stopPropagation()">
+  <div id="debug-log-overlay" style="display:none">
+    <div id="debug-log-dialog">
       <h2>Debug Logging</h2>
       <div id="debug-log-content"></div>
       <p style="color:#555; font-size:0.75rem; margin-top:1rem;">Debug messages appear in the event log.</p>
-      <button onclick="closeDebugDialog()" style="width:100%; margin-top:0.5rem;">Close</button>
+      <button id="debug-close-btn" style="width:100%; margin-top:0.5rem;">Close</button>
     </div>
   </div>
 
-  <div id="sub-overlay" style="display:none" onclick="cancelSubstitution()">
-    <div id="sub-dialog" onclick="event.stopPropagation()">
+  <div id="sub-overlay" style="display:none">
+    <div id="sub-dialog">
       <h2>Box Connected</h2>
       <p style="margin-bottom:1rem; color:#aaa;">Which player is this box replacing?</p>
       <select id="sub-select" style="width:100%; margin-bottom:1rem;"></select>
       <div style="display:flex; gap:0.5rem;">
-        <button onclick="confirmSubstitution()" style="flex:1">Substitute</button>
-        <button onclick="cancelSubstitution()" style="flex:1; background:#1a1a3e; color:#aaa;">Add without replacing</button>
+        <button id="confirm-sub-btn" style="flex:1">Substitute</button>
+        <button id="cancel-sub-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Add without replacing</button>
       </div>
     </div>
   </div>
 
-  <div id="end-game-overlay" style="display:none" onclick="cancelEndGame()">
-    <div id="end-game-dialog" onclick="event.stopPropagation()">
+  <div id="end-game-overlay" style="display:none">
+    <div id="end-game-dialog">
       <h2>End Game?</h2>
       <p style="margin-bottom:1rem; color:#aaa;">End game and return to setup?</p>
       <div style="display:flex; gap:0.5rem;">
-        <button onclick="endGame()" style="flex:1">Confirm</button>
-        <button onclick="cancelEndGame()" style="flex:1; background:#1a1a3e; color:#aaa;">Cancel</button>
+        <button id="confirm-end-game-btn" style="flex:1">Confirm</button>
+        <button id="cancel-end-game-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Cancel</button>
       </div>
     </div>
   </div>
 
-  <div id="graph-overlay" style="display:none" onclick="closeGraphOverlay()">
-    <div id="graph-dialog" onclick="event.stopPropagation()">
+  <div id="graph-overlay" style="display:none">
+    <div id="graph-dialog">
       <div id="graph-dialog-title" style="font-size:0.85rem; color:#888; margin-bottom:-0.25rem;"></div>
       <div id="graph-header">
-        <select id="graph-type-select" onchange="onGraphTypeChange(this.value)">
+        <select id="graph-type-select">
           <option value="total">Total turn time</option>
           <option value="longest">Longest turn</option>
           <option value="average">Average turn time</option>
@@ -180,49 +182,31 @@
           <option value="by_round">Avg turn time by round</option>
           <option value="stats">Stats</option>
         </select>
-        <button id="graph-sort-btn" onclick="cycleGraphSort()">Sort: Table order</button>
+        <button id="graph-sort-btn">Sort: Table order</button>
       </div>
       <div id="graph-content"></div>
-      <button onclick="closeGraphOverlay()">Close</button>
+      <button id="close-graph-btn">Close</button>
     </div>
   </div>
 
-  <div id="wifi-overlay" style="display:none" onclick="closeWifiDialog()">
-    <div id="wifi-dialog" onclick="event.stopPropagation()">
+  <div id="wifi-overlay" style="display:none">
+    <div id="wifi-dialog">
       <h2>WiFi Networks</h2>
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Networks are tried in order on boot. Changes are applied to all boxes.</p>
       <div id="wifi-dialog-content"></div>
       <div style="display:flex; gap:0.5rem; margin-top:1rem; align-items:center;">
-        <button onclick="saveWifiCredentials()" style="flex:1">Save</button>
+        <button id="wifi-save-btn" style="flex:1">Save</button>
         <span id="wifi-save-status" style="color:#4a7; font-size:0.85rem; min-width:4rem;"></span>
-        <button onclick="closeWifiDialog()" style="flex:1; background:#1a1a3e; color:#aaa;">Close</button>
+        <button id="wifi-close-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Close</button>
       </div>
     </div>
   </div>
 
   <div id="battery-tip-banner" style="display:none">
     <span>For best results on Android, exclude your browser from battery optimisation: Settings → Apps → Chrome → Battery → Unrestricted.</span>
-    <button onclick="dismissBatteryTip()">Got it</button>
+    <button id="battery-tip-dismiss-btn">Got it</button>
   </div>
 
-  <script src="js/state.js"></script>
-  <script src="js/firmware.js"></script>
-  <script src="js/boxes.js"></script>
-  <script src="js/websockets.js"></script>
-  <script src="js/leds.js"></script>
-  <script src="js/tags.js"></script>
-  <script src="js/timers.js"></script>
-  <script src="js/graphs.js"></script>
-  <script src="js/modes/clockwise.js"></script>
-  <script src="js/modes/eclipse.js"></script>
-  <script src="js/modes/ti.js"></script>
-  <script src="js/rfid.js"></script>
-  <script src="js/render.js"></script>
-  <script src="js/game.js"></script>
-  <script src="js/ota.js"></script>
-  <script src="js/settings.js"></script>
-  <script src="js/persist.js"></script>
-  <script src="js/init.js"></script>
-  <script>init();</script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

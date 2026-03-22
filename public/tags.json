@@ -1,0 +1,17 @@
+{
+  "ti": [
+    { "display": "Speaker Token", "id": "ti:token:speaker" },
+    { "display": "Leadership",    "id": "ti:strategy:leadership" },
+    { "display": "Diplomacy",     "id": "ti:strategy:diplomacy" },
+    { "display": "Politics",      "id": "ti:strategy:politics" },
+    { "display": "Construction",  "id": "ti:strategy:construction" },
+    { "display": "Trade",         "id": "ti:strategy:trade" },
+    { "display": "Warfare",       "id": "ti:strategy:warfare" },
+    { "display": "Technology",    "id": "ti:strategy:technology" },
+    { "display": "Imperial",      "id": "ti:strategy:imperial" },
+    { "display": "*",             "id": "ti:faction:*" }
+  ],
+  "eclipse": [
+    { "display": "*", "id": "eclipse:faction:*" }
+  ]
+}

@@ -1,41 +1,65 @@
-// ---- Turn time graphs ----
+import { state } from './state';
+import { formatDuration, getCurrentRound, timerSettings } from './timers';
+import { getDisplayName } from './boxes';
+import { getFactionForBox } from './modes/eclipse';
 
-const SORT_MODES  = ['table', 'name', 'faction', 'highest'];
-const SORT_LABELS = { table: 'Table order', name: 'Name', faction: 'Faction', highest: 'Highest' };
+const SORT_MODES  = ['table', 'name', 'faction', 'highest'] as const;
+type SortMode = typeof SORT_MODES[number];
+const SORT_LABELS: Record<SortMode, string> = {
+  table: 'Table order', name: 'Name', faction: 'Faction', highest: 'Highest',
+};
 
-let graphType     = 'total';
-let graphSort     = 'table';
-let graphSource   = 'live'; // 'live' | 'prev'
-let prevGameStats = null;
-let _graphInterval = null;
+let graphType   = 'total';
+let graphSort: SortMode = 'table';
+let graphSource = 'live'; // 'live' | 'prev'
+let _graphInterval: ReturnType<typeof setInterval> | null = null;
 
-function snapshotPlayer(id) {
+interface PlayerSnapshot {
+  name: string;
+  color: string;
+  factionName: string;
+  totalTurnTime: number;
+  turnHistory: { duration: number; round: number | null }[];
+}
+
+interface GameStats {
+  gameMode: string;
+  players: PlayerSnapshot[];
+  totalGameTime: number | null;
+  phaseLog: typeof state.phaseLog;
+  playerCount: number;
+}
+
+export let prevGameStats: GameStats | null = null;
+
+export function snapshotPlayer(id: string): PlayerSnapshot {
   const box = state.boxes[id];
   const faction = getFactionForBox(id);
   const inProgress = box.turnStartTime ? Date.now() - box.turnStartTime : 0;
   return {
     name: getDisplayName(id),
-    color: faction?.color || '#c9a84c',
-    factionName: faction?.name || '',
-    totalTurnTime: (box.totalTurnTime || 0) + inProgress,
-    // turnHistory entries are { duration, round }; append in-progress as current round
+    color: faction?.color ?? '#c9a84c',
+    factionName: faction?.name ?? '',
+    totalTurnTime: (box.totalTurnTime ?? 0) + inProgress,
     turnHistory: [
-      ...(box.turnHistory || []),
+      ...(box.turnHistory ?? []),
       ...(inProgress > 0 ? [{ duration: inProgress, round: getCurrentRound() }] : []),
     ],
   };
 }
 
-function captureGameStats() {
-  const modeNames = {
+export function captureGameStats(): void {
+  const modeNames: Record<string, string> = {
     clockwise: 'Clockwise', clockwise_pass: 'Clockwise with Passing',
-    eclipse: 'Eclipse',
-    ti: 'Twilight Imperium',
+    eclipse: 'Eclipse', ti: 'Twilight Imperium',
   };
-  // Snapshot current phase into log before capturing (don't mutate state)
   const phaseLog = [...state.phaseLog];
   if (state.currentPhaseStart) {
-    phaseLog.push({ phase: state.currentPhaseStart.name, duration: Date.now() - state.currentPhaseStart.startTime, round: state.round });
+    phaseLog.push({
+      phase: state.currentPhaseStart.name,
+      duration: Date.now() - state.currentPhaseStart.startTime,
+      round: state.round,
+    });
   }
   prevGameStats = {
     gameMode: modeNames[state.gameMode] || state.gameMode,
@@ -46,12 +70,12 @@ function captureGameStats() {
   };
 }
 
-function getGraphPlayers() {
+function getGraphPlayers(): PlayerSnapshot[] {
   if (graphSource === 'prev' && prevGameStats) return prevGameStats.players;
   return state.boxOrder.filter(id => state.boxes[id]).map(snapshotPlayer);
 }
 
-function graphValueForPlayer(player) {
+function graphValueForPlayer(player: PlayerSnapshot): number {
   const hist = player.turnHistory;
   switch (graphType) {
     case 'total':   return player.totalTurnTime;
@@ -62,11 +86,11 @@ function graphValueForPlayer(player) {
   }
 }
 
-function getSortedPlayers() {
+function getSortedPlayers(): PlayerSnapshot[] {
   const players = getGraphPlayers();
-  if (graphSort === 'name')    return players.sort((a, b) => a.name.localeCompare(b.name));
-  if (graphSort === 'faction') return players.sort((a, b) => a.factionName.localeCompare(b.factionName));
-  if (graphSort === 'highest') return players.sort((a, b) => graphValueForPlayer(b) - graphValueForPlayer(a));
+  if (graphSort === 'name')    return [...players].sort((a, b) => a.name.localeCompare(b.name));
+  if (graphSort === 'faction') return [...players].sort((a, b) => a.factionName.localeCompare(b.factionName));
+  if (graphSort === 'highest') return [...players].sort((a, b) => graphValueForPlayer(b) - graphValueForPlayer(a));
   return players;
 }
 
@@ -79,12 +103,12 @@ function getPhaseLog() {
   return log;
 }
 
-function getDistinctPhases() {
-  const seen = new Set();
+function getDistinctPhases(): string[] {
+  const seen = new Set<string>();
   return getPhaseLog().filter(e => !seen.has(e.phase) && seen.add(e.phase)).map(e => e.phase);
 }
 
-function getPhaseRoundItems(phaseName) {
+function getPhaseRoundItems(phaseName: string) {
   return getPhaseLog()
     .filter(e => e.phase === phaseName)
     .sort((a, b) => (a.round || 0) - (b.round || 0))
@@ -92,10 +116,10 @@ function getPhaseRoundItems(phaseName) {
 }
 
 function getRoundItems() {
-  const roundMap = {};
+  const roundMap: Record<number, { total: number; count: number }> = {};
   getGraphPlayers().forEach(player => {
     player.turnHistory.forEach(({ duration, round }) => {
-      if (round == null) return;
+      if (round === null) return;
       if (!roundMap[round]) roundMap[round] = { total: 0, count: 0 };
       roundMap[round].total += duration;
       roundMap[round].count++;
@@ -116,12 +140,12 @@ function getGraphItems() {
   return getSortedPlayers().map(p => ({ name: p.name, color: p.color, value: graphValueForPlayer(p) }));
 }
 
-function formatGraphValue(value) {
+function formatGraphValue(value: number): string {
   if (graphType === 'turns') return value > 0 ? String(value) : '0';
   return value > 0 ? formatDuration(value) : '—';
 }
 
-function renderGraph() {
+function renderGraph(): void {
   const el = document.getElementById('graph-content');
   if (!el) return;
   if (graphType === 'stats') { renderStats(); return; }
@@ -139,40 +163,38 @@ function renderGraph() {
   }).join('');
 }
 
-function renderStats() {
+function renderStats(): void {
   const el = document.getElementById('graph-content');
   if (!el) return;
 
   const isPrev = graphSource === 'prev' && prevGameStats;
   const gameTime = isPrev
-    ? prevGameStats.totalGameTime
+    ? prevGameStats!.totalGameTime
     : (state.gameStartTime ? Date.now() - state.gameStartTime : null);
   const playerCount = isPrev
-    ? prevGameStats.playerCount
+    ? prevGameStats!.playerCount
     : state.boxOrder.filter(id => state.boxes[id]).length;
 
   const phaseLog = getPhaseLog();
-
   const players = getGraphPlayers();
   const allTurns = players.flatMap(p => p.turnHistory.map(t => t.duration));
   const overallAvg = allTurns.length > 0
     ? Math.round(allTurns.reduce((s, d) => s + d, 0) / allTurns.length) : null;
 
-  const rows = [];
+  const rows: { label: string; value: string }[] = [];
 
-  if (gameTime != null) {
+  if (gameTime !== null) {
     rows.push({ label: 'Total game time', value: formatDuration(gameTime) });
     if (playerCount > 0) {
       rows.push({ label: 'Game time per player', value: formatDuration(Math.round(gameTime / playerCount)) });
     }
   }
 
-  rows.push({ label: 'Overall avg turn time', value: overallAvg != null ? formatDuration(overallAvg) : '—' });
+  rows.push({ label: 'Overall avg turn time', value: overallAvg !== null ? formatDuration(overallAvg) : '—' });
 
-  // Phase totals — one row per distinct phase name, in order of first appearance
   if (phaseLog.length > 0) {
-    const phaseTotals = {};
-    const phaseOrder = [];
+    const phaseTotals: Record<string, number> = {};
+    const phaseOrder: string[] = [];
     phaseLog.forEach(({ phase, duration }) => {
       if (!phaseTotals[phase]) { phaseTotals[phase] = 0; phaseOrder.push(phase); }
       phaseTotals[phase] += duration;
@@ -188,63 +210,62 @@ function renderStats() {
   ).join('')}</div>`;
 }
 
-function renderGraphOverlay() {
+function renderGraphOverlay(): void {
   const title = graphSource === 'prev' && prevGameStats
     ? `Previous game — ${prevGameStats.gameMode}`
     : 'Current game';
-  document.getElementById('graph-dialog-title').textContent = title;
+  (document.getElementById('graph-dialog-title') as HTMLElement).textContent = title;
 
-  // Rebuild phase-by-round options dynamically
-  const select = document.getElementById('graph-type-select');
+  const select = document.getElementById('graph-type-select') as HTMLSelectElement;
   Array.from(select.options).filter(o => o.value.startsWith('phase:')).forEach(o => o.remove());
   const statsOpt = Array.from(select.options).find(o => o.value === 'stats');
   getDistinctPhases().forEach(phase => {
     const opt = document.createElement('option');
     opt.value = `phase:${phase}`;
     opt.textContent = `${phase.charAt(0).toUpperCase() + phase.slice(1)} time by round`;
-    select.insertBefore(opt, statsOpt);
+    select.insertBefore(opt, statsOpt ?? null);
   });
   if (!Array.from(select.options).some(o => o.value === graphType)) graphType = 'total';
   select.value = graphType;
 
-  const sortBtn = document.getElementById('graph-sort-btn');
+  const sortBtn = document.getElementById('graph-sort-btn') as HTMLElement;
   sortBtn.textContent = `Sort: ${SORT_LABELS[graphSort]}`;
   const hideSort = graphType === 'by_round' || graphType === 'stats' || graphType.startsWith('phase:');
   sortBtn.style.display = hideSort ? 'none' : '';
   renderGraph();
 }
 
-function openGraphOverlay(source = 'live') {
+export function openGraphOverlay(source = 'live'): void {
   graphSource = source;
-  document.getElementById('graph-overlay').style.display = 'flex';
+  (document.getElementById('graph-overlay') as HTMLElement).style.display = 'flex';
   renderGraphOverlay();
   if (source === 'live') _graphInterval = setInterval(renderGraph, 1000);
 }
 
-function closeGraphOverlay() {
-  document.getElementById('graph-overlay').style.display = 'none';
+export function closeGraphOverlay(): void {
+  (document.getElementById('graph-overlay') as HTMLElement).style.display = 'none';
   if (_graphInterval) { clearInterval(_graphInterval); _graphInterval = null; }
 }
 
-function cycleGraphSort() {
+export function cycleGraphSort(): void {
   const idx = SORT_MODES.indexOf(graphSort);
   graphSort = SORT_MODES[(idx + 1) % SORT_MODES.length];
   renderGraphOverlay();
 }
 
-function onGraphTypeChange(val) {
+export function onGraphTypeChange(val: string): void {
   graphType = val;
-  renderGraphOverlay(); // also updates sort button visibility
+  renderGraphOverlay();
 }
 
-function renderTimerInfo(hwid, box) {
+export function renderTimerInfo(_hwid: string, box: typeof state.boxes[string]): string {
   if (!timerSettings.showCurrent && !timerSettings.showTotal) return '';
-  const parts = [];
+  const parts: string[] = [];
   if (timerSettings.showCurrent && box.turnStartTime) {
     parts.push(formatDuration(Date.now() - box.turnStartTime));
   }
   if (timerSettings.showTotal) {
-    const total = (box.totalTurnTime || 0) + (box.turnStartTime ? Date.now() - box.turnStartTime : 0);
+    const total = (box.totalTurnTime ?? 0) + (box.turnStartTime ? Date.now() - box.turnStartTime : 0);
     if (total > 0) parts.push(`Σ ${formatDuration(total)}`);
   }
   if (parts.length === 0) return '';

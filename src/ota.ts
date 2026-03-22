@@ -1,10 +1,15 @@
-// ---- OTA update dialog ----
+import { state } from './state';
+import { log } from './logger';
+import { send, sendToBox } from './websockets';
+import { LED_COUNT, ledSolid, ledOff, ledStateForStatus } from './leds';
+import { getDisplayName } from './boxes';
+import { isVersionOutOfDate } from './firmware';
 
-let _otaInterval = null;
-let _identifyingHwid = null;
-let _identifyTimer = null;
+let _otaInterval: ReturnType<typeof setInterval> | null = null;
+let _identifyingHwid: string | null = null;
+let _identifyTimer: ReturnType<typeof setTimeout> | null = null;
 
-function identifyBox(hwid) {
+export function identifyBox(hwid: string): void {
   if (_identifyTimer) clearTimeout(_identifyTimer);
   _identifyingHwid = hwid;
 
@@ -34,31 +39,29 @@ function identifyBox(hwid) {
   renderOtaDialog();
 }
 
-function openOtaDialog() {
-  document.getElementById('ota-overlay').style.display = 'flex';
+export function openOtaDialog(): void {
+  (document.getElementById('ota-overlay') as HTMLElement).style.display = 'flex';
   renderOtaDialog();
   _otaInterval = setInterval(renderOtaDialog, 1000);
 }
 
-function closeOtaDialog() {
+export function closeOtaDialog(): void {
   const anyUpdating = state.boxOrder.some(id => state.boxes[id]?.otaUpdating);
   if (anyUpdating) {
     const el = document.getElementById('ota-close-warning');
     if (el) el.style.display = '';
     return;
   }
-  document.getElementById('ota-overlay').style.display = 'none';
-  clearInterval(_otaInterval);
-  _otaInterval = null;
+  (document.getElementById('ota-overlay') as HTMLElement).style.display = 'none';
+  if (_otaInterval) { clearInterval(_otaInterval); _otaInterval = null; }
 }
 
-function forceCloseOtaDialog() {
-  document.getElementById('ota-overlay').style.display = 'none';
-  clearInterval(_otaInterval);
-  _otaInterval = null;
+export function forceCloseOtaDialog(): void {
+  (document.getElementById('ota-overlay') as HTMLElement).style.display = 'none';
+  if (_otaInterval) { clearInterval(_otaInterval); _otaInterval = null; }
 }
 
-function startOtaUpdate(hwid) {
+export function startOtaUpdate(hwid: string): void {
   if (!state.latestFirmware?.binUrl) return;
   const box = state.boxes[hwid];
   if (!box) return;
@@ -69,7 +72,7 @@ function startOtaUpdate(hwid) {
   renderOtaDialog();
 }
 
-function startOtaUpdateAll() {
+export function startOtaUpdateAll(): void {
   if (!state.latestFirmware?.binUrl) return;
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
@@ -83,9 +86,9 @@ function startOtaUpdateAll() {
   renderOtaDialog();
 }
 
-function renderOtaDialog() {
+export function renderOtaDialog(): void {
   const el = document.getElementById('ota-dialog-content');
-  if (!el || document.getElementById('ota-overlay').style.display === 'none') return;
+  if (!el || (document.getElementById('ota-overlay') as HTMLElement).style.display === 'none') return;
 
   const fw = state.latestFirmware;
   const anyUpdating = state.boxOrder.some(id => state.boxes[id]?.otaUpdating);
@@ -102,13 +105,13 @@ function renderOtaDialog() {
     const box = state.boxes[hwid];
     if (!box) return '';
     const isHub = hwid === state.hubHwid;
-    const v = box.version || 'unknown';
+    const v = box.version ?? 'unknown';
     const outOfDate = isVersionOutOfDate(v);
     const vColor = v === 'unknown' ? '#888' : outOfDate ? '#c9a84c' : '#4a7';
     const canUpdate = fw?.binUrl && outOfDate && !box.otaUpdating;
     const canIdentify = box.status !== 'disconnected' && !box.isVirtual;
     const identifying = _identifyingHwid === hwid;
-    const progressHtml = box.otaUpdating || box.otaProgress != null ? `
+    const progressHtml = box.otaUpdating || box.otaProgress !== null ? `
       <div class="ota-progress-wrap">
         <div class="ota-progress-bar" style="width:${box.otaProgress ?? 0}%"></div>
       </div>` : '';
@@ -116,8 +119,8 @@ function renderOtaDialog() {
     return `<div class="ota-row">
       <span class="ota-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>
       <span class="ota-version" style="color:${vColor}">${v}</span>
-      <button class="ota-identify-btn${identifying ? ' identifying' : ''}" onclick="identifyBox('${hwid}')" ${canIdentify ? '' : 'disabled'}>${identifying ? 'Identifying…' : 'Identify'}</button>
-      <button class="ota-btn" onclick="startOtaUpdate('${hwid}')" ${canUpdate ? '' : 'disabled'}>Update</button>
+      <button class="ota-identify-btn${identifying ? ' identifying' : ''}" data-hwid="${hwid}" ${canIdentify ? '' : 'disabled'}>${identifying ? 'Identifying…' : 'Identify'}</button>
+      <button class="ota-btn" data-hwid="${hwid}" ${canUpdate ? '' : 'disabled'}>Update</button>
       ${progressHtml}${errorHtml}
     </div>`;
   }).join('');
@@ -126,6 +129,20 @@ function renderOtaDialog() {
     ${headerHtml}
     <div class="ota-rows">${rows || '<div style="color:#888">No boxes connected</div>'}</div>
     <div class="ota-actions">
-      <button onclick="startOtaUpdateAll()" ${fw?.binUrl && !anyUpdating && !allCurrent ? '' : 'disabled'}>Update All</button>
+      <button id="ota-update-all-btn" ${fw?.binUrl && !anyUpdating && !allCurrent ? '' : 'disabled'}>Update All</button>
     </div>`;
+
+  // Attach event listeners (no inline onclick in TS)
+  el.querySelectorAll<HTMLButtonElement>('.ota-identify-btn').forEach(btn => {
+    btn.addEventListener('click', () => identifyBox(btn.dataset.hwid!));
+  });
+  el.querySelectorAll<HTMLButtonElement>('.ota-btn').forEach(btn => {
+    btn.addEventListener('click', () => startOtaUpdate(btn.dataset.hwid!));
+  });
+  const updateAllBtn = el.querySelector<HTMLButtonElement>('#ota-update-all-btn');
+  if (updateAllBtn) updateAllBtn.addEventListener('click', startOtaUpdateAll);
+
+  if (!fw) {
+    log('OTA: no firmware info available', 'system');
+  }
 }

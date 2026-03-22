@@ -1,10 +1,12 @@
-// ---- Turn timers ----
+import { state } from './state';
+import { renderBoxes, renderTableLabel } from './render';
 
-const timerSettings = { showCurrent: false, showTotal: false, showGameTimer: false };
-let _timerTrackedActiveId = null;
-let _currentTimerInterval = null;
+export const timerSettings = { showCurrent: false, showTotal: false, showGameTimer: false };
 
-function formatDuration(ms) {
+let _timerTrackedActiveId: string | null = null;
+let _currentTimerInterval: ReturnType<typeof setInterval> | null = null;
+
+export function formatDuration(ms: number): string {
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -14,26 +16,26 @@ function formatDuration(ms) {
   return `${rs}s`;
 }
 
-function onTurnStart(hwid) {
+export function getCurrentRound(): number | null {
+  return state.round || null;
+}
+
+function onTurnStart(hwid: string): void {
   if (!state.boxes[hwid]) return;
   state.boxes[hwid].turnStartTime = Date.now();
 }
 
-function getCurrentRound() {
-  return state.round || null;
-}
-
-function onTurnEnd(hwid) {
+function onTurnEnd(hwid: string): void {
   const box = state.boxes[hwid];
-  if (!box || !box.turnStartTime) return;
+  if (!box?.turnStartTime) return;
   const elapsed = Date.now() - box.turnStartTime;
-  box.totalTurnTime = (box.totalTurnTime || 0) + elapsed;
-  if (!box.turnHistory) box.turnHistory = [];
+  box.totalTurnTime = (box.totalTurnTime ?? 0) + elapsed;
+  box.turnHistory ??= [];
   if (elapsed > 0) box.turnHistory.push({ duration: elapsed, round: getCurrentRound() });
   box.turnStartTime = null;
 }
 
-function updateTurnTimers() {
+export function updateTurnTimers(): void {
   const current = state.activeBoxId;
   if (current === _timerTrackedActiveId) return;
   if (_timerTrackedActiveId) onTurnEnd(_timerTrackedActiveId);
@@ -41,7 +43,11 @@ function updateTurnTimers() {
   _timerTrackedActiveId = current;
 }
 
-function resetTurnTimers() {
+export function substituteTimerTracking(oldHwid: string, newHwid: string): void {
+  if (_timerTrackedActiveId === oldHwid) _timerTrackedActiveId = newHwid;
+}
+
+export function resetTurnTimers(): void {
   _timerTrackedActiveId = null;
   state.boxOrder.forEach(hwid => {
     if (state.boxes[hwid]) {
@@ -52,7 +58,7 @@ function resetTurnTimers() {
   });
 }
 
-function startCurrentTimerInterval() {
+export function startCurrentTimerInterval(): void {
   if (_currentTimerInterval) return;
   _currentTimerInterval = setInterval(() => {
     if (!state.gameActive) return;
@@ -61,22 +67,22 @@ function startCurrentTimerInterval() {
   }, 1000);
 }
 
-function stopCurrentTimerInterval() {
+export function stopCurrentTimerInterval(): void {
   if (_currentTimerInterval) { clearInterval(_currentTimerInterval); _currentTimerInterval = null; }
 }
 
-function needsTimerInterval() {
+export function needsTimerInterval(): boolean {
   return timerSettings.showCurrent || timerSettings.showGameTimer;
 }
 
 // ---- Phase timing ----
 
-function startPhase(name) {
+export function startPhase(name: string): void {
   endPhase();
   state.currentPhaseStart = { name, startTime: Date.now() };
 }
 
-function endPhase() {
+export function endPhase(): void {
   if (!state.currentPhaseStart) return;
   const duration = Date.now() - state.currentPhaseStart.startTime;
   state.phaseLog.push({ phase: state.currentPhaseStart.name, duration, round: state.round });
