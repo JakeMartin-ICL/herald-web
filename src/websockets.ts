@@ -167,6 +167,11 @@ export function handleMessage(msg: any): void {
       log(`${getDisplayName(msg.hwid as string)} OTA failed: ${msg.message as string}`, 'error');
       renderOtaDialog();
       break;
+    case 'battery':
+      if (state.boxes[msg.hwid]) {
+        state.boxes[msg.hwid].batteryVoltage = msg.voltage as number;
+      }
+      break;
     case 'debug':
       log(`[${getDisplayName(msg.hwid as string)}] ${msg.msg as string}`, 'debug');
       return;

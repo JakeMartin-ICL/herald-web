@@ -197,7 +197,6 @@ function handleFactionScan(hwid: string, internalId: string): void {
   if (!faction) return;
 
   state.boxes[hwid].factionId = factionId;
-  if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
 
   if (!isManuallyRenamed(hwid)) {
     setAutoName(hwid, faction.nickname ?? faction.name);

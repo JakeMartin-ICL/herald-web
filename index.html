@@ -102,6 +102,10 @@
         <button id="ota-open-btn">Firmware Updates</button>
         <button id="debug-open-btn">Debug Logging</button>
         <button id="wifi-open-btn">WiFi Networks</button>
+        <button id="active-style-open-btn">Active Player Style</button>
+        <label class="gc-check-row" id="show-battery-label">
+          <input type="checkbox" id="show-battery-cb"> Show battery %
+        </label>
       </div>
     </div>
   </div>
@@ -198,6 +202,37 @@
         <button id="wifi-save-btn" style="flex:1">Save</button>
         <span id="wifi-save-status" style="color:#4a7; font-size:0.85rem; min-width:4rem;"></span>
         <button id="wifi-close-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="active-style-overlay" style="display:none">
+    <div id="active-style-dialog">
+      <h2>Active Player Style</h2>
+
+      <div class="style-modes">
+        <button class="style-mode-btn" data-mode="solid">Solid</button>
+        <button class="style-mode-btn" data-mode="breathe">Breathe</button>
+        <button class="style-mode-btn" data-mode="spinner">Spinner</button>
+      </div>
+
+      <div class="style-colour-row">
+        <button id="style-white-btn" class="style-mode-btn">White</button>
+        <div id="style-colour-swatch"></div>
+        <input type="range" id="style-hue" min="0" max="359" step="1" value="200" style="flex:1">
+        <label class="style-rainbow-label"><input type="checkbox" id="style-rainbow"> Rainbow</label>
+      </div>
+
+      <div id="style-speed-section">
+        <div class="style-speed-row">
+          <span>Slow</span>
+          <input type="range" id="style-speed" min="0" max="100" step="1" value="50" style="flex:1">
+          <span>Fast</span>
+        </div>
+      </div>
+
+      <div style="text-align:right; margin-top:1rem">
+        <button id="active-style-close-btn">Done</button>
       </div>
     </div>
   </div>

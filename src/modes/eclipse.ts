@@ -5,7 +5,7 @@ import { getDisplayName } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
-import { LED_COUNT } from '../leds';
+import { LED_COUNT, normalizeColor } from '../leds';
 import { captureGameStats } from '../graphs';
 import type { GameMode, Tag, ActionDef } from '../types';
 
@@ -17,6 +17,7 @@ export class EclipseMode implements GameMode {
   readonly id = 'eclipse';
 
   private upkeepAnimTimer: ReturnType<typeof setTimeout> | null = null;
+  private upkeepAnimFrames: { leds: string[]; duration: number; fade?: boolean }[] = [];
 
   start(): void {
     const firstPlayerId = (document.getElementById('first-player') as HTMLSelectElement).value;
@@ -300,6 +301,7 @@ export class EclipseMode implements GameMode {
     state.eclipse.upkeepReady.push(hwid);
     box.status = 'idle';
     box.leds = null;
+    if (!box.isVirtual) sendToBox(hwid, { type: 'led_anim_stop' });
     log(`${getDisplayName(hwid)} upkeep done`, 'system');
 
     const allDone = state.boxOrder.every(id =>
@@ -363,18 +365,18 @@ export class EclipseMode implements GameMode {
 
   // ---- Upkeep animation ----
 
-  private buildUpkeepFrames(): { leds: string[]; duration: number }[] {
+  private buildUpkeepFrames(): { leds: string[]; duration: number; fade?: boolean }[] {
     const N = LED_COUNT;
     const T = N / 3;
     const OFF = '#000000';
-    const frames: { leds: string[]; duration: number }[] = [];
+    const frames: { leds: string[]; duration: number; fade?: boolean }[] = [];
 
     frames.push({ leds: Array(N).fill(OFF) as string[], duration: 100 });
 
     for (let i = 1; i <= T; i++) {
       const leds = Array(N).fill(OFF) as string[];
       for (let j = 0; j < i; j++) leds[j] = UPKEEP_GOLD;
-      frames.push({ leds, duration: 80 });
+      frames.push({ leds, duration: 100, fade: true });
     }
 
     const afterGold = Array(N).fill(OFF) as string[];
@@ -384,14 +386,14 @@ export class EclipseMode implements GameMode {
     for (let i = 1; i <= T; i++) {
       const leds = [...afterGold];
       for (let j = 0; j < i; j++) leds[T + j] = UPKEEP_PINK;
-      frames.push({ leds, duration: 80 });
+      frames.push({ leds, duration: 100, fade: true });
     }
     const afterPink = [...afterGold];
     for (let j = 0; j < T; j++) afterPink[T + j] = UPKEEP_PINK;
     for (let i = 1; i <= T; i++) {
       const leds = [...afterPink];
       for (let j = 0; j < i; j++) leds[T * 2 + j] = UPKEEP_BROWN;
-      frames.push({ leds, duration: 80 });
+      frames.push({ leds, duration: 100, fade: true });
     }
 
     const full = [...afterGold];
@@ -403,24 +405,39 @@ export class EclipseMode implements GameMode {
 
   private startUpkeepAnimation(): void {
     this.stopUpkeepAnimation();
-    const frames = this.buildUpkeepFrames();
-    let frameIndex = 0;
+    this.upkeepAnimFrames = this.buildUpkeepFrames();
 
+    // Send firmware animation to real boxes (runs entirely on-device)
+    const firmwareMsg = {
+      type: 'led_anim',
+      loop: true,
+      frames: this.upkeepAnimFrames.map(f => ({
+        leds: f.leds.map(normalizeColor),
+        ms: f.duration,
+        ...(f.fade ? { fade: true } : {}),
+      })),
+    };
+    state.boxOrder.forEach(hwid => {
+      const box = state.boxes[hwid];
+      if (box?.status === 'upkeep' && !box.isVirtual) sendToBox(hwid, firmwareMsg);
+    });
+
+    // JS timer only drives virtual (sim) boxes for the browser UI
+    const hasVirtual = state.boxOrder.some(hwid => state.boxes[hwid]?.status === 'upkeep' && state.boxes[hwid]?.isVirtual);
+    if (!hasVirtual) return;
+
+    let frameIndex = 0;
     const tick = () => {
       if (!state.gameActive || state.eclipse.phase !== 'upkeep') return;
-      const { leds, duration } = frames[frameIndex];
-      frameIndex = (frameIndex + 1) % frames.length;
+      const { leds, duration } = this.upkeepAnimFrames[frameIndex];
+      frameIndex = (frameIndex + 1) % this.upkeepAnimFrames.length;
       state.boxOrder.forEach(hwid => {
         const box = state.boxes[hwid];
-        if (box?.status === 'upkeep') {
-          box.leds = leds;
-          if (!box.isVirtual) sendToBox(hwid, { type: 'led', leds });
-        }
+        if (box?.status === 'upkeep' && box.isVirtual) box.leds = leds;
       });
       render();
       this.upkeepAnimTimer = setTimeout(tick, duration);
     };
-
     tick();
   }
 
@@ -429,6 +446,10 @@ export class EclipseMode implements GameMode {
       clearTimeout(this.upkeepAnimTimer);
       this.upkeepAnimTimer = null;
     }
+    state.boxOrder.forEach(hwid => {
+      const box = state.boxes[hwid];
+      if (box?.status === 'upkeep' && !box.isVirtual) sendToBox(hwid, { type: 'led_anim_stop' });
+    });
   }
 }
 

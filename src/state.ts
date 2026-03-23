@@ -48,6 +48,9 @@ export const state: AppState = {
     upkeepReady: [],
   },
 
+  showBatteryVoltage: false,
+  activePlayerStyle: { mode: 'solid', hue: null, rainbow: false, speed: 0.5 },
+
   ti: {
     phase: null,
     speakerHwid: null,

@@ -1,3 +1,4 @@
+import { state } from './state';
 import { init } from './init';
 import { toggleConnect } from './websockets';
 import { onGameModeChange, addVirtualBox, confirmSubstitution, cancelSubstitution } from './boxes';
@@ -7,8 +8,9 @@ import { openGraphOverlay, closeGraphOverlay, cycleGraphSort, onGraphTypeChange 
 import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, simulateTagTap, startTagWriting, buildTagQueue } from './rfid';
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
+import { openActiveStyleDialog, initActiveStyleDialog, loadActiveStyle } from './activeStyle';
 import { clearLog } from './logger';
-import { cancelEndGame, endGame } from './render';
+import { cancelEndGame, endGame, render } from './render';
 import { dismissBatteryTip } from './init';
 
 function on(id: string, event: string, fn: EventListener): void {
@@ -52,8 +54,17 @@ on('debug-open-btn', 'click', () => openDebugDialog());
 on('debug-log-overlay', 'click', () => closeDebugDialog());
 on('debug-close-btn', 'click', () => closeDebugDialog());
 
+// Show battery toggle
+on('show-battery-cb', 'change', (e) => {
+  state.showBatteryVoltage = (e.target as HTMLInputElement).checked;
+  render();
+});
+
 // WiFi
 on('wifi-open-btn', 'click', () => openWifiDialog());
+
+// Active player style
+on('active-style-open-btn', 'click', () => openActiveStyleDialog());
 on('wifi-overlay', 'click', () => closeWifiDialog());
 on('wifi-close-btn', 'click', () => closeWifiDialog());
 on('wifi-save-btn', 'click', () => saveWifiCredentials());
@@ -87,4 +98,6 @@ on('battery-tip-dismiss-btn', 'click', () => dismissBatteryTip());
 
 // ---- Start app ----
 
+loadActiveStyle();
+initActiveStyleDialog();
 init().catch(console.error);

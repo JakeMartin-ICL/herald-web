@@ -356,6 +356,46 @@ export class TwilightImperiumMode implements GameMode {
     }
   }
 
+  // ---- Choosing animation ----
+
+  private buildChoosingAnimFrames(): { leds: string[]; ms: number; fade?: boolean }[] {
+    const colors = Object.values(TI_STRATEGY_COLORS); // 8 colours in initiative order
+    const ledsPerColor = LED_COUNT / colors.length;    // 3 LEDs per segment
+
+    const dim = (hex: string): string => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const h = (v: number): string => Math.floor(v / 2).toString(16).padStart(2, '0');
+      return `#${h(r)}${h(g)}${h(b)}`;
+    };
+
+    const buildLeds = (activeIdx: number): string[] => {
+      const leds: string[] = [];
+      for (let c = 0; c < colors.length; c++) {
+        const color = c === activeIdx ? colors[c] : dim(colors[c]);
+        for (let i = 0; i < ledsPerColor; i++) leds.push(color);
+      }
+      return leds;
+    };
+
+    const frames: { leds: string[]; ms: number; fade?: boolean }[] = [];
+    for (let i = 0; i < colors.length; i++) {
+      frames.push({ leds: buildLeds(i), ms: 600 });
+      frames.push({ leds: buildLeds((i + 1) % colors.length), ms: 100, fade: true });
+    }
+    return frames;
+  }
+
+  private sendChoosingAnim(hwid: string): void {
+    const frames = this.buildChoosingAnimFrames();
+    sendToBox(hwid, {
+      type: 'led_anim',
+      loop: true,
+      frames: frames.map(f => ({ leds: f.leds, ms: f.ms, ...(f.fade ? { fade: true } : {}) })),
+    });
+  }
+
   // ---- Strategy Phase ----
 
   private startStrategyPhase(): void {
@@ -406,9 +446,9 @@ export class TwilightImperiumMode implements GameMode {
     if (hwid) enableRfid(hwid);
     state.boxes[hwid].status = 'choosing';
     state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT,
-      ['#cc0000', '#ff8800', '#dddd00', '#00aa00', '#00aaaa', '#0055ff', '#000066', '#660088']
-        .map(color => ({ color, count: LED_COUNT / 8 }))
+      Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 }))
     );
+    if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
     log(`${getDisplayName(hwid)} picks a strategy card`, 'system');
     this.updateBadges();
   }
@@ -428,9 +468,9 @@ export class TwilightImperiumMode implements GameMode {
         enableRfid(hwid);
         state.boxes[hwid].status = 'choosing';
         state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT,
-          ['#cc0000', '#ff8800', '#dddd00', '#00aa00', '#00aaaa', '#0055ff', '#000066', '#660088']
-            .map(color => ({ color, count: LED_COUNT / 8 }))
+          Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 }))
         );
+        if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
         this.updateBadges();
         return;
       }

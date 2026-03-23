@@ -38,6 +38,7 @@ export interface Box {
   strategyColor?: string | null;
   choosingLeds?: string[] | null;
   debugEnabled?: boolean;
+  batteryVoltage?: number | null;
 }
 
 export interface FirmwareInfo {
@@ -128,6 +129,13 @@ export interface Factions {
 
 export type AllTags = Record<string, Tag[]>;
 
+export interface ActivePlayerStyle {
+  mode: 'solid' | 'breathe' | 'spinner';
+  hue: number | null; // null = white; number = hsl(hue, 100%, 50%)
+  rainbow: boolean;   // overrides hue; not used for breathe
+  speed: number;      // 0–1 (slow→fast)
+}
+
 export interface AppState {
   connected: boolean;
   gameActive: boolean;
@@ -149,6 +157,8 @@ export interface AppState {
   currentPhaseStart: { name: string; startTime: number } | null;
   eclipse: EclipseState;
   ti: TiState;
+  showBatteryVoltage: boolean;
+  activePlayerStyle: ActivePlayerStyle;
 }
 
 // ---- GameMode interface ----

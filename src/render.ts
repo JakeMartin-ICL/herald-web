@@ -1,5 +1,6 @@
 import { state, VIRTUAL_BOX_ID_OFFSET } from './state';
 import { ledStateForStatus, syncLeds } from './leds';
+import { syncDisplay } from './display';
 import {
   updateTurnTimers, timerSettings, formatDuration,
   stopCurrentTimerInterval, needsTimerInterval, startCurrentTimerInterval,
@@ -16,11 +17,46 @@ import { clearPersistedState } from './persist';
 import { isVersionOutOfDate } from './firmware';
 import type { ActionDef } from './types';
 
+// ---- Battery percentage ----
+
+// Piecewise linear approximation of the Molicel INR18650 M35A discharge curve.
+// Points are [voltage, percentage] in descending voltage order.
+const BATTERY_CURVE: [number, number][] = [
+  [4.20, 100],
+  [4.10,  91],
+  [4.00,  81],
+  [3.90,  70],
+  [3.80,  58],
+  [3.70,  47],
+  [3.60,  36],
+  [3.50,  25],
+  [3.40,  15],
+  [3.30,   8],
+  [3.20,   3],
+  [3.00,   1],
+  [2.80,   0],
+];
+
+function voltageToPercent(v: number): number {
+  if (v >= BATTERY_CURVE[0][0]) return 100;
+  if (v <= BATTERY_CURVE[BATTERY_CURVE.length - 1][0]) return 0;
+  for (let i = 0; i < BATTERY_CURVE.length - 1; i++) {
+    const [v1, p1] = BATTERY_CURVE[i];
+    const [v2, p2] = BATTERY_CURVE[i + 1];
+    if (v <= v1 && v >= v2) {
+      const t = (v - v1) / (v2 - v1);
+      return Math.round(p1 + t * (p2 - p1));
+    }
+  }
+  return 0;
+}
+
 // ---- Render ----
 
 export function render(): void {
   updateTurnTimers();
   syncLeds();
+  syncDisplay();
   renderBoxes();
   renderTableLabel();
   renderGameControls();
@@ -353,11 +389,19 @@ export function renderBoxes(): void {
 
     const dragHandle = canDrag ? `<div class="drag-handle">⠿</div>` : '';
 
+    const pct = (box.batteryVoltage !== null && box.batteryVoltage !== undefined)
+      ? voltageToPercent(box.batteryVoltage) : null;
+    const showBattery = pct !== null && (state.showBatteryVoltage || pct < 25);
+    const batteryHtml = showBattery
+      ? `<div class="box-battery${pct < 25 ? ' box-battery-low' : ''}">${pct}%</div>`
+      : '';
+
     card.innerHTML = `
       ${dragHandle}
       ${nameHtml}
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
+      ${batteryHtml}
       ${renderBadges(box)}
       ${renderTimerInfo(hwid, box)}
       ${renderSimControls(hwid)}

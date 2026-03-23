@@ -31,6 +31,9 @@ src/
   timers.ts      — Per-player turn timers, phase timing (startPhase/endPhase), formatDuration()
   graphs.ts      — Stats/graphs overlay (openGraphOverlay, renderGraph, renderStats,
                    captureGameStats, snapshotPlayer, renderTimerInfo)
+  display.ts     — OLED display sync (syncDisplay); sends { type: 'display', name, status }
+                   to each connected real box on every render(); status is a friendly label
+                   (e.g. 'Can React') or empty string when idle
   render.ts      — Table rendering (renderBoxes, renderGameControls, renderTableLabel),
                    box cards, drag-to-reorder, name editing, sim toggle, endGame(),
                    setWakeLockHandlers(), isManuallyRenamed()

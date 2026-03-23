@@ -22,6 +22,7 @@ function toggleBoxDebug(hwid: string, enabled: boolean): void {
 function renderDebugDialog(): void {
   const el = document.getElementById('debug-log-content');
   if (!el) return;
+
   const rows = state.boxOrder.map(hwid => {
     const box = state.boxes[hwid];
     if (!box) return '';
