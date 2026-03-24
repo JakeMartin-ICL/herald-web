@@ -5,8 +5,11 @@ function versionLessThan(a: string, b: string): boolean {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
   for (let i = 0; i < 3; i++) {
-    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return true;
-    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return false;
+    const va = pa[i] ?? 0;
+    const vb = pb[i] ?? 0;
+    if (isNaN(va) || isNaN(vb)) return true; // non-numeric (e.g. 'dev') is always out of date
+    if (va < vb) return true;
+    if (va > vb) return false;
   }
   return false;
 }

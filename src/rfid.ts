@@ -1,7 +1,6 @@
 import { state } from './state';
 import { log } from './logger';
 import { enableRfid, disableRfid, disableAllRfid, sendToBox, handleMessage } from './websockets';
-import { LED_COUNT, ledSolid, ledOff } from './leds';
 import { getDisplayName, updateSetupUI, setAutoName } from './boxes';
 import { render } from './render';
 import { isManuallyRenamed } from './render';
@@ -164,9 +163,8 @@ export function startFactionScan(): void {
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
     if (!box || box.status === 'disconnected') return;
-    const leds = ledOff(LED_COUNT);
-    box.leds = leds;
-    if (!box.isVirtual) sendToBox(hwid, { type: 'led', leds });
+    box.leds = { type: 'led_off' };
+    if (!box.isVirtual) sendToBox(hwid, { type: 'led_off' });
   });
   (document.getElementById('faction-scan-banner') as HTMLElement).style.display = 'flex';
   render();
@@ -202,9 +200,8 @@ function handleFactionScan(hwid: string, internalId: string): void {
     setAutoName(hwid, faction.nickname ?? faction.name);
   }
 
-  const leds = ledSolid(LED_COUNT, faction.color);
-  state.boxes[hwid].leds = leds;
-  if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds });
+  state.boxes[hwid].leds = { type: 'led_solid', color: faction.color };
+  if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led_solid', color: faction.color });
   log(`${getDisplayName(hwid)} identified as ${faction.name}`, 'system');
   currentGame?.onFactionChanged?.();
   updateSetupUI();

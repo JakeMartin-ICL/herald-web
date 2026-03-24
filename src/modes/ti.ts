@@ -6,7 +6,7 @@ import { render, renderBoxes } from '../render';
 import { setBoxBadges } from '../boxes';
 import { startPhase } from '../timers';
 import { persistState } from '../persist';
-import { LED_COUNT, ledSolid, ledSectors } from '../leds';
+import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
 import { getFactionForBox } from './eclipse';
 import type { GameMode, Tag, ActionDef, StrategyCard } from '../types';
@@ -191,10 +191,9 @@ export class TwilightImperiumMode implements GameMode {
         player.strategyCards.push({ id, label, color, initiative, used: false });
         log(`${getDisplayName(hwid)} takes ${label}`, 'system');
         this.updateBadges();
-        const pulseLeds = ledSolid(LED_COUNT, color);
-        state.boxes[hwid].leds = pulseLeds;
+        state.boxes[hwid].leds = { type: 'led_solid', color };
         state.boxes[hwid].ledOverrideUntil = Date.now() + 800;
-        if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led', leds: pulseLeds });
+        if (!state.boxes[hwid].isVirtual) sendToBox(hwid, { type: 'led_solid', color });
         renderBoxes();
         setTimeout(() => {
           state.boxes[hwid].ledOverrideUntil = null;
@@ -358,41 +357,12 @@ export class TwilightImperiumMode implements GameMode {
 
   // ---- Choosing animation ----
 
-  private buildChoosingAnimFrames(): { leds: string[]; ms: number; fade?: boolean }[] {
-    const colors = Object.values(TI_STRATEGY_COLORS); // 8 colours in initiative order
-    const ledsPerColor = LED_COUNT / colors.length;    // 3 LEDs per segment
-
-    const dim = (hex: string): string => {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      const h = (v: number): string => Math.floor(v / 2).toString(16).padStart(2, '0');
-      return `#${h(r)}${h(g)}${h(b)}`;
-    };
-
-    const buildLeds = (activeIdx: number): string[] => {
-      const leds: string[] = [];
-      for (let c = 0; c < colors.length; c++) {
-        const color = c === activeIdx ? colors[c] : dim(colors[c]);
-        for (let i = 0; i < ledsPerColor; i++) leds.push(color);
-      }
-      return leds;
-    };
-
-    const frames: { leds: string[]; ms: number; fade?: boolean }[] = [];
-    for (let i = 0; i < colors.length; i++) {
-      frames.push({ leds: buildLeds(i), ms: 600 });
-      frames.push({ leds: buildLeds((i + 1) % colors.length), ms: 100, fade: true });
-    }
-    return frames;
-  }
-
   private sendChoosingAnim(hwid: string): void {
-    const frames = this.buildChoosingAnimFrames();
     sendToBox(hwid, {
-      type: 'led_anim',
-      loop: true,
-      frames: frames.map(f => ({ leds: f.leds, ms: f.ms, ...(f.fade ? { fade: true } : {}) })),
+      type: 'led_anim_choosing',
+      colors: Object.values(TI_STRATEGY_COLORS),
+      activeMs: 600,
+      fadeMs: 100,
     });
   }
 
@@ -445,9 +415,10 @@ export class TwilightImperiumMode implements GameMode {
     state.activeBoxId = hwid;
     if (hwid) enableRfid(hwid);
     state.boxes[hwid].status = 'choosing';
-    state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT,
-      Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 }))
-    );
+    state.boxes[hwid].choosingLeds = {
+      type: 'led_sectors',
+      sectors: Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 })),
+    };
     if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
     log(`${getDisplayName(hwid)} picks a strategy card`, 'system');
     this.updateBadges();
@@ -467,9 +438,10 @@ export class TwilightImperiumMode implements GameMode {
         state.activeBoxId = hwid;
         enableRfid(hwid);
         state.boxes[hwid].status = 'choosing';
-        state.boxes[hwid].choosingLeds = ledSectors(LED_COUNT,
-          Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 }))
-        );
+        state.boxes[hwid].choosingLeds = {
+          type: 'led_sectors',
+          sectors: Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 })),
+        };
         if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
         this.updateBadges();
         return;

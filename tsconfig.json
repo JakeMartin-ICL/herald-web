@@ -9,6 +9,7 @@
     "noImplicitReturns": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "types": ["vite/client"],
     "outDir": "dist",
     "rootDir": "src"
   },

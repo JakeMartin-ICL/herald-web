@@ -20,12 +20,30 @@ export interface TurnRecord {
   round: number | null;
 }
 
+// Named LED command sent to a box. The firmware generates the actual LED pattern
+// from these parameters — no raw LED arrays are sent over the wire.
+export type LedCommand =
+  | { type: 'led_off' }
+  | { type: 'led_solid'; color: string }
+  | { type: 'led_alternate'; color: string }
+  | { type: 'led_alternate_pair'; a: string; b: string }
+  | { type: 'led_half'; color: string; first: boolean }
+  | { type: 'led_rainbow' }
+  | { type: 'led_thirds'; c1: string; c2: string; c3: string }
+  | { type: 'led_sectors'; sectors: { color: string; count: number }[] }
+  | { type: 'led_anim_breathe'; color: string; rainbow: boolean; halfPeriodMs: number }
+  | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number }
+  | { type: 'led_anim_choosing'; colors: string[]; activeMs: number; fadeMs: number }
+  | { type: 'led_anim_upkeep' }
+  | { type: 'led_anim_stop' }
+  | { type: 'led_raw'; leds: string[] }; // virtual-box-only: raw array for JS-driven animations
+
 export interface Box {
   hwid: string;
   isVirtual: boolean;
   status: BoxStatus;
   factionId: string | null;
-  leds?: string[] | null;
+  leds?: LedCommand | null;
   ledOverrideUntil?: number | null;
   badges?: Badge[];
   version?: string | null;
@@ -36,7 +54,7 @@ export interface Box {
   totalTurnTime?: number;
   turnHistory?: TurnRecord[];
   strategyColor?: string | null;
-  choosingLeds?: string[] | null;
+  choosingLeds?: LedCommand | null;
   debugEnabled?: boolean;
   batteryVoltage?: number | null;
 }

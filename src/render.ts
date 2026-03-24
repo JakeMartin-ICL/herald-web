@@ -1,5 +1,5 @@
 import { state, VIRTUAL_BOX_ID_OFFSET } from './state';
-import { ledStateForStatus, syncLeds } from './leds';
+import { ledStateForStatus, ledCommandToArray, syncLeds } from './leds';
 import { syncDisplay } from './display';
 import {
   updateTurnTimers, timerSettings, formatDuration,
@@ -364,7 +364,7 @@ export function renderBoxes(): void {
   ids.forEach((hwid, index) => {
     const box = state.boxes[hwid];
     const pos = positions[index];
-    const leds = box.leds ?? ledStateForStatus(box.status, box, hwid);
+    const leds = ledCommandToArray(box.leds ?? ledStateForStatus(box.status, box, hwid));
 
     const card = document.createElement('div');
     card.className = `box-card ${box.status}`;

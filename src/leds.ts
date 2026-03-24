@@ -1,7 +1,10 @@
 import { state } from './state';
 import { sendToBox } from './websockets';
+import type { LedCommand } from './types';
 
 export const LED_COUNT = 24;
+
+// ---- Array helpers (used for virtual box display only) ----
 
 export function ledSolid(n: number, color: string): string[] {
   return Array(n).fill(color);
@@ -21,10 +24,6 @@ export function ledAlternatePair(n: number, a: string, b: string): string[] {
 
 export function ledHalf(n: number, color: string, first: boolean): string[] {
   return Array.from({ length: n }, (_, i) => (i < n / 2) === first ? color : '#000000');
-}
-
-export function ledEveryFourth(n: number, color: string): string[] {
-  return Array.from({ length: n }, (_, i) => i % 4 < 2 ? color : '#000000');
 }
 
 export function ledRainbow(n: number): string[] {
@@ -54,79 +53,65 @@ export function ledSectors(n: number, sectors: { color: string; count: number }[
   return leds;
 }
 
-export function ledStateForStatus(status: string, box: { strategyColor?: string | null; choosingLeds?: string[] | null } | null = null, hwid: string | null = null): string[] {
-  switch (status) {
-    case 'active':       return ledSolid(LED_COUNT, state.activePlayerStyle.rainbow ? '#ffffff' : activePlayerColor());
-    case 'can-react':
-      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0]) {
-        return ledEveryFourth(LED_COUNT, '#d4a017');
-      }
-      return ledOff(LED_COUNT);
-    case 'reacting':     return ledAlternate(LED_COUNT, '#3a3aff');
-    case 'passed':
-      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0]) {
-        return ledEveryFourth(LED_COUNT, '#d4a017');
-      }
-      return ledOff(LED_COUNT);
-    case 'combat':       return ledSolid(LED_COUNT, '#8a0000');
-    case 'upkeep':       return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
-    case 'choosing':     return box?.choosingLeds ?? ledRainbow(LED_COUNT);
-    case 'strategy':     return ledSolid(LED_COUNT, box?.strategyColor ?? '#ffffff');
-    case 'secondary':    return ledAlternate(LED_COUNT, box?.strategyColor ?? '#ffffff');
-    case 'status':
-    case 'status2':      return ledSolid(LED_COUNT, '#8a0000');
-    case 'agenda_speaker':        return ledAlternatePair(LED_COUNT, '#4444ff', '#ffffff');
-    case 'when_agenda_revealed':  return ledHalf(LED_COUNT, '#ff6600', false);
-    case 'after_agenda_revealed': return ledHalf(LED_COUNT, '#ff6600', true);
-    case 'agenda_vote':           return ledSolid(LED_COUNT, '#0000ff');
-    case 'idle':
-    default:             return state.gameActive ? ledOff(LED_COUNT) : ledRainbow(LED_COUNT);
+// ---- LedCommand → array (for virtual box SVG display) ----
+
+export function ledCommandToArray(cmd: LedCommand): string[] {
+  switch (cmd.type) {
+    case 'led_off':            return ledOff(LED_COUNT);
+    case 'led_solid':          return ledSolid(LED_COUNT, cmd.color);
+    case 'led_alternate':      return ledAlternate(LED_COUNT, cmd.color);
+    case 'led_alternate_pair': return ledAlternatePair(LED_COUNT, cmd.a, cmd.b);
+    case 'led_half':           return ledHalf(LED_COUNT, cmd.color, cmd.first);
+    case 'led_rainbow':        return ledRainbow(LED_COUNT);
+    case 'led_thirds':         return ledThirds(LED_COUNT, cmd.c1, cmd.c2, cmd.c3);
+    case 'led_sectors':        return ledSectors(LED_COUNT, cmd.sectors);
+    case 'led_raw':            return cmd.leds;
+    // Animations: show a representative static frame
+    case 'led_anim_breathe':   return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
+    case 'led_anim_spinner':   return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
+    case 'led_anim_choosing':  return ledSectors(LED_COUNT,
+      cmd.colors.map(color => ({ color, count: Math.floor(LED_COUNT / cmd.colors.length) })));
+    case 'led_anim_upkeep':    return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
+    case 'led_anim_stop':      return ledOff(LED_COUNT);
   }
 }
 
-interface LedAnimFrame { leds: string[]; ms: number; fade?: boolean }
+// ---- Status → LedCommand ----
 
-function scaleHex(hex: string, factor: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const h = (v: number): string => Math.min(255, Math.round(v * factor)).toString(16).padStart(2, '0');
-  return `#${h(r)}${h(g)}${h(b)}`;
+export function ledStateForStatus(status: string, box: { strategyColor?: string | null; choosingLeds?: LedCommand | null } | null = null, hwid: string | null = null): LedCommand {
+  switch (status) {
+    case 'active':       return state.activePlayerStyle.rainbow ? { type: 'led_rainbow' } : { type: 'led_solid', color: activePlayerColor() };
+    case 'can-react':
+      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0])
+        return { type: 'led_alternate', color: '#d4a017' };
+      return { type: 'led_off' };
+    case 'reacting':     return { type: 'led_alternate', color: '#3a3aff' };
+    case 'passed':
+      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0])
+        return { type: 'led_alternate', color: '#d4a017' };
+      return { type: 'led_off' };
+    case 'combat':       return { type: 'led_solid', color: '#8a0000' };
+    case 'upkeep':       return { type: 'led_anim_upkeep' };
+    case 'choosing':     return box?.choosingLeds ?? { type: 'led_rainbow' };
+    case 'strategy':     return { type: 'led_solid', color: box?.strategyColor ?? '#ffffff' };
+    case 'secondary':    return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
+    case 'status':
+    case 'status2':      return { type: 'led_solid', color: '#8a0000' };
+    case 'agenda_speaker':        return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
+    case 'when_agenda_revealed':  return { type: 'led_half', color: '#ff6600', first: false };
+    case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
+    case 'agenda_vote':           return { type: 'led_solid', color: '#0000ff' };
+    case 'idle':
+    default:             return state.gameActive ? { type: 'led_off' } : { type: 'led_rainbow' };
+  }
 }
+
+// ---- Active player colour / animation helpers ----
 
 export function activePlayerColor(): string {
   const s = state.activePlayerStyle;
   if (s.rainbow || s.hue === null) return '#ffffff';
   return hslToHex(s.hue, 100, 50);
-}
-
-export function buildBreathFrames(): LedAnimFrame[] {
-  const s = state.activePlayerStyle;
-  const color = activePlayerColor();
-  const halfPeriod = Math.round(4000 - s.speed * 3000);
-  const dim = scaleHex(color, 0.05);
-  return [
-    { leds: ledSolid(LED_COUNT, color), ms: halfPeriod, fade: true },
-    { leds: ledSolid(LED_COUNT, dim),   ms: halfPeriod, fade: true },
-  ];
-}
-
-export function buildSpinnerFrames(): LedAnimFrame[] {
-  const s = state.activePlayerStyle;
-  const baseColor = activePlayerColor();
-  const stepMs = Math.round(80 - s.speed * 60);
-  const tail = [1.0, 0.7, 0.4, 0.15, 0.03];
-  return Array.from({ length: LED_COUNT }, (_, headPos) => {
-    const headColor = s.rainbow
-      ? hslToHex(Math.round((headPos / LED_COUNT) * 360), 100, 50)
-      : baseColor;
-    const leds: string[] = Array(LED_COUNT).fill('#000000');
-    for (let t = 0; t < tail.length; t++) {
-      const pos = (headPos - t + LED_COUNT) % LED_COUNT;
-      leds[pos] = scaleHex(headColor, tail[t]);
-    }
-    return { leds, ms: stepMs, fade: true };
-  });
 }
 
 // Tracks which box is currently running a firmware active-player animation.
@@ -152,8 +137,10 @@ export function normalizeColor(color: string): string {
   return '#000000';
 }
 
+// ---- syncLeds ----
+
 export function syncLeds(): void {
-  if (state.factionScanActive) return; // faction scan manages its own LEDs
+  if (state.factionScanActive) return;
   const now = Date.now();
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
@@ -164,17 +151,19 @@ export function syncLeds(): void {
 
     if (box.status === 'active' && !box.isVirtual && state.activePlayerStyle.mode !== 'solid') {
       if (hwid !== activeAnimBox) {
-        const frames = state.activePlayerStyle.mode === 'breathe'
-          ? buildBreathFrames()
-          : buildSpinnerFrames();
-        sendToBox(hwid, { type: 'led_anim', loop: true, frames });
+        const s = state.activePlayerStyle;
+        const cmd: LedCommand = s.mode === 'breathe'
+          ? { type: 'led_anim_breathe', color: activePlayerColor(), rainbow: s.rainbow, halfPeriodMs: Math.round(4000 - s.speed * 3000) }
+          : { type: 'led_anim_spinner', color: activePlayerColor(), rainbow: s.rainbow, stepMs: Math.round(80 - s.speed * 60) };
+        sendToBox(hwid, cmd);
         activeAnimBox = hwid;
       }
       return;
     }
     if (box.status !== 'active' && hwid === activeAnimBox) activeAnimBox = null;
 
-    const leds = (box.leds ?? ledStateForStatus(box.status, box, hwid)).map(normalizeColor);
-    if (!box.isVirtual) sendToBox(hwid, { type: 'led', leds });
+    if (box.isVirtual) return; // virtual boxes: render.ts reads box.leds / ledStateForStatus directly
+    const cmd = box.leds ?? ledStateForStatus(box.status, box, hwid);
+    sendToBox(hwid, cmd);
   });
 }

@@ -96,7 +96,7 @@ window.addEventListener('resize', updateCardScale);
 
 async function loadFactions(): Promise<void> {
   try {
-    const res = await fetch('./factions.json');
+    const res = await fetch(`${import.meta.env.BASE_URL}factions.json`);
     state.factions = await res.json() as typeof state.factions;
     log('Factions loaded', 'system');
   } catch {

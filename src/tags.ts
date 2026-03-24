@@ -5,7 +5,7 @@ import type { Tag, AllTags } from './types';
 
 export async function loadTags(): Promise<void> {
   try {
-    const r = await fetch('./tags.json');
+    const r = await fetch(`${import.meta.env.BASE_URL}tags.json`);
     const raw = await r.json() as Record<string, { display: string; id: string }[]>;
     state.allTags = expandAllTags(raw);
   } catch {

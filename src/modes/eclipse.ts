@@ -407,19 +407,10 @@ export class EclipseMode implements GameMode {
     this.stopUpkeepAnimation();
     this.upkeepAnimFrames = this.buildUpkeepFrames();
 
-    // Send firmware animation to real boxes (runs entirely on-device)
-    const firmwareMsg = {
-      type: 'led_anim',
-      loop: true,
-      frames: this.upkeepAnimFrames.map(f => ({
-        leds: f.leds.map(normalizeColor),
-        ms: f.duration,
-        ...(f.fade ? { fade: true } : {}),
-      })),
-    };
+    // Send named animation command to real boxes (firmware generates frames on-device)
     state.boxOrder.forEach(hwid => {
       const box = state.boxes[hwid];
-      if (box?.status === 'upkeep' && !box.isVirtual) sendToBox(hwid, firmwareMsg);
+      if (box?.status === 'upkeep' && !box.isVirtual) sendToBox(hwid, { type: 'led_anim_upkeep' });
     });
 
     // JS timer only drives virtual (sim) boxes for the browser UI
@@ -433,7 +424,7 @@ export class EclipseMode implements GameMode {
       frameIndex = (frameIndex + 1) % this.upkeepAnimFrames.length;
       state.boxOrder.forEach(hwid => {
         const box = state.boxes[hwid];
-        if (box?.status === 'upkeep' && box.isVirtual) box.leds = leds;
+        if (box?.status === 'upkeep' && box.isVirtual) box.leds = { type: 'led_raw', leds: leds.map(normalizeColor) };
       });
       render();
       this.upkeepAnimTimer = setTimeout(tick, duration);
