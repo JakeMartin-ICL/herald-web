@@ -1,7 +1,7 @@
 import { state, VIRTUAL_BOX_ID_OFFSET, RECONNECT_INTERVAL_MS } from './state';
 import { log, setStatus } from './logger';
 import { syncLeds } from './leds';
-import { render } from './render';
+import { render, renderBoxes } from './render';
 import { renderOtaDialog } from './ota';
 import { renderWifiDialog } from './settings';
 import { applyHubBackup } from './persist';
@@ -171,7 +171,8 @@ export function handleMessage(msg: any): void {
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].batteryVoltage = msg.voltage as number;
       }
-      break;
+      renderBoxes();
+      return;
     case 'debug':
       log(`[${getDisplayName(msg.hwid as string)}] ${msg.msg as string}`, 'debug');
       return;

@@ -9,6 +9,7 @@ import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, s
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
 import { openActiveStyleDialog, initActiveStyleDialog, loadActiveStyle } from './activeStyle';
+import { openDisplaySettingsDialog, closeDisplaySettingsDialog } from './display-settings';
 import { clearLog } from './logger';
 import { cancelEndGame, endGame, render } from './render';
 import { dismissBatteryTip } from './init';
@@ -65,6 +66,9 @@ on('wifi-open-btn', 'click', () => openWifiDialog());
 
 // Active player style
 on('active-style-open-btn', 'click', () => openActiveStyleDialog());
+on('display-settings-open-btn', 'click', () => openDisplaySettingsDialog());
+on('display-settings-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDisplaySettingsDialog(); });
+on('display-settings-close-btn', 'click', () => closeDisplaySettingsDialog());
 on('wifi-overlay', 'click', () => closeWifiDialog());
 on('wifi-close-btn', 'click', () => closeWifiDialog());
 on('wifi-save-btn', 'click', () => saveWifiCredentials());

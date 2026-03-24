@@ -154,6 +154,11 @@ export interface ActivePlayerStyle {
   speed: number;      // 0–1 (slow→fast)
 }
 
+export interface DisplayBoxSettings {
+  showRound: boolean;
+  showTimer: boolean;
+}
+
 export interface AppState {
   connected: boolean;
   gameActive: boolean;
@@ -177,6 +182,7 @@ export interface AppState {
   ti: TiState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
+  displaySettings: Record<string, DisplayBoxSettings>;
 }
 
 // ---- GameMode interface ----

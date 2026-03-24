@@ -49,6 +49,7 @@ export const state: AppState = {
   },
 
   showBatteryVoltage: false,
+  displaySettings: {},
   activePlayerStyle: { mode: 'solid', hue: null, rainbow: false, speed: 0.5 },
 
   ti: {

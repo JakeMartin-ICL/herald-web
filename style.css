@@ -1107,3 +1107,64 @@ select {
   border-color: #c9a84c;
   color: #e0e0e0;
 }
+
+
+/* ---- Display Settings dialog ---- */
+
+#display-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+#display-settings-dialog {
+  background: #16213e;
+  border: 1px solid #334;
+  border-radius: 8px;
+  padding: 1.25rem;
+  width: 90vw;
+  max-width: 380px;
+}
+
+#display-settings-dialog h2 {
+  margin: 0 0 0.25rem;
+}
+
+.ds-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+}
+
+.ds-col-header {
+  font-size: 0.75rem;
+  color: #888;
+  text-align: center;
+}
+
+.ds-row-label {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-toggle, .ds-all-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  min-width: 2.5rem;
+  background: #1a1a3e;
+  border: 1px solid #445;
+  color: #888;
+}
+
+.ds-toggle.ds-on, .ds-all-btn.ds-on {
+  background: #1a3a2e;
+  border-color: #4a7;
+  color: #4a7;
+}
