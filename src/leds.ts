@@ -154,7 +154,7 @@ export function syncLeds(): void {
         const s = state.activePlayerStyle;
         const cmd: LedCommand = s.mode === 'breathe'
           ? { type: 'led_anim_breathe', color: activePlayerColor(), rainbow: s.rainbow, halfPeriodMs: Math.round(4000 - s.speed * 3000) }
-          : { type: 'led_anim_spinner', color: activePlayerColor(), rainbow: s.rainbow, stepMs: Math.round(80 - s.speed * 60) };
+          : (() => { const stepMs = Math.round(120 - s.speed * 100); return { type: 'led_anim_spinner' as const, color: activePlayerColor(), rainbow: s.rainbow, stepMs, fadeMs: Math.min(25, stepMs) }; })();
         sendToBox(hwid, cmd);
         activeAnimBox = hwid;
       }

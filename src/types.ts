@@ -32,7 +32,7 @@ export type LedCommand =
   | { type: 'led_thirds'; c1: string; c2: string; c3: string }
   | { type: 'led_sectors'; sectors: { color: string; count: number }[] }
   | { type: 'led_anim_breathe'; color: string; rainbow: boolean; halfPeriodMs: number }
-  | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number }
+  | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number; fadeMs: number }
   | { type: 'led_anim_choosing'; colors: string[]; activeMs: number; fadeMs: number }
   | { type: 'led_anim_upkeep' }
   | { type: 'led_anim_stop' }

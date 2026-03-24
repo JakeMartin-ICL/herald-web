@@ -3,7 +3,7 @@ import { log } from './logger';
 import { send, sendToBox } from './websockets';
 import { LED_COUNT, ledSolid, ledOff, ledStateForStatus } from './leds';
 import { getDisplayName } from './boxes';
-import { isVersionOutOfDate } from './firmware';
+import { isVersionOutOfDate, fetchLatestFirmware } from './firmware';
 
 let _otaInterval: ReturnType<typeof setInterval> | null = null;
 let _identifyingHwid: string | null = null;
@@ -94,12 +94,13 @@ export function renderOtaDialog(): void {
   const anyUpdating = state.boxOrder.some(id => state.boxes[id]?.otaUpdating);
   const allCurrent = state.boxOrder.every(id => !isVersionOutOfDate(state.boxes[id]?.version));
 
-  const headerHtml = fw ? `
-    <div class="ota-latest">
-      Latest: <strong>${fw.version}</strong>
+  const headerHtml = `
+    <div class="ota-latest${fw ? '' : ' ota-unavailable'}">
+      ${fw ? `Latest: <strong>${fw.version}</strong>
       <span class="ota-published">${fw.publishedAt ? new Date(fw.publishedAt).toLocaleDateString() : ''}</span>
-      ${fw.releaseNotes ? `<details><summary>Release notes</summary><pre class="ota-notes">${fw.releaseNotes}</pre></details>` : ''}
-    </div>` : `<div class="ota-latest ota-unavailable">Unable to check for updates</div>`;
+      ${fw.releaseNotes ? `<details><summary>Release notes</summary><pre class="ota-notes">${fw.releaseNotes}</pre></details>` : ''}` : 'Unable to check for updates'}
+      <button id="ota-refresh-btn" style="margin-left:0.75rem; font-size:0.75rem; padding:0.2rem 0.5rem;">↻ Check</button>
+    </div>`;
 
   const rows = state.boxOrder.map(hwid => {
     const box = state.boxes[hwid];
@@ -133,6 +134,12 @@ export function renderOtaDialog(): void {
     </div>`;
 
   // Attach event listeners (no inline onclick in TS)
+  const refreshBtn = el.querySelector<HTMLButtonElement>('#ota-refresh-btn');
+  if (refreshBtn) refreshBtn.addEventListener('click', () => {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = '↻ Checking…';
+    void fetchLatestFirmware().then(() => renderOtaDialog());
+  });
   el.querySelectorAll<HTMLButtonElement>('.ota-identify-btn').forEach(btn => {
     btn.addEventListener('click', () => identifyBox(btn.dataset.hwid!));
   });

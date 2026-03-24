@@ -45,7 +45,7 @@ on('rfid-dialog-cancel-btn', 'click', () => closeRfidDialog());
 
 // OTA
 on('ota-open-btn', 'click', () => openOtaDialog());
-on('ota-overlay', 'click', () => closeOtaDialog());
+on('ota-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeOtaDialog(); });
 on('ota-close-btn', 'click', () => closeOtaDialog());
 on('ota-force-close-btn', 'click', () => forceCloseOtaDialog());
 
