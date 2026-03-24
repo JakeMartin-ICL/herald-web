@@ -69,7 +69,7 @@ on('active-style-open-btn', 'click', () => openActiveStyleDialog());
 on('display-settings-open-btn', 'click', () => openDisplaySettingsDialog());
 on('display-settings-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDisplaySettingsDialog(); });
 on('display-settings-close-btn', 'click', () => closeDisplaySettingsDialog());
-on('wifi-overlay', 'click', () => closeWifiDialog());
+on('wifi-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeWifiDialog(); });
 on('wifi-close-btn', 'click', () => closeWifiDialog());
 on('wifi-save-btn', 'click', () => saveWifiCredentials());
 

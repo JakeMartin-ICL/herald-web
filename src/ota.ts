@@ -42,7 +42,9 @@ export function identifyBox(hwid: string): void {
 export function openOtaDialog(): void {
   (document.getElementById('ota-overlay') as HTMLElement).style.display = 'flex';
   renderOtaDialog();
-  _otaInterval = setInterval(renderOtaDialog, 1000);
+  _otaInterval = setInterval(() => {
+    if (state.boxOrder.some(id => state.boxes[id]?.otaUpdating)) renderOtaDialog();
+  }, 1000);
 }
 
 export function closeOtaDialog(): void {
