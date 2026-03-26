@@ -104,6 +104,7 @@
         <button id="wifi-open-btn">WiFi Networks</button>
         <button id="active-style-open-btn">Active Player Style</button>
         <button id="display-settings-open-btn">Box Display</button>
+        <button id="hwtest-open-btn">Hardware Test</button>
         <label class="gc-check-row" id="show-battery-label">
           <input type="checkbox" id="show-battery-cb"> Show battery %
         </label>
@@ -111,7 +112,7 @@
     </div>
   </div>
 
-  <div id="tag-writing-overlay" style="display:none">
+  <div id="tag-writing-overlay" class="overlay" style="display:none">
     <div id="tag-writing-modal">
       <h2 id="tag-writing-title">Write Tags</h2>
       <div id="tag-writing-prompt"></div>
@@ -121,7 +122,7 @@
     </div>
   </div>
 
-  <div id="rfid-dialog-overlay" style="display:none">
+  <div id="rfid-dialog-overlay" class="overlay" style="display:none">
     <div id="rfid-dialog">
       <h2>Simulate RFID Tap</h2>
       <div id="rfid-dialog-list"></div>
@@ -129,7 +130,7 @@
     </div>
   </div>
 
-  <div id="ota-overlay" style="display:none">
+  <div id="ota-overlay" class="overlay" style="display:none">
     <div id="ota-dialog">
       <h2>Firmware Updates</h2>
       <div id="ota-dialog-content"></div>
@@ -143,7 +144,7 @@
     </div>
   </div>
 
-  <div id="debug-log-overlay" style="display:none">
+  <div id="debug-log-overlay" class="overlay" style="display:none">
     <div id="debug-log-dialog">
       <h2>Debug Logging</h2>
       <div id="debug-log-content"></div>
@@ -152,7 +153,7 @@
     </div>
   </div>
 
-  <div id="sub-overlay" style="display:none">
+  <div id="sub-overlay" class="overlay" style="display:none">
     <div id="sub-dialog">
       <h2>Box Connected</h2>
       <p style="margin-bottom:1rem; color:#aaa;">Which player is this box replacing?</p>
@@ -164,7 +165,7 @@
     </div>
   </div>
 
-  <div id="display-settings-overlay" style="display:none">
+  <div id="display-settings-overlay" class="overlay" style="display:none">
     <div id="display-settings-dialog">
       <h2>Box Display</h2>
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Choose what to show on each box's OLED display during a game.</p>
@@ -173,7 +174,24 @@
     </div>
   </div>
 
-  <div id="end-game-overlay" style="display:none">
+  <div id="countdown-overlay" class="overlay" style="display:none">
+    <div id="countdown-dialog">
+      <h2>Set Countdown</h2>
+      <div class="countdown-options">
+        <button class="countdown-choice-btn" data-ms="10000">10s</button>
+        <button class="countdown-choice-btn" data-ms="30000">30s</button>
+        <button class="countdown-choice-btn" data-ms="60000">1m</button>
+      </div>
+      <div class="countdown-custom-row">
+        <input type="number" id="countdown-custom-input" min="1" max="600" placeholder="Custom (s)">
+        <button id="countdown-custom-btn">Set</button>
+      </div>
+      <button id="countdown-cancel-btn" style="display:none; width:100%; margin-top:0.5rem">Cancel active timer</button>
+      <button id="countdown-close-btn" style="width:100%; margin-top:0.5rem; background:#1a1a3e; color:#aaa;">Close</button>
+    </div>
+  </div>
+
+  <div id="end-game-overlay" class="overlay" style="display:none">
     <div id="end-game-dialog">
       <h2>End Game?</h2>
       <p style="margin-bottom:1rem; color:#aaa;">End game and return to setup?</p>
@@ -184,7 +202,7 @@
     </div>
   </div>
 
-  <div id="graph-overlay" style="display:none">
+  <div id="graph-overlay" class="overlay" style="display:none">
     <div id="graph-dialog">
       <div id="graph-dialog-title" style="font-size:0.85rem; color:#888; margin-bottom:-0.25rem;"></div>
       <div id="graph-header">
@@ -203,7 +221,7 @@
     </div>
   </div>
 
-  <div id="wifi-overlay" style="display:none">
+  <div id="wifi-overlay" class="overlay" style="display:none">
     <div id="wifi-dialog">
       <h2>WiFi Networks</h2>
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Networks are tried in order on boot. Changes are applied to all boxes.</p>
@@ -216,7 +234,7 @@
     </div>
   </div>
 
-  <div id="active-style-overlay" style="display:none">
+  <div id="active-style-overlay" class="overlay" style="display:none">
     <div id="active-style-dialog">
       <h2>Active Player Style</h2>
 
@@ -244,6 +262,15 @@
       <div style="text-align:right; margin-top:1rem">
         <button id="active-style-close-btn">Done</button>
       </div>
+    </div>
+  </div>
+
+  <div id="hwtest-overlay" class="overlay" style="display:none">
+    <div id="hwtest-dialog">
+      <h2>Hardware Test</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Press End Turn, Pass, then scan any RFID tag on each box to verify hardware.</p>
+      <div id="hwtest-dialog-content"></div>
+      <button id="hwtest-close-btn" style="margin-top:1rem; width:100%">Close</button>
     </div>
   </div>
 

@@ -148,6 +148,7 @@ export function syncLeds(): void {
     if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
     if (box.status === 'upkeep') return; // upkeep animation manages its own LEDs
     if (box.status === 'choosing' && !box.isVirtual) return; // choosing animation manages its own LEDs
+    if (box.countdownActive && !box.isVirtual) return; // countdown animation manages its own LEDs
 
     if (box.status === 'active' && !box.isVirtual && state.activePlayerStyle.mode !== 'solid') {
       if (hwid !== activeAnimBox) {

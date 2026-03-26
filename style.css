@@ -317,6 +317,13 @@ select {
   font-weight: bold;
 }
 
+.box-countdown-info {
+  font-size: 0.75em;
+  color: #c9a84c;
+  font-weight: bold;
+  margin-top: 0.1rem;
+}
+
 /* ---- Badges ---- */
 
 .box-badges {
@@ -484,9 +491,9 @@ select {
   opacity: 1;
 }
 
-/* ---- Graph overlay ---- */
+/* ---- Shared overlay base ---- */
 
-#graph-overlay {
+.overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.8);
@@ -495,6 +502,8 @@ select {
   justify-content: center;
   z-index: 1000;
 }
+
+/* ---- Graph overlay ---- */
 
 #graph-dialog {
   background: #16213e;
@@ -631,16 +640,6 @@ select {
 
 /* ---- Substitution overlay ---- */
 
-#sub-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
 #sub-dialog {
   background: #16213e;
   border: 2px solid #c9a84c;
@@ -657,14 +656,41 @@ select {
 
 /* ---- End game overlay ---- */
 
-#end-game-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
+#countdown-dialog {
+  background: #16213e;
+  border: 1px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 280px;
+  width: 90%;
+}
+
+#countdown-dialog h2 {
+  color: #c9a84c;
+  margin: 0 0 1rem;
+}
+
+.countdown-options {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.countdown-options button {
+  flex: 1;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.countdown-custom-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.countdown-custom-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 #end-game-dialog {
@@ -714,17 +740,54 @@ select {
 .log-entry.error    { color: #e07070; }
 .log-entry.debug    { color: #7788aa; }
 
-/* ---- OTA update dialog ---- */
+/* ---- Hardware test dialog ---- */
 
-#ota-overlay, #debug-log-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
+#hwtest-dialog {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: min(480px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+#hwtest-dialog h2 { color: #c9a84c; margin: 0; }
+
+.hwtest-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #2a2a4e;
 }
+
+.hwtest-row:last-child { border-bottom: none; }
+
+.hwtest-name { flex: 1; font-size: 0.95rem; }
+
+.hwtest-chips { display: flex; gap: 0.35rem; }
+
+.hwtest-chip {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  background: #2a2a4e;
+  color: #555;
+  white-space: nowrap;
+}
+
+.hwtest-chip.done {
+  background: #003800;
+  color: #00cc00;
+}
+
+/* ---- OTA update dialog ---- */
+
+/* #ota-overlay, #debug-log-overlay use .overlay defaults */
 
 #ota-dialog, #debug-log-dialog {
   background: #16213e;
@@ -811,12 +874,6 @@ select {
 /* ---- Tag learning overlay ---- */
 
 #tag-writing-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 100;
 }
 
@@ -850,15 +907,7 @@ select {
 
 /* ---- RFID dialog ---- */
 
-#rfid-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
+/* #rfid-dialog-overlay uses .overlay defaults */
 
 #rfid-dialog {
   background: #16213e;
@@ -916,12 +965,7 @@ select {
 /* ---- WiFi credentials dialog ---- */
 
 #active-style-overlay {
-  position: fixed;
-  inset: 0;
   background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 200;
 }
 
@@ -1002,12 +1046,7 @@ select {
 }
 
 #wifi-overlay {
-  position: fixed;
-  inset: 0;
   background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 200;
 }
 
@@ -1112,12 +1151,6 @@ select {
 /* ---- Display Settings dialog ---- */
 
 #display-settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 100;
 }
 

@@ -41,12 +41,24 @@ export function startGame(): void {
   persistState();
 }
 
+// ---- Auto-countdown ----
+
+function maybeAutoCountdown(): void {
+  if (!state.autoCountdownSecs || !state.activeBoxId) return;
+  const hwid = state.activeBoxId;
+  const box = state.boxes[hwid];
+  if (!box || box.isVirtual || box.status !== 'active') return;
+  const ms = state.autoCountdownSecs * 1000;
+  void import('./countdown').then(({ sendCountdown }) => sendCountdown(hwid, ms));
+}
+
 // ---- Event dispatch ----
 
 export function handleEndTurn(hwid: string): void {
   if (!state.gameActive) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
   currentGame?.onEndTurn(hwid);
+  maybeAutoCountdown();
   render();
   persistState();
 }
@@ -55,6 +67,7 @@ export function handlePass(hwid: string): void {
   if (!state.gameActive) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
   currentGame?.onPass(hwid);
+  maybeAutoCountdown();
   render();
   persistState();
 }

@@ -163,6 +163,17 @@ export function renderGameControls(): void {
   }
 
   actionDefs.push({
+    html: `<label class="gc-check-row">
+      Auto-countdown: <input type="number" id="gc-auto-countdown" min="0" max="600"
+        style="width:4em; display:inline-block; margin:0 4px" value="${state.autoCountdownSecs}"> s (0 = off)
+    </label>`,
+    id: 'gc-auto-countdown', event: 'change',
+    fn: (e: Event) => {
+      state.autoCountdownSecs = parseInt((e.target as HTMLInputElement).value, 10) || 0;
+    },
+  });
+
+  actionDefs.push({
     html: '<button class="end-game-btn" id="gc-end-game">End Game</button>',
     id: 'gc-end-game',
     fn: confirmEndGame,
@@ -293,13 +304,16 @@ function renderSimControls(hwid: string): string {
   const showBtn = !box?.isVirtual
     ? `<button class="box-btn show-display-btn" data-hwid="${hwid}">Show</button>`
     : '';
+  const timerBtn = state.gameActive && !box?.isVirtual
+    ? `<button class="box-btn timer-popup-btn" data-hwid="${hwid}">Timer</button>`
+    : '';
 
   return `<div class="box-sim ${isOpen ? 'sim-open' : ''}">
     <div class="box-sim-row">
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="endturn">End</button>
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="pass">Pass</button>
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="longpress">Long</button>
-      ${showBtn}${rfidBtn}
+      ${showBtn}${timerBtn}${rfidBtn}
     </div>
   </div>`;
 }
@@ -400,12 +414,20 @@ export function renderBoxes(): void {
       ? `<div class="box-battery${pct < 25 ? ' box-battery-low' : ''}">${pct}%</div>`
       : '';
 
+    let countdownHtml = '';
+    if (box.countdownActive && box.countdownEndMs) {
+      const rem = Math.max(0, Math.ceil((box.countdownEndMs - Date.now()) / 1000));
+      const m = Math.floor(rem / 60), s = rem % 60;
+      countdownHtml = `<div class="box-countdown-info">${m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`}</div>`;
+    }
+
     card.innerHTML = `
       ${dragHandle}
       ${nameHtml}
       ${renderLedRing(leds)}
       <div class="box-status">${box.status}</div>
       ${batteryHtml}
+      ${countdownHtml}
       ${renderBadges(box)}
       ${renderTimerInfo(hwid, box)}
       ${renderSimControls(hwid)}
@@ -448,6 +470,13 @@ export function renderBoxes(): void {
         e.stopPropagation();
         void import('./display-settings').then(({ openDisplaySettingsDialogForBox }) =>
           openDisplaySettingsDialogForBox(btn.dataset.hwid!));
+      });
+    });
+    card.querySelectorAll<HTMLButtonElement>('.timer-popup-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        void import('./countdown').then(({ openCountdownPopup }) =>
+          openCountdownPopup(btn.dataset.hwid!));
       });
     });
 

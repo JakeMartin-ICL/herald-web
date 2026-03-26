@@ -58,6 +58,8 @@ export interface Box {
   debugEnabled?: boolean;
   batteryVoltage?: number | null;
   rfidPromptOn?: boolean;
+  countdownActive?: boolean;
+  countdownEndMs?: number;
 }
 
 export interface FirmwareInfo {
@@ -184,6 +186,7 @@ export interface AppState {
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;
+  autoCountdownSecs: number;
 }
 
 // ---- GameMode interface ----

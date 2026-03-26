@@ -34,6 +34,9 @@ src/
   display.ts     — OLED display sync (syncDisplay); sends { type: 'display', name, status,
                    round?, timerRunning?, timerSecs? } to each connected real box on every
                    render(); extras sent based on per-box DisplayBoxSettings
+  countdown.ts      — Countdown timers: sendCountdown/cancelCountdown (send { type:'countdown',
+                   durationMs, color } to box); popup for manual start (10s/30s/1m/custom);
+                   syncLeds skips countdownActive boxes; auto-countdown in game.ts maybeAutoCountdown()
   display-settings.ts — Dialog for configuring per-box OLED extras (round number, turn timer);
                    openDisplaySettingsDialog/closeDisplaySettingsDialog; per-box toggles +
                    "all boxes" buttons; calls syncDisplay() after any change
@@ -45,6 +48,11 @@ src/
   rfid.ts        — RFID dialog (openRfidDialog uses getRelevantTagsForBox),
                    tag writing flow (buildTagQueue, startTagWriting, handleRfidWriteResult),
                    faction scan (startFactionScan, stopFactionScan), simulateButton()
+  hwtest.ts      — Hardware test dialog (openHwTestDialog, closeHwTestDialog); per-box test
+                   for End Turn button, Pass button, and RFID scan; intercepts endturn/pass/rfid
+                   events via handleHwTestEvent/handleHwTestRfid (called from websockets.ts);
+                   lights 1/3 of ring green per passing test using led_thirds; auto-exits after
+                   2s delay once all 3 tests pass; sets box.leds to preserve state across syncLeds
   ota.ts         — OTA firmware update dialog (openOtaDialog, renderOtaDialog, identifyBox)
   settings.ts    — WiFi credentials dialog + debug logging dialog
   persist.ts     — Game state persistence: localStorage + hub SPIFFS backup (persistState,

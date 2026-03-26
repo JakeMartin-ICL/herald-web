@@ -10,6 +10,8 @@ import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
 import { openActiveStyleDialog, initActiveStyleDialog, loadActiveStyle } from './activeStyle';
 import { openDisplaySettingsDialog, closeDisplaySettingsDialog } from './display-settings';
+import { openHwTestDialog, closeHwTestDialog } from './hwtest';
+import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
 import { cancelEndGame, endGame, render } from './render';
 import { dismissBatteryTip } from './init';
@@ -69,6 +71,9 @@ on('active-style-open-btn', 'click', () => openActiveStyleDialog());
 on('display-settings-open-btn', 'click', () => openDisplaySettingsDialog());
 on('display-settings-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDisplaySettingsDialog(); });
 on('display-settings-close-btn', 'click', () => closeDisplaySettingsDialog());
+on('hwtest-open-btn', 'click', () => openHwTestDialog());
+on('hwtest-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeHwTestDialog(); });
+on('hwtest-close-btn', 'click', () => closeHwTestDialog());
 on('wifi-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeWifiDialog(); });
 on('wifi-close-btn', 'click', () => closeWifiDialog());
 on('wifi-save-btn', 'click', () => saveWifiCredentials());
@@ -77,6 +82,15 @@ on('wifi-save-btn', 'click', () => saveWifiCredentials());
 on('sub-overlay', 'click', () => cancelSubstitution());
 on('confirm-sub-btn', 'click', () => confirmSubstitution());
 on('cancel-sub-btn', 'click', () => cancelSubstitution());
+
+// Countdown popup
+on('countdown-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeCountdownPopup(); });
+on('countdown-close-btn', 'click', () => closeCountdownPopup());
+on('countdown-cancel-btn', 'click', () => countdownCancelClick());
+on('countdown-custom-btn', 'click', () => countdownCustomClick());
+document.querySelectorAll<HTMLButtonElement>('.countdown-choice-btn').forEach(btn => {
+  btn.addEventListener('click', () => countdownChoiceClick(parseInt(btn.dataset.ms!, 10)));
+});
 
 // End game dialog
 on('end-game-overlay', 'click', () => cancelEndGame());

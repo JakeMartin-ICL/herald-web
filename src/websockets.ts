@@ -8,6 +8,7 @@ import { applyHubBackup } from './persist';
 import { addBox, handleBoxDisconnect, getDisplayName } from './boxes';
 import { handleEndTurn, handlePass, handleLongPress } from './game';
 import { handleRfid, handleRfidWriteResult } from './rfid';
+import { handleHwTestEvent, handleHwTestRfid } from './hwtest';
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -131,15 +132,16 @@ export function handleMessage(msg: any): void {
       handleBoxDisconnect(msg.hwid as string);
       break;
     case 'endturn':
-      handleEndTurn(msg.hwid as string);
+      if (!handleHwTestEvent(msg.hwid as string, 'endturn')) handleEndTurn(msg.hwid as string);
       break;
     case 'pass':
-      handlePass(msg.hwid as string);
+      if (!handleHwTestEvent(msg.hwid as string, 'pass')) handlePass(msg.hwid as string);
       break;
     case 'longpress':
       handleLongPress(msg.hwid as string);
       break;
     case 'rfid':
+      if (handleHwTestRfid(msg.hwid as string, msg.tagId as string)) break;
       handleRfid(msg.hwid as string, msg.tagId as string);
       break;
     case 'rfid_write_result':
