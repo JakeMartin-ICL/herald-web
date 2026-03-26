@@ -52,7 +52,7 @@ on('ota-force-close-btn', 'click', () => forceCloseOtaDialog());
 
 // Debug dialog
 on('debug-open-btn', 'click', () => openDebugDialog());
-on('debug-log-overlay', 'click', () => closeDebugDialog());
+on('debug-log-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDebugDialog(); });
 on('debug-close-btn', 'click', () => closeDebugDialog());
 
 // Show battery toggle

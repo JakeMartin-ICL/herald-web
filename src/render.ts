@@ -286,8 +286,12 @@ function renderBadges(box: typeof state.boxes[string]): string {
 
 function renderSimControls(hwid: string): string {
   const isOpen = simOpenCards.has(hwid);
+  const box = state.boxes[hwid];
   const rfidBtn = getRelevantTagsForBox(hwid).length > 0
     ? `<button class="box-btn rfid-sim-btn" data-hwid="${hwid}">RFID</button>`
+    : '';
+  const showBtn = !box?.isVirtual
+    ? `<button class="box-btn show-display-btn" data-hwid="${hwid}">Show</button>`
     : '';
 
   return `<div class="box-sim ${isOpen ? 'sim-open' : ''}">
@@ -295,7 +299,7 @@ function renderSimControls(hwid: string): string {
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="endturn">End</button>
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="pass">Pass</button>
       <button class="box-btn sim-btn" data-hwid="${hwid}" data-type="longpress">Long</button>
-      ${rfidBtn}
+      ${showBtn}${rfidBtn}
     </div>
   </div>`;
 }
@@ -437,6 +441,13 @@ export function renderBoxes(): void {
     card.querySelectorAll<HTMLButtonElement>('.rfid-sim-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         void import('./rfid').then(({ openRfidDialog }) => openRfidDialog(btn.dataset.hwid!));
+      });
+    });
+    card.querySelectorAll<HTMLButtonElement>('.show-display-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        void import('./display-settings').then(({ openDisplaySettingsDialogForBox }) =>
+          openDisplaySettingsDialogForBox(btn.dataset.hwid!));
       });
     });
 

@@ -96,6 +96,10 @@ export function disableRfid(hwid: string): void {
   sendToBox(hwid, { type: 'rfid_disable', hwid });
 }
 
+export function sendRfidPrompt(hwid: string, show: boolean): void {
+  sendToBox(hwid, { type: 'rfid_prompt', show });
+}
+
 export function disableAllRfid(): void {
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];

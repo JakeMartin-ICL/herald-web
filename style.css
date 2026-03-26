@@ -1136,7 +1136,7 @@ select {
 
 .ds-grid {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 0.4rem 0.75rem;
   align-items: center;
 }
@@ -1167,4 +1167,8 @@ select {
   background: #1a3a2e;
   border-color: #4a7;
   color: #4a7;
+}
+
+.ds-row-label.ds-highlighted {
+  color: #fc8;
 }

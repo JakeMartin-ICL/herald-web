@@ -1,8 +1,8 @@
 import { state } from './state';
 import { log } from './logger';
-import { enableRfid, disableRfid, disableAllRfid, sendToBox, handleMessage } from './websockets';
+import { enableRfid, disableRfid, disableAllRfid, sendToBox, sendRfidPrompt, handleMessage } from './websockets';
 import { getDisplayName, updateSetupUI, setAutoName } from './boxes';
-import { render } from './render';
+import { render, renderBoxes } from './render';
 import { isManuallyRenamed } from './render';
 import { getTagsByGame, getRelevantTagsForBox } from './tags';
 import { currentGame } from './currentGame';
@@ -152,6 +152,14 @@ export function handleRfid(hwid: string, internalId: string): void {
 
 // ---- Faction Scan ----
 
+export function toggleRfidPrompt(hwid: string): void {
+  const box = state.boxes[hwid];
+  if (!box || box.isVirtual) return;
+  box.rfidPromptOn = !box.rfidPromptOn;
+  sendRfidPrompt(hwid, box.rfidPromptOn);
+  renderBoxes();
+}
+
 export function startFactionScan(): void {
   state.factionScanActive = true;
   disableAllRfid();
@@ -159,6 +167,8 @@ export function startFactionScan(): void {
     const box = state.boxes[hwid];
     if (!box || box.isVirtual || box.status === 'disconnected') return;
     enableRfid(hwid);
+    box.rfidPromptOn = true;
+    sendRfidPrompt(hwid, true);
   });
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
@@ -174,7 +184,13 @@ export function stopFactionScan(): void {
   disableAllRfid();
   state.factionScanActive = false;
   state.boxOrder.forEach(hwid => {
-    if (state.boxes[hwid]) state.boxes[hwid].leds = null;
+    const box = state.boxes[hwid];
+    if (!box) return;
+    box.leds = null;
+    if (!box.isVirtual && box.rfidPromptOn) {
+      box.rfidPromptOn = false;
+      sendRfidPrompt(hwid, false);
+    }
   });
   (document.getElementById('faction-scan-banner') as HTMLElement).style.display = 'none';
   render();

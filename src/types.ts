@@ -57,6 +57,7 @@ export interface Box {
   choosingLeds?: LedCommand | null;
   debugEnabled?: boolean;
   batteryVoltage?: number | null;
+  rfidPromptOn?: boolean;
 }
 
 export interface FirmwareInfo {
