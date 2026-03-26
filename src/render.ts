@@ -14,6 +14,7 @@ import { currentGame } from './currentGame';
 import { getFactionForBox } from './modes/eclipse';
 import { disableAllRfid } from './websockets';
 import { clearPersistedState } from './persist';
+import { canUndo, undo, clearUndoHistory } from './undo';
 import { isVersionOutOfDate } from './firmware';
 import type { ActionDef } from './types';
 
@@ -114,6 +115,11 @@ export function renderGameControls(): void {
   currentGame?.renderControls(statusLines, actionDefs);
 
   // Common controls
+  actionDefs.push({
+    html: `<button id="gc-undo"${canUndo() ? '' : ' disabled'}>Undo</button>`,
+    id: 'gc-undo',
+    fn: () => { undo(); render(); },
+  });
   actionDefs.push({
     html: '<button id="gc-graphs">Graphs</button>',
     id: 'gc-graphs',
@@ -219,6 +225,7 @@ export function endGame(): void {
   endPhase();
   captureGameStats();
   clearPersistedState();
+  clearUndoHistory();
   state.gameStartTime = null;
   state.phaseLog = [];
   state.currentPhaseStart = null;

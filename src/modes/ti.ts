@@ -6,6 +6,7 @@ import { render, renderBoxes } from '../render';
 import { setBoxBadges } from '../boxes';
 import { startPhase } from '../timers';
 import { persistState } from '../persist';
+import { snapshotForUndo } from '../undo';
 import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
 import { getFactionForBox } from './eclipse';
@@ -89,12 +90,6 @@ export class TwilightImperiumMode implements GameMode {
 
   onPass(hwid: string): void {
     switch (state.ti.phase) {
-      case 'strategy':
-        if (hwid === state.hubHwid) {
-          this.undoStrategyPick();
-        }
-        break;
-
       case 'action':
         if (state.ti.secondary) {
           if (hwid === state.ti.secondary.activeHwid) {
@@ -282,14 +277,7 @@ export class TwilightImperiumMode implements GameMode {
       actionDefs.push({
         html: '<button id="gc-advance">Advance Phase</button>',
         id: 'gc-advance',
-        fn: () => { this.advancePhase(); render(); persistState(); },
-      });
-    }
-    if (phase === 'strategy') {
-      actionDefs.push({
-        html: '<button id="gc-undo">Undo Strategy Pick</button>',
-        id: 'gc-undo',
-        fn: () => { this.undoStrategyPick(); render(); },
+        fn: () => { snapshotForUndo(); this.advancePhase(); render(); persistState(); },
       });
     }
     actionDefs.push({
@@ -422,33 +410,6 @@ export class TwilightImperiumMode implements GameMode {
     if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
     log(`${getDisplayName(hwid)} picks a strategy card`, 'system');
     this.updateBadges();
-  }
-
-  private undoStrategyPick(): void {
-    let idx = state.ti.strategyTurnIndex - 1;
-    while (idx >= 0) {
-      const hwid = state.ti.turnOrder[idx];
-      const player = state.ti.players[hwid];
-      if (player.strategyCards.length > 0) {
-        const removed = player.strategyCards.pop()!;
-        log(`Undid ${getDisplayName(hwid)}'s pick: ${removed.label}`, 'system');
-        state.ti.strategyTurnIndex = idx;
-        if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
-        disableAllRfid();
-        state.activeBoxId = hwid;
-        enableRfid(hwid);
-        state.boxes[hwid].status = 'choosing';
-        state.boxes[hwid].choosingLeds = {
-          type: 'led_sectors',
-          sectors: Object.values(TI_STRATEGY_COLORS).map(color => ({ color, count: LED_COUNT / 8 })),
-        };
-        if (!state.boxes[hwid].isVirtual) this.sendChoosingAnim(hwid);
-        this.updateBadges();
-        return;
-      }
-      idx--;
-    }
-    log('Nothing to undo', 'system');
   }
 
   private endStrategyPhase(): void {

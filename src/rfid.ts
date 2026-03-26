@@ -7,6 +7,7 @@ import { isManuallyRenamed } from './render';
 import { getTagsByGame, getRelevantTagsForBox } from './tags';
 import { currentGame } from './currentGame';
 import { persistState } from './persist';
+import { snapshotForUndo } from './undo';
 
 // ---- RFID dialog ----
 
@@ -145,6 +146,7 @@ export function handleRfid(hwid: string, internalId: string): void {
   const category = parts[1];
   const id = parts.slice(2).join(':');
 
+  snapshotForUndo();
   currentGame?.onRfid?.(hwid, game, category, id);
   render();
   persistState();

@@ -7,7 +7,7 @@ import { updateSetupUI } from './boxes';
 
 // ---- State extraction ----
 
-function extractPersistableState() {
+export function extractPersistableState() {
   const boxes: Record<string, object> = {};
   for (const hwid of state.boxOrder) {
     const box = state.boxes[hwid];
@@ -198,7 +198,7 @@ export function applyPendingPersistedBox(hwid: string): void {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function restoreState(persisted: any): void {
+export function restoreState(persisted: any, silent = false): void {
   const assignment = buildBoxAssignment(persisted as { boxOrder: string[] });
   const remap = (ph: string) => assignment[ph] ?? ph;
 
@@ -279,7 +279,7 @@ function restoreState(persisted: any): void {
   updateSetupUI();
   render();
 
-  log(`Game resumed: ${state.gameMode}, round ${state.round}`, 'system');
+  if (!silent) log(`Game resumed: ${state.gameMode}, round ${state.round}`, 'system');
 }
 
 // ---- Resume UI ----

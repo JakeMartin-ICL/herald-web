@@ -24,8 +24,8 @@ src/
   websockets.ts  — WebSocket connection, send/sendToBox, message dispatch (handleMessage),
                    RFID enable/disable helpers
   leds.ts        — LED colour helpers (ledSolid, ledOff, ledSectors…), ledStateForStatus(),
-                   syncLeds(); brightness: applyBrightness(color,hwid), setBrightness(hwid,pct),
-                   sendBrightnessToBox(hwid), receiveBoxBrightness(hwid,value)
+                   syncLeds(); brightness: setBrightness(hwid,value), sendBrightnessToBox(hwid),
+                   receiveBoxBrightness(hwid,value)
   tags.ts        — Loads and expands tags.json into state.allTags; filterTags(game, fn);
                    getRelevantTagsForBox(hwid) — returns context-aware tag list for sim
                    RFID dialog (empty = hide button); delegates to mode.getRelevantTags()
@@ -45,7 +45,7 @@ src/
                    box cards, drag-to-reorder, name editing, sim toggle, endGame(),
                    setWakeLockHandlers(), isManuallyRenamed()
   game.ts        — Game start (startGame), mode dispatch (handleEndTurn, handlePass,
-                   handleLongPress), debug skip
+                   handleLongPress), debug skip; calls snapshotForUndo() before each dispatch
   rfid.ts        — RFID dialog (openRfidDialog uses getRelevantTagsForBox),
                    tag writing flow (buildTagQueue, startTagWriting, handleRfidWriteResult),
                    faction scan (startFactionScan, stopFactionScan), simulateButton()
@@ -56,8 +56,11 @@ src/
                    2s delay once all 3 tests pass; sets box.leds to preserve state across syncLeds
   ota.ts         — OTA firmware update dialog (openOtaDialog, renderOtaDialog, identifyBox)
   settings.ts    — WiFi credentials dialog + debug logging dialog
+  undo.ts        — In-memory undo stack (32 snapshots); snapshotForUndo() called before each
+                   game action; undo() restores last snapshot; clearUndoHistory() on game start/end
   persist.ts     — Game state persistence: localStorage + hub SPIFFS backup (persistState,
-                   restoreState, offerResume); compression via CompressionStream (gzip/base64)
+                   restoreState, offerResume); extractPersistableState + restoreState also used
+                   by undo.ts; compression via CompressionStream (gzip/base64)
   logger.ts      — log() and clearLog() for the event log panel
   init.ts        — Wake lock, battery tip, silent audio keepalive, init() entry point,
                    showBatteryTipIfNeeded(), dismissBatteryTip()

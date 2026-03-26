@@ -3,6 +3,7 @@ import { log } from './logger';
 import { render } from './render';
 import { resetTurnTimers, stopCurrentTimerInterval, needsTimerInterval, startCurrentTimerInterval } from './timers';
 import { persistState } from './persist';
+import { snapshotForUndo, clearUndoHistory } from './undo';
 import { currentGame, setCurrentGame } from './currentGame';
 import { createGameMode } from './modes/index';
 
@@ -17,6 +18,7 @@ export function startGame(): void {
     state.boxes[hwid].badges = [];
   });
   resetTurnTimers();
+  clearUndoHistory();
   state.gameStartTime = Date.now();
   state.phaseLog = [];
   state.currentPhaseStart = null;
@@ -57,6 +59,7 @@ function maybeAutoCountdown(): void {
 export function handleEndTurn(hwid: string): void {
   if (!state.gameActive) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
+  snapshotForUndo();
   currentGame?.onEndTurn(hwid);
   maybeAutoCountdown();
   render();
@@ -66,6 +69,7 @@ export function handleEndTurn(hwid: string): void {
 export function handlePass(hwid: string): void {
   if (!state.gameActive) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
+  snapshotForUndo();
   currentGame?.onPass(hwid);
   maybeAutoCountdown();
   render();
@@ -74,6 +78,7 @@ export function handlePass(hwid: string): void {
 
 export function handleLongPress(hwid: string): void {
   if (!state.gameActive) return;
+  snapshotForUndo();
   currentGame?.onLongPress(hwid);
   render();
 }
