@@ -36,6 +36,7 @@ export type LedCommand =
   | { type: 'led_anim_choosing'; colors: string[]; activeMs: number; fadeMs: number }
   | { type: 'led_anim_upkeep' }
   | { type: 'led_anim_stop' }
+  | { type: 'led_brightness'; value: number } // 0.0–1.0 scalar; firmware applies to all LEDs
   | { type: 'led_raw'; leds: string[] }; // virtual-box-only: raw array for JS-driven animations
 
 export interface Box {
@@ -186,6 +187,7 @@ export interface AppState {
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;
+  boxBrightness: Record<string, number>; // hwid → 20 | 40 | 60 | 80 | 100
   autoCountdownSecs: number;
 }
 

@@ -24,7 +24,8 @@ src/
   websockets.ts  — WebSocket connection, send/sendToBox, message dispatch (handleMessage),
                    RFID enable/disable helpers
   leds.ts        — LED colour helpers (ledSolid, ledOff, ledSectors…), ledStateForStatus(),
-                   syncLeds()
+                   syncLeds(); brightness: applyBrightness(color,hwid), setBrightness(hwid,pct),
+                   sendBrightnessToBox(hwid), receiveBoxBrightness(hwid,value)
   tags.ts        — Loads and expands tags.json into state.allTags; filterTags(game, fn);
                    getRelevantTagsForBox(hwid) — returns context-aware tag list for sim
                    RFID dialog (empty = hide button); delegates to mode.getRelevantTags()
@@ -37,9 +38,9 @@ src/
   countdown.ts      — Countdown timers: sendCountdown/cancelCountdown (send { type:'countdown',
                    durationMs, color } to box); popup for manual start (10s/30s/1m/custom);
                    syncLeds skips countdownActive boxes; auto-countdown in game.ts maybeAutoCountdown()
-  display-settings.ts — Dialog for configuring per-box OLED extras (round number, turn timer);
-                   openDisplaySettingsDialog/closeDisplaySettingsDialog; per-box toggles +
-                   "all boxes" buttons; calls syncDisplay() after any change
+  display-settings.ts — "Box Settings" dialog: per-box OLED extras (round number, turn timer)
+                   and LED brightness (5 steps: 20/40/60/80/100%); per-box toggles + "all boxes"
+                   buttons; calls syncDisplay() after OLED changes, setBrightness() for LED changes
   render.ts      — Table rendering (renderBoxes, renderGameControls, renderTableLabel),
                    box cards, drag-to-reorder, name editing, sim toggle, endGame(),
                    setWakeLockHandlers(), isManuallyRenamed()

@@ -1169,7 +1169,7 @@ select {
 
 .ds-grid {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 0.4rem 0.75rem;
   align-items: center;
 }
@@ -1204,4 +1204,23 @@ select {
 
 .ds-row-label.ds-highlighted {
   color: #fc8;
+}
+
+.ds-bright-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ds-bright-slider {
+  width: 90px;
+  cursor: pointer;
+  accent-color: #4a7;
+}
+
+.ds-bright-label {
+  font-size: 0.75rem;
+  color: #888;
+  min-width: 2.5rem;
+  text-align: right;
 }

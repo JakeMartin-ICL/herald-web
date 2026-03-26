@@ -1,6 +1,6 @@
 import { state, VIRTUAL_BOX_ID_OFFSET, RECONNECT_INTERVAL_MS } from './state';
 import { log, setStatus } from './logger';
-import { syncLeds } from './leds';
+import { syncLeds, sendBrightnessToBox, receiveBoxBrightness } from './leds';
 import { render, renderBoxes } from './render';
 import { renderOtaDialog } from './ota';
 import { renderWifiDialog } from './settings';
@@ -127,6 +127,7 @@ export function handleMessage(msg: any): void {
     case 'connected':
       addBox(msg.hwid as string, false);
       if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = (msg.version as string) || 'unknown';
+      sendBrightnessToBox(msg.hwid as string);
       break;
     case 'disconnected':
       handleBoxDisconnect(msg.hwid as string);
@@ -189,6 +190,9 @@ export function handleMessage(msg: any): void {
     case 'state_backup':
       void applyHubBackup(msg.payload as string, msg.compressed as boolean);
       return;
+    case 'box_brightness':
+      receiveBoxBrightness(msg.hwid as string, msg.value as number);
+      break;
     case 'state_backup_none':
       return;
     case 'wifi_credentials_ack': {

@@ -2,6 +2,7 @@ import { state } from './state';
 import { getDisplayName } from './boxes';
 import { syncDisplay } from './display';
 import { sendRfidPrompt } from './websockets';
+import { setBrightness } from './leds';
 import { renderBoxes } from './render';
 import type { DisplayBoxSettings } from './types';
 
@@ -11,6 +12,14 @@ function getSettings(hwid: string): DisplayBoxSettings {
 
 function setSettings(hwid: string, patch: Partial<DisplayBoxSettings>): void {
   state.displaySettings[hwid] = { ...getSettings(hwid), ...patch };
+}
+
+function getBrightness(hwid: string): number {
+  return state.boxBrightness[hwid] ?? 255;
+}
+
+function brightnessLabel(v: number): string {
+  return `${Math.max(1, Math.round(v / 255 * 100))}%`;
 }
 
 let highlightHwid: string | null = null;
@@ -49,6 +58,16 @@ export function renderDisplaySettingsDialog(): void {
 
   const allRoundOn = boxes.every(hwid => getSettings(hwid).showRound);
   const allTimerOn = boxes.every(hwid => getSettings(hwid).showTimer);
+  const firstBright = getBrightness(boxes[0]);
+
+  const brightnessSlider = (hwid: string | null) => {
+    const val = hwid ? getBrightness(hwid) : firstBright;
+    const dataAttr = hwid ? `data-hwid="${hwid}"` : 'data-all-bright="true"';
+    return `<div class="ds-bright-row">
+      <input type="range" class="ds-bright-slider" min="1" max="255" value="${val}" ${dataAttr}>
+      <span class="ds-bright-label">${brightnessLabel(val)}</span>
+    </div>`;
+  };
 
   el.innerHTML = `
     <div class="ds-grid">
@@ -56,11 +75,13 @@ export function renderDisplaySettingsDialog(): void {
       <span class="ds-col-header">Round</span>
       <span class="ds-col-header">Timer</span>
       <span class="ds-col-header">RFID guide</span>
+      <span class="ds-col-header">Brightness</span>
 
       <span class="ds-row-label" style="color:#888">All boxes</span>
       <button class="ds-all-btn${allRoundOn ? ' ds-on' : ''}" data-field="showRound">${allRoundOn ? 'On' : 'Off'}</button>
       <button class="ds-all-btn${allTimerOn ? ' ds-on' : ''}" data-field="showTimer">${allTimerOn ? 'On' : 'Off'}</button>
       <span></span>
+      ${brightnessSlider(null)}
 
       ${boxes.map(hwid => {
         const s = getSettings(hwid);
@@ -71,7 +92,8 @@ export function renderDisplaySettingsDialog(): void {
           <span class="ds-row-label${isHighlighted ? ' ds-highlighted' : ''}" id="ds-row-${hwid}">${getDisplayName(hwid)}</span>
           <button class="ds-toggle${s.showRound ? ' ds-on' : ''}" data-hwid="${hwid}" data-field="showRound">${s.showRound ? 'On' : 'Off'}</button>
           <button class="ds-toggle${s.showTimer ? ' ds-on' : ''}" data-hwid="${hwid}" data-field="showTimer">${s.showTimer ? 'On' : 'Off'}</button>
-          <button class="ds-toggle ds-rfid-guide-btn${rfidOn ? ' ds-on' : ''}" data-hwid="${hwid}">${rfidOn ? 'On' : 'Off'}</button>`;
+          <button class="ds-toggle ds-rfid-guide-btn${rfidOn ? ' ds-on' : ''}" data-hwid="${hwid}">${rfidOn ? 'On' : 'Off'}</button>
+          ${brightnessSlider(hwid)}`;
       }).join('')}
     </div>`;
 
@@ -102,6 +124,32 @@ export function renderDisplaySettingsDialog(): void {
       if (!box) return;
       box.rfidPromptOn = !box.rfidPromptOn;
       sendRfidPrompt(hwid, box.rfidPromptOn);
+      renderBoxes();
+      renderDisplaySettingsDialog();
+    });
+  });
+
+  // Per-box brightness sliders: update label live, send only on release
+  el.querySelectorAll<HTMLInputElement>('.ds-bright-slider[data-hwid]').forEach(slider => {
+    const label = slider.nextElementSibling as HTMLElement;
+    slider.addEventListener('input', () => {
+      label.textContent = brightnessLabel(Number(slider.value));
+    });
+    slider.addEventListener('change', () => {
+      setBrightness(slider.dataset.hwid!, Number(slider.value));
+      renderBoxes();
+    });
+  });
+
+  // All-boxes brightness slider
+  el.querySelectorAll<HTMLInputElement>('.ds-bright-slider[data-all-bright]').forEach(slider => {
+    const label = slider.nextElementSibling as HTMLElement;
+    slider.addEventListener('input', () => {
+      label.textContent = brightnessLabel(Number(slider.value));
+    });
+    slider.addEventListener('change', () => {
+      const brightness = Number(slider.value);
+      boxes.forEach(hwid => setBrightness(hwid, brightness));
       renderBoxes();
       renderDisplaySettingsDialog();
     });

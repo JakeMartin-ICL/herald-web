@@ -50,6 +50,10 @@ export const state: AppState = {
 
   showBatteryVoltage: false,
   displaySettings: {},
+  boxBrightness: (() => {
+    try { return JSON.parse(localStorage.getItem('herald-box-brightness') ?? '{}') as Record<string, number>; }
+    catch { return {}; }
+  })(),
   activePlayerStyle: { mode: 'solid', hue: null, rainbow: false, speed: 0.5 },
   autoCountdownSecs: 0,
 

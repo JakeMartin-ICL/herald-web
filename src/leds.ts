@@ -2,6 +2,30 @@ import { state } from './state';
 import { sendToBox } from './websockets';
 import type { LedCommand } from './types';
 
+// ---- Brightness helpers ----
+// Brightness is stored as a raw FastLED value: 1–255 (integer).
+// The firmware uses this directly with FastLED.setBrightness().
+
+function saveBoxBrightness(): void {
+  try { localStorage.setItem('herald-box-brightness', JSON.stringify(state.boxBrightness)); } catch { /* ignore */ }
+}
+
+export function sendBrightnessToBox(hwid: string): void {
+  const brightness = state.boxBrightness[hwid] ?? 255;
+  sendToBox(hwid, { type: 'led_brightness', value: brightness });
+}
+
+export function setBrightness(hwid: string, brightness: number): void {
+  state.boxBrightness[hwid] = brightness;
+  saveBoxBrightness();
+  sendBrightnessToBox(hwid);
+}
+
+export function receiveBoxBrightness(hwid: string, value: number): void {
+  state.boxBrightness[hwid] = Math.round(value); // already 1–255
+  saveBoxBrightness();
+}
+
 export const LED_COUNT = 24;
 
 // ---- Array helpers (used for virtual box display only) ----
@@ -73,6 +97,7 @@ export function ledCommandToArray(cmd: LedCommand): string[] {
       cmd.colors.map(color => ({ color, count: Math.floor(LED_COUNT / cmd.colors.length) })));
     case 'led_anim_upkeep':    return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
     case 'led_anim_stop':      return ledOff(LED_COUNT);
+    case 'led_brightness':     return ledOff(LED_COUNT); // send-only command, not a display state
   }
 }
 
