@@ -135,6 +135,41 @@ select {
   margin-top: 0.25rem;
 }
 
+/* ---- Section header ---- */
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.section-header h2 {
+  margin-bottom: 0;
+}
+
+#table-toolbar {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.toolbar-btn {
+  font-size: 1rem;
+  padding: 0.2rem 0.45rem;
+  width: auto;
+  line-height: 1.2;
+  background: #1e2a40;
+  border: 1px solid #2a3a54;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #ccc;
+  transition: background 0.15s;
+}
+.toolbar-btn:hover:not(:disabled) { background: #28384e; }
+.toolbar-btn:disabled { opacity: 0.3; cursor: default; }
+.toolbar-btn.active { background: #1a4a2a; border-color: #2a6a3a; }
+.toolbar-btn.paused { background: #5a3a00; border-color: #8a5a00; color: #ffc04a; }
+
 /* ---- Table ---- */
 
 #table-container {
@@ -442,6 +477,7 @@ select {
 #gc-actions button {
   width: 100%;
 }
+
 
 .gc-check-row {
   display: flex;

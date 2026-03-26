@@ -56,6 +56,8 @@ export const state: AppState = {
   })(),
   activePlayerStyle: { mode: 'solid', hue: null, rainbow: false, speed: 0.5 },
   autoCountdownSecs: 0,
+  paused: false,
+  pauseStartTime: null,
 
   ti: {
     phase: null,

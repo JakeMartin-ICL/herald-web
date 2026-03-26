@@ -75,6 +75,15 @@ export function needsTimerInterval(): boolean {
   return timerSettings.showCurrent || timerSettings.showGameTimer;
 }
 
+export function shiftTimestampsForResume(pauseDuration: number): void {
+  if (state.gameStartTime) state.gameStartTime += pauseDuration;
+  if (state.currentPhaseStart) state.currentPhaseStart.startTime += pauseDuration;
+  if (_timerTrackedActiveId) {
+    const box = state.boxes[_timerTrackedActiveId];
+    if (box?.turnStartTime) box.turnStartTime += pauseDuration;
+  }
+}
+
 // ---- Phase timing ----
 
 export function startPhase(name: string): void {

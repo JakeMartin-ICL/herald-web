@@ -1,4 +1,3 @@
-import { state } from './state';
 import { init } from './init';
 import { toggleConnect } from './websockets';
 import { onGameModeChange, addVirtualBox, confirmSubstitution, cancelSubstitution } from './boxes';
@@ -13,7 +12,7 @@ import { openDisplaySettingsDialog, closeDisplaySettingsDialog } from './display
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
-import { cancelEndGame, endGame, render } from './render';
+import { cancelEndGame, endGame } from './render';
 import { dismissBatteryTip } from './init';
 
 function on(id: string, event: string, fn: EventListener): void {
@@ -56,12 +55,6 @@ on('ota-force-close-btn', 'click', () => forceCloseOtaDialog());
 on('debug-open-btn', 'click', () => openDebugDialog());
 on('debug-log-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDebugDialog(); });
 on('debug-close-btn', 'click', () => closeDebugDialog());
-
-// Show battery toggle
-on('show-battery-cb', 'change', (e) => {
-  state.showBatteryVoltage = (e.target as HTMLInputElement).checked;
-  render();
-});
 
 // WiFi
 on('wifi-open-btn', 'click', () => openWifiDialog());

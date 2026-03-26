@@ -58,6 +58,7 @@ function maybeAutoCountdown(): void {
 
 export function handleEndTurn(hwid: string): void {
   if (!state.gameActive) return;
+  if (state.paused) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
   snapshotForUndo();
   currentGame?.onEndTurn(hwid);
@@ -68,6 +69,7 @@ export function handleEndTurn(hwid: string): void {
 
 export function handlePass(hwid: string): void {
   if (!state.gameActive) return;
+  if (state.paused) return;
   if (state.boxes[hwid]?.status === 'disconnected') return;
   snapshotForUndo();
   currentGame?.onPass(hwid);
@@ -78,6 +80,7 @@ export function handlePass(hwid: string): void {
 
 export function handleLongPress(hwid: string): void {
   if (!state.gameActive) return;
+  if (state.paused) return;
   snapshotForUndo();
   currentGame?.onLongPress(hwid);
   render();

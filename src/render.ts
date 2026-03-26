@@ -1,10 +1,10 @@
 import { state, VIRTUAL_BOX_ID_OFFSET } from './state';
-import { ledStateForStatus, ledCommandToArray, syncLeds } from './leds';
+import { ledStateForStatus, ledCommandToArray, syncLeds, resetActiveAnim } from './leds';
 import { syncDisplay } from './display';
 import {
   updateTurnTimers, timerSettings, formatDuration,
   stopCurrentTimerInterval, needsTimerInterval, startCurrentTimerInterval,
-  endPhase, resetTurnTimers,
+  endPhase, resetTurnTimers, shiftTimestampsForResume,
 } from './timers';
 import { log } from './logger';
 import { getDisplayName, updateSetupUI, setBoxName, setAutoName } from './boxes';
@@ -60,6 +60,7 @@ export function render(): void {
   syncDisplay();
   renderBoxes();
   renderTableLabel();
+  renderTableToolbar();
   renderGameControls();
 }
 
@@ -90,6 +91,31 @@ export function renderTableLabel(): void {
   el.innerHTML = parts.join('');
 }
 
+// ---- Table toolbar ----
+
+export function renderTableToolbar(): void {
+  const el = document.getElementById('table-toolbar') as HTMLElement | null;
+  if (!el) return;
+
+  const btns: string[] = [
+    `<button id="tb-battery" class="toolbar-btn${state.showBatteryVoltage ? ' active' : ''}" title="Toggle battery %">🔋</button>`,
+  ];
+  if (state.gameActive) {
+    btns.push(`<button id="tb-pause" class="toolbar-btn${state.paused ? ' paused' : ''}" title="${state.paused ? 'Resume' : 'Pause'}">${state.paused ? '▶' : '⏸'}</button>`);
+    btns.push(`<button id="tb-undo" class="toolbar-btn" title="Undo"${canUndo() && !state.paused ? '' : ' disabled'}>↺</button>`);
+    btns.push(`<button id="tb-graphs" class="toolbar-btn" title="Graphs">📊</button>`);
+  }
+  el.innerHTML = btns.join('');
+
+  el.querySelector('#tb-battery')?.addEventListener('click', () => {
+    state.showBatteryVoltage = !state.showBatteryVoltage;
+    render();
+  });
+  el.querySelector('#tb-pause')?.addEventListener('click', () => { togglePause(); render(); });
+  el.querySelector('#tb-undo')?.addEventListener('click', () => { undo(); render(); });
+  el.querySelector('#tb-graphs')?.addEventListener('click', () => openGraphOverlay('live'));
+}
+
 // ---- Game Controls ----
 
 export function renderGameControls(): void {
@@ -111,20 +137,12 @@ export function renderGameControls(): void {
   const statusLines: string[] = [];
   const actionDefs: ActionDef[] = [];
 
+  if (state.paused) statusLines.push('<span style="color:#fa0">⏸ Game paused</span>');
+
   // Mode-specific controls
   currentGame?.renderControls(statusLines, actionDefs);
 
   // Common controls
-  actionDefs.push({
-    html: `<button id="gc-undo"${canUndo() ? '' : ' disabled'}>Undo</button>`,
-    id: 'gc-undo',
-    fn: () => { undo(); render(); },
-  });
-  actionDefs.push({
-    html: '<button id="gc-graphs">Graphs</button>',
-    id: 'gc-graphs',
-    fn: () => openGraphOverlay('live'),
-  });
   actionDefs.push({
     html: `<label class="gc-check-row">
       <input type="checkbox" id="gc-timer-game"${timerSettings.showGameTimer ? ' checked' : ''}>
@@ -194,6 +212,26 @@ export function renderGameControls(): void {
   });
 }
 
+// ---- Pause ----
+
+export function togglePause(): void {
+  if (!state.gameActive) return;
+  if (state.paused) {
+    const pauseDuration = Date.now() - (state.pauseStartTime ?? Date.now());
+    state.paused = false;
+    state.pauseStartTime = null;
+    shiftTimestampsForResume(pauseDuration);
+    resetActiveAnim();
+    if (needsTimerInterval()) startCurrentTimerInterval();
+    log('Game resumed', 'system');
+  } else {
+    state.paused = true;
+    state.pauseStartTime = Date.now();
+    stopCurrentTimerInterval();
+    log('Game paused', 'system');
+  }
+}
+
 // ---- End Game ----
 
 function confirmEndGame(): void {
@@ -222,6 +260,8 @@ export function endGame(): void {
     tapToPass: state.eclipse.tapToPass, advancedOrder: state.eclipse.advancedOrder, upkeepReady: [],
   };
   state.ti = { ...state.ti, phase: null, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
+  state.paused = false;
+  state.pauseStartTime = null;
   endPhase();
   captureGameStats();
   clearPersistedState();

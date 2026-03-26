@@ -170,6 +170,7 @@ export function syncLeds(): void {
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
     if (!box || box.status === 'disconnected') return;
+    if (state.paused && !box.isVirtual) { sendToBox(hwid, { type: 'led_off' }); return; }
     if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
     if (box.status === 'upkeep') return; // upkeep animation manages its own LEDs
     if (box.status === 'choosing' && !box.isVirtual) return; // choosing animation manages its own LEDs

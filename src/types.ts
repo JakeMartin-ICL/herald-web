@@ -189,6 +189,8 @@ export interface AppState {
   displaySettings: Record<string, DisplayBoxSettings>;
   boxBrightness: Record<string, number>; // hwid → 20 | 40 | 60 | 80 | 100
   autoCountdownSecs: number;
+  paused: boolean;
+  pauseStartTime: number | null;
 }
 
 // ---- GameMode interface ----

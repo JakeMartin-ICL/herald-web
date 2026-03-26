@@ -43,6 +43,7 @@ src/
                    buttons; calls syncDisplay() after OLED changes, setBrightness() for LED changes
   render.ts      — Table rendering (renderBoxes, renderGameControls, renderTableLabel),
                    box cards, drag-to-reorder, name editing, sim toggle, endGame(),
+                   togglePause() (pauses timers + blanks LEDs; blocked input while paused),
                    setWakeLockHandlers(), isManuallyRenamed()
   game.ts        — Game start (startGame), mode dispatch (handleEndTurn, handlePass,
                    handleLongPress), debug skip; calls snapshotForUndo() before each dispatch
