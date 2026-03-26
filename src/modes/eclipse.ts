@@ -134,9 +134,6 @@ export class EclipseMode implements GameMode {
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {
     const phase = state.eclipse.phase ?? '';
-    const phaseLabel = phase.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    statusLines.push(`Round ${state.round}${state.totalRounds ? ' / ' + state.totalRounds : ''}${phaseLabel ? ` · ${phaseLabel}` : ''}`);
-    if (state.activeBoxId) statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
 
     // Next order hint during action phase
     if (phase === 'action' && state.eclipse.passOrder.length > 0) {

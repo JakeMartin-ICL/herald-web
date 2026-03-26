@@ -255,19 +255,7 @@ export class TwilightImperiumMode implements GameMode {
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {
     const phase = state.ti.phase ?? '';
-    const phaseNames: Record<string, string> = {
-      strategy: 'Strategy Phase',
-      action: 'Action Phase',
-      status: 'Status Phase',
-      status2: 'Status Phase II',
-      agenda_reveal: 'Agenda Phase — Reveal',
-      when_agenda_revealed: 'Agenda Phase — When',
-      after_agenda_revealed: 'Agenda Phase — After',
-      agenda_vote: 'Agenda Phase — Vote',
-    };
-    statusLines.push(`Round ${state.round} · ${phaseNames[phase] ?? phase ?? '—'}`);
     if (state.ti.speakerHwid) statusLines.push(`Speaker: ${getDisplayName(state.ti.speakerHwid)}`);
-    if (state.activeBoxId) statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
     if (['agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'].includes(phase)) {
       statusLines.push(`Agenda ${(state.ti.agendaCount ?? 0) + 1} of 2`);
     }

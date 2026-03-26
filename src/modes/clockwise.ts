@@ -39,7 +39,6 @@ abstract class ClockwiseBase implements GameMode {
   getRelevantTags(_hwid: string): Tag[] { return []; }
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {
-    statusLines.push(`Round ${state.round}`);
     if (!state.activeBoxId) {
       statusLines.push('Round over — all passed');
       actionDefs.push({
@@ -47,8 +46,6 @@ abstract class ClockwiseBase implements GameMode {
         id: 'gc-new-round',
         fn: () => { this.newRound(); render(); },
       });
-    } else {
-      statusLines.push(`Active: ${getDisplayName(state.activeBoxId)}`);
     }
   }
 

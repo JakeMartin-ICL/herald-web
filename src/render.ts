@@ -62,6 +62,15 @@ export function render(): void {
   renderTableLabel();
   renderTableToolbar();
   renderGameControls();
+  if (_silentAudioContext) {
+    const el = document.getElementById('keepalive-status');
+    if (el) {
+      const running = _silentAudioContext.state === 'running';
+      el.innerHTML = running
+        ? '<span style="color:#4a7">🔇 Background keepalive active</span>'
+        : '<span style="color:#c94">⚠️ Background keepalive inactive</span>';
+    }
+  }
 }
 
 // ---- Table label ----
@@ -178,23 +187,13 @@ export function renderGameControls(): void {
     fn: (e: Event) => { timerSettings.showTotal = (e.target as HTMLInputElement).checked; renderBoxes(); },
   });
 
-  if (_silentAudioContext) {
-    const running = _silentAudioContext.state === 'running';
-    statusLines.push(running
-      ? '<span style="color:#4a7">🔇 Background keepalive active</span>'
-      : '<span style="color:#c94">⚠️ Background keepalive inactive</span>'
-    );
-  }
-
+  const cdEnabled = state.autoCountdownSecs > 0;
   actionDefs.push({
-    html: `<label class="gc-check-row">
-      Auto-countdown: <input type="number" id="gc-auto-countdown" min="0" max="600"
-        style="width:4em; display:inline-block; margin:0 4px" value="${state.autoCountdownSecs}"> s (0 = off)
-    </label>`,
-    id: 'gc-auto-countdown', event: 'change',
-    fn: (e: Event) => {
-      state.autoCountdownSecs = parseInt((e.target as HTMLInputElement).value, 10) || 0;
-    },
+    html: `<div class="gc-check-row">
+      <input type="checkbox" id="gc-auto-cd-enable"${cdEnabled ? ' checked' : ''}>
+      <label for="gc-auto-cd-enable" style="cursor:pointer">Auto-countdown</label>
+      ${cdEnabled ? `<input type="number" id="gc-auto-countdown" min="1" max="600" style="width:3.5em; margin-left:0.25rem" value="${state.autoCountdownSecs}"> s` : ''}
+    </div>`,
   });
 
   actionDefs.push({
@@ -209,6 +208,18 @@ export function renderGameControls(): void {
     if (!id || !fn) return;
     const el = actionsEl.querySelector(`#${id}`);
     if (el) el.addEventListener(event ?? 'click', fn as EventListenerOrEventListenerObject);
+  });
+
+  // Auto-countdown wiring
+  const cdEnableCb = actionsEl.querySelector('#gc-auto-cd-enable') as HTMLInputElement | null;
+  const cdSecsInput = actionsEl.querySelector('#gc-auto-countdown') as HTMLInputElement | null;
+  cdEnableCb?.addEventListener('change', () => {
+    state.autoCountdownSecs = cdEnableCb.checked ? _lastAutoCountdownSecs : 0;
+    renderGameControls();
+  });
+  cdSecsInput?.addEventListener('change', () => {
+    const v = parseInt(cdSecsInput.value, 10);
+    if (v > 0) { _lastAutoCountdownSecs = v; state.autoCountdownSecs = v; }
   });
 }
 
@@ -637,6 +648,7 @@ function cancelEditingName(): void {
 
 let _releaseWakeLock: (() => void) | null = null;
 let _silentAudioContext: AudioContext | null = null;
+let _lastAutoCountdownSecs = 30;
 
 export function setWakeLockHandlers(release: (() => void) | null, audioCtx: AudioContext | null): void {
   _releaseWakeLock = release;
