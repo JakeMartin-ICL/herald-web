@@ -7,7 +7,7 @@ import { renderBoxes } from './render';
 import type { DisplayBoxSettings } from './types';
 
 function getSettings(hwid: string): DisplayBoxSettings {
-  return state.displaySettings[hwid] ?? { showRound: false, showTimer: false };
+  return state.displaySettings[hwid] ?? { showRound: false, showTimer: false, message: '' };
 }
 
 function setSettings(hwid: string, patch: Partial<DisplayBoxSettings>): void {
@@ -58,12 +58,13 @@ export function renderDisplaySettingsDialog(): void {
 
   const allRoundOn = boxes.every(hwid => getSettings(hwid).showRound);
   const allTimerOn = boxes.every(hwid => getSettings(hwid).showTimer);
+  const allRfidOn  = boxes.every(hwid => !!state.boxes[hwid]?.rfidPromptOn);
   const firstBright = getBrightness(boxes[0]);
 
-  const brightnessSlider = (hwid: string | null) => {
+  const brightnessSlider = (hwid: string | null, extraClass = '') => {
     const val = hwid ? getBrightness(hwid) : firstBright;
     const dataAttr = hwid ? `data-hwid="${hwid}"` : 'data-all-bright="true"';
-    return `<div class="ds-bright-row">
+    return `<div class="ds-bright-row${extraClass}">
       <input type="range" class="ds-bright-slider" min="1" max="255" value="${val}" ${dataAttr}>
       <span class="ds-bright-label">${brightnessLabel(val)}</span>
     </div>`;
@@ -75,25 +76,28 @@ export function renderDisplaySettingsDialog(): void {
       <span class="ds-col-header">Round</span>
       <span class="ds-col-header">Timer</span>
       <span class="ds-col-header">RFID guide</span>
+      <span class="ds-col-header">Message</span>
       <span class="ds-col-header">Brightness</span>
 
       <span class="ds-row-label" style="color:#888">All boxes</span>
       <button class="ds-all-btn${allRoundOn ? ' ds-on' : ''}" data-field="showRound">${allRoundOn ? 'On' : 'Off'}</button>
       <button class="ds-all-btn${allTimerOn ? ' ds-on' : ''}" data-field="showTimer">${allTimerOn ? 'On' : 'Off'}</button>
-      <span></span>
+      <button class="ds-all-rfid-btn ds-all-btn${allRfidOn ? ' ds-on' : ''}">${allRfidOn ? 'On' : 'Off'}</button>
+      <input class="ds-all-message-input ds-message-input" type="text" maxlength="21" placeholder="Set all…">
       ${brightnessSlider(null)}
 
       ${boxes.map(hwid => {
         const s = getSettings(hwid);
         const box = state.boxes[hwid];
         const rfidOn = !!box?.rfidPromptOn;
-        const isHighlighted = hwid === highlightHwid;
+        const hl = hwid === highlightHwid ? ' ds-row-highlighted' : '';
         return `
-          <span class="ds-row-label${isHighlighted ? ' ds-highlighted' : ''}" id="ds-row-${hwid}">${getDisplayName(hwid)}</span>
-          <button class="ds-toggle${s.showRound ? ' ds-on' : ''}" data-hwid="${hwid}" data-field="showRound">${s.showRound ? 'On' : 'Off'}</button>
-          <button class="ds-toggle${s.showTimer ? ' ds-on' : ''}" data-hwid="${hwid}" data-field="showTimer">${s.showTimer ? 'On' : 'Off'}</button>
-          <button class="ds-toggle ds-rfid-guide-btn${rfidOn ? ' ds-on' : ''}" data-hwid="${hwid}">${rfidOn ? 'On' : 'Off'}</button>
-          ${brightnessSlider(hwid)}`;
+          <span class="ds-row-label${hl}" id="ds-row-${hwid}">${getDisplayName(hwid)}</span>
+          <button class="ds-toggle${s.showRound ? ' ds-on' : ''}${hl}" data-hwid="${hwid}" data-field="showRound">${s.showRound ? 'On' : 'Off'}</button>
+          <button class="ds-toggle${s.showTimer ? ' ds-on' : ''}${hl}" data-hwid="${hwid}" data-field="showTimer">${s.showTimer ? 'On' : 'Off'}</button>
+          <button class="ds-toggle ds-rfid-guide-btn${rfidOn ? ' ds-on' : ''}${hl}" data-hwid="${hwid}">${rfidOn ? 'On' : 'Off'}</button>
+          <input class="ds-message-input${hl}" type="text" maxlength="21" placeholder="—" data-hwid="${hwid}" value="${(s.message ?? '').replace(/"/g, '&quot;')}">
+          ${brightnessSlider(hwid, hl)}`;
       }).join('')}
     </div>`;
 
@@ -107,7 +111,7 @@ export function renderDisplaySettingsDialog(): void {
     });
   });
 
-  el.querySelectorAll<HTMLButtonElement>('.ds-all-btn').forEach(btn => {
+  el.querySelectorAll<HTMLButtonElement>('.ds-all-btn[data-field]').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.dataset.field as keyof DisplayBoxSettings;
       const turnOn = !boxes.every(hwid => getSettings(hwid)[field]);
@@ -115,6 +119,18 @@ export function renderDisplaySettingsDialog(): void {
       syncDisplay();
       renderDisplaySettingsDialog();
     });
+  });
+
+  el.querySelector<HTMLButtonElement>('.ds-all-rfid-btn')?.addEventListener('click', () => {
+    const turnOn = !boxes.every(hwid => !!state.boxes[hwid]?.rfidPromptOn);
+    boxes.forEach(hwid => {
+      const box = state.boxes[hwid];
+      if (!box) return;
+      box.rfidPromptOn = turnOn;
+      sendRfidPrompt(hwid, turnOn);
+    });
+    renderBoxes();
+    renderDisplaySettingsDialog();
   });
 
   el.querySelectorAll<HTMLButtonElement>('.ds-rfid-guide-btn').forEach(btn => {
@@ -153,6 +169,23 @@ export function renderDisplaySettingsDialog(): void {
       renderBoxes();
       renderDisplaySettingsDialog();
     });
+  });
+
+  // Per-box message inputs
+  el.querySelectorAll<HTMLInputElement>('.ds-message-input[data-hwid]').forEach(input => {
+    input.addEventListener('change', () => {
+      const hwid = input.dataset.hwid!;
+      setSettings(hwid, { message: input.value });
+      syncDisplay();
+    });
+  });
+
+  // All-boxes message input
+  el.querySelector<HTMLInputElement>('.ds-all-message-input')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLInputElement).value;
+    boxes.forEach(hwid => setSettings(hwid, { message: val }));
+    syncDisplay();
+    renderDisplaySettingsDialog();
   });
 
   // Scroll highlighted row into view

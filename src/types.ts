@@ -161,6 +161,7 @@ export interface ActivePlayerStyle {
 export interface DisplayBoxSettings {
   showRound: boolean;
   showTimer: boolean;
+  message: string;
 }
 
 export interface AppState {

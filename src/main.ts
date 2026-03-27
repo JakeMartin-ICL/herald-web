@@ -8,7 +8,7 @@ import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, s
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
 import { openActiveStyleDialog, initActiveStyleDialog, loadActiveStyle } from './activeStyle';
-import { openDisplaySettingsDialog, closeDisplaySettingsDialog } from './display-settings';
+import { closeDisplaySettingsDialog } from './display-settings';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
@@ -61,7 +61,6 @@ on('wifi-open-btn', 'click', () => openWifiDialog());
 
 // Active player style
 on('active-style-open-btn', 'click', () => openActiveStyleDialog());
-on('display-settings-open-btn', 'click', () => openDisplaySettingsDialog());
 on('display-settings-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDisplaySettingsDialog(); });
 on('display-settings-close-btn', 'click', () => closeDisplaySettingsDialog());
 on('hwtest-open-btn', 'click', () => openHwTestDialog());

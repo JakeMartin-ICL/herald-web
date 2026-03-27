@@ -1195,8 +1195,10 @@ select {
   border: 1px solid #334;
   border-radius: 8px;
   padding: 1.25rem;
-  width: 90vw;
-  max-width: 380px;
+  width: auto;
+  min-width: min(96vw, 540px);
+  max-width: min(96vw, 720px);
+  overflow-x: auto;
 }
 
 #display-settings-dialog h2 {
@@ -1205,9 +1207,20 @@ select {
 
 .ds-grid {
   display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
+  grid-template-columns: 1fr auto auto auto minmax(60px, 120px) auto;
   gap: 0.4rem 0.75rem;
   align-items: center;
+}
+
+.ds-message-input {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.35rem;
+  background: #111;
+  border: 1px solid #445;
+  border-radius: 3px;
+  color: #ccc;
+  box-sizing: border-box;
 }
 
 .ds-col-header {
@@ -1238,7 +1251,11 @@ select {
   color: #4a7;
 }
 
-.ds-row-label.ds-highlighted {
+.ds-row-highlighted {
+  background-color: rgba(255, 200, 80, 0.13) !important;
+}
+
+.ds-row-label.ds-row-highlighted {
   color: #fc8;
 }
 

@@ -114,6 +114,7 @@ export function renderTableToolbar(): void {
     btns.push(`<button id="tb-undo" class="toolbar-btn" title="Undo"${canUndo() && !state.paused ? '' : ' disabled'}>↺</button>`);
     btns.push(`<button id="tb-graphs" class="toolbar-btn" title="Graphs">📊</button>`);
   }
+  btns.push(`<button id="tb-box-settings" class="toolbar-btn" title="Box Settings">⚙</button>`);
   el.innerHTML = btns.join('');
 
   el.querySelector('#tb-battery')?.addEventListener('click', () => {
@@ -123,6 +124,9 @@ export function renderTableToolbar(): void {
   el.querySelector('#tb-pause')?.addEventListener('click', () => { togglePause(); render(); });
   el.querySelector('#tb-undo')?.addEventListener('click', () => { undo(); render(); });
   el.querySelector('#tb-graphs')?.addEventListener('click', () => openGraphOverlay('live'));
+  el.querySelector('#tb-box-settings')?.addEventListener('click', () => {
+    void import('./display-settings').then(({ openDisplaySettingsDialog }) => openDisplaySettingsDialog());
+  });
 }
 
 // ---- Game Controls ----

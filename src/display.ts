@@ -27,7 +27,7 @@ export function syncDisplay(): void {
     if (!box || box.isVirtual || box.status === 'disconnected') return;
     const name   = getDisplayName(hwid);
     const status = STATUS_LABELS[box.status] ?? '';
-    const settings: DisplayBoxSettings = state.displaySettings[hwid] ?? { showRound: false, showTimer: false };
+    const settings: DisplayBoxSettings = state.displaySettings[hwid] ?? { showRound: false, showTimer: false, message: '' };
 
     const msg: Record<string, unknown> = { type: 'display', name, status };
 
@@ -38,6 +38,9 @@ export function syncDisplay(): void {
       const running = !!box.turnStartTime;
       msg.timerRunning = running;
       msg.timerSecs = running ? Math.floor((Date.now() - box.turnStartTime!) / 1000) : 0;
+    }
+    if (settings.message) {
+      msg.message = settings.message.slice(0, 21);
     }
 
     sendToBox(hwid, msg);
