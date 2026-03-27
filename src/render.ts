@@ -115,6 +115,7 @@ export function renderTableToolbar(): void {
     btns.push(`<button id="tb-graphs" class="toolbar-btn" title="Graphs">📊</button>`);
   }
   btns.push(`<button id="tb-box-settings" class="toolbar-btn" title="Box Settings">⚙</button>`);
+  btns.push(`<button id="tb-active-style" class="toolbar-btn" title="Active Player Style">⭕</button>`);
   el.innerHTML = btns.join('');
 
   el.querySelector('#tb-battery')?.addEventListener('click', () => {
@@ -126,6 +127,9 @@ export function renderTableToolbar(): void {
   el.querySelector('#tb-graphs')?.addEventListener('click', () => openGraphOverlay('live'));
   el.querySelector('#tb-box-settings')?.addEventListener('click', () => {
     void import('./display-settings').then(({ openDisplaySettingsDialog }) => openDisplaySettingsDialog());
+  });
+  el.querySelector('#tb-active-style')?.addEventListener('click', () => {
+    void import('./activeStyle').then(({ openActiveStyleDialog }) => openActiveStyleDialog());
   });
 }
 
