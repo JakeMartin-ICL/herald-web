@@ -57,6 +57,10 @@ src/
                    2s delay once all 3 tests pass; sets box.leds to preserve state across syncLeds
   ota.ts         — OTA firmware update dialog (openOtaDialog, renderOtaDialog, identifyBox)
   settings.ts    — WiFi credentials dialog + debug logging dialog
+  removePlayer.ts — Remove Player dialog (debug panel): removePlayer(hwid) snapshots undo,
+                   sets box.status='disconnected', calls mode.onPlayerRemoved?(), removes from
+                   boxOrder (box object kept for stats); each GameMode implements onPlayerRemoved
+                   to advance the turn and clean up mode-specific order arrays
   undo.ts        — In-memory undo stack (32 snapshots); snapshotForUndo() called before each
                    game action; undo() restores last snapshot; clearUndoHistory() on game start/end
   persist.ts     — Game state persistence: localStorage + hub SPIFFS backup (persistState,
@@ -99,6 +103,7 @@ interface GameMode {
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void;
   debugSkip?(): void;
   onFactionChanged?(): void;
+  onPlayerRemoved?(hwid: string): void; // called before boxOrder removal; box.status already 'disconnected'
 }
 ```
 

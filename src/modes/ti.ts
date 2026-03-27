@@ -305,6 +305,109 @@ export class TwilightImperiumMode implements GameMode {
     }
   }
 
+  onPlayerRemoved(hwid: string): void {
+    // Speaker: reassign to next player in box order
+    if (state.ti.speakerHwid === hwid) {
+      const remaining = state.boxOrder.filter(id => id !== hwid);
+      const idx = state.boxOrder.indexOf(hwid);
+      state.ti.speakerHwid = remaining[idx % Math.max(1, remaining.length)] ?? null;
+      if (state.ti.speakerHwid) {
+        log(`Speaker reassigned to ${getDisplayName(state.ti.speakerHwid)}`, 'system');
+      }
+    }
+
+    // Secondary: cancel if removed player was the card user; otherwise drop from pending
+    if (state.ti.secondary) {
+      if (state.ti.secondary.activeHwid === hwid) {
+        const secondary = state.ti.secondary;
+        const card = state.ti.players[hwid]?.strategyCards.find(c => c.id === secondary.cardId);
+        if (card) card.used = false;
+        secondary.pendingHwids.forEach(id => {
+          if (state.boxes[id]?.status === 'secondary') state.boxes[id].status = 'idle';
+        });
+        state.ti.secondary = null;
+      } else {
+        state.ti.secondary.pendingHwids = state.ti.secondary.pendingHwids.filter(id => id !== hwid);
+      }
+    }
+
+    const wasActive = state.activeBoxId === hwid;
+
+    switch (state.ti.phase) {
+      case 'strategy': {
+        // Count occurrences of hwid before strategyTurnIndex (handles doubled array for ≤4 players)
+        let removedBefore = 0;
+        for (let i = 0; i < state.ti.strategyTurnIndex; i++) {
+          if (state.ti.turnOrder[i] === hwid) removedBefore++;
+        }
+        state.ti.strategyTurnIndex -= removedBefore;
+        state.ti.turnOrder = state.ti.turnOrder.filter(id => id !== hwid);
+        if (wasActive || state.ti.strategyTurnIndex >= state.ti.turnOrder.length) {
+          state.activeBoxId = null;
+          this.activateStrategyTurn();
+        }
+        break;
+      }
+
+      case 'action': {
+        const actionIdx = state.ti.turnOrder.indexOf(hwid);
+        if (actionIdx !== -1 && actionIdx < state.ti.actionTurnIndex) {
+          state.ti.actionTurnIndex--;
+        }
+        state.ti.turnOrder = state.ti.turnOrder.filter(id => id !== hwid);
+
+        if (wasActive) {
+          state.activeBoxId = null;
+          state.ti.actionTurnIndex = state.ti.actionTurnIndex % Math.max(1, state.ti.turnOrder.length);
+          this.activateActionTurn();
+        } else if (state.ti.secondary) {
+          // Check if secondary is now complete after removing a pending player
+          const allConfirmed = state.ti.secondary.pendingHwids.every(id =>
+            state.ti.players[id]?.confirmedSecondary || state.boxes[id]?.status === 'disconnected'
+          );
+          if (allConfirmed && state.ti.secondary.activeTurnEnded) {
+            state.ti.secondary = null;
+            state.ti.actionTurnIndex = (state.ti.actionTurnIndex + 1) % Math.max(1, state.ti.turnOrder.length);
+            this.activateActionTurn();
+          }
+        } else {
+          const allPassed = state.boxOrder
+            .filter(id => id !== hwid)
+            .every(id => state.ti.players[id]?.passed || state.boxes[id]?.status === 'disconnected');
+          if (allPassed) this.endActionPhase();
+        }
+        break;
+      }
+
+      case 'agenda_reveal': {
+        if (wasActive && state.ti.speakerHwid) {
+          state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
+          disableAllRfid();
+          state.activeBoxId = state.ti.speakerHwid;
+          enableRfid(state.ti.speakerHwid);
+        }
+        break;
+      }
+
+      case 'when_agenda_revealed':
+      case 'after_agenda_revealed':
+      case 'agenda_vote': {
+        const agendaIdx = state.ti.agendaTurnOrder.indexOf(hwid);
+        if (agendaIdx !== -1 && agendaIdx < state.ti.agendaTurnIndex) {
+          state.ti.agendaTurnIndex--;
+        }
+        state.ti.agendaTurnOrder = state.ti.agendaTurnOrder.filter(id => id !== hwid);
+        if (wasActive) {
+          state.activeBoxId = null;
+          this.activateAgendaTurn(state.ti.phase!);
+        }
+        break;
+      }
+    }
+
+    this.updateBadges();
+  }
+
   onFactionChanged(): void {
     this.updateBadges();
   }

@@ -1184,6 +1184,50 @@ select {
 }
 
 
+/* ---- Remove Player dialog ---- */
+
+#remove-player-dialog {
+  background: #16213e;
+  border: 1px solid #334;
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-width: 260px;
+  max-width: min(90vw, 360px);
+}
+
+.rp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #223;
+}
+
+.rp-row:last-child {
+  border-bottom: none;
+}
+
+.rp-name {
+  font-size: 0.9rem;
+}
+
+.rp-remove-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  background: #3a1a1a;
+  border: 1px solid #744;
+  color: #f88;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rp-remove-btn:hover {
+  background: #5a2020;
+}
+
+
 /* ---- Display Settings dialog ---- */
 
 #display-settings-overlay {

@@ -209,4 +209,8 @@ export interface GameMode {
   debugSkip?(): void;
   onFactionChanged?(): void;
   onResume?(): void;
+  /** Called just before the player is removed from boxOrder. box.status is already
+   *  'disconnected'. Implementations should advance any in-progress turn and clean
+   *  up game-specific order arrays. */
+  onPlayerRemoved?(hwid: string): void;
 }

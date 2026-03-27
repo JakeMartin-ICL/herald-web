@@ -195,6 +195,37 @@ export class EclipseMode implements GameMode {
     }
   }
 
+  onPlayerRemoved(hwid: string): void {
+    state.eclipse.passOrder    = state.eclipse.passOrder.filter(id => id !== hwid);
+    state.eclipse.upkeepReady  = state.eclipse.upkeepReady.filter(id => id !== hwid);
+
+    if (state.eclipse.firstPlayerId === hwid) {
+      state.eclipse.firstPlayerId = state.boxOrder.find(id => id !== hwid) ?? null;
+    }
+
+    const wasActive = state.activeBoxId === hwid;
+
+    if (state.eclipse.phase === 'action') {
+      if (wasActive) {
+        // Keep hwid in turnOrder so activateNext can find the correct next position,
+        // then remove it. activateNext skips 'disconnected' boxes naturally.
+        this.activateNext();
+      } else if (this.isActionOver()) {
+        this.endActionPhase();
+      }
+    }
+
+    // Safe to remove from turn order now
+    state.eclipse.turnOrder = state.eclipse.turnOrder.filter(id => id !== hwid);
+
+    if (state.eclipse.phase === 'upkeep') {
+      const allDone = state.boxOrder.every(id =>
+        state.boxes[id].status === 'idle' || state.boxes[id].status === 'disconnected'
+      );
+      if (allDone) this.endRound();
+    }
+  }
+
   onResume(): void {
     if (state.eclipse.phase === 'upkeep') this.startUpkeepAnimation();
   }

@@ -105,6 +105,7 @@
         <button id="ota-open-btn">Firmware Updates</button>
         <button id="debug-open-btn">Debug Logging</button>
         <button id="wifi-open-btn">WiFi Networks</button>
+        <button id="remove-player-open-btn">Remove Player</button>
         <button id="hwtest-open-btn">Hardware Test</button>
         <div id="keepalive-status" style="font-size:0.75rem; margin-top:0.4rem;"></div>
       </div>
@@ -161,6 +162,15 @@
         <button id="confirm-sub-btn" style="flex:1">Substitute</button>
         <button id="cancel-sub-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Add without replacing</button>
       </div>
+    </div>
+  </div>
+
+  <div id="remove-player-overlay" class="overlay" style="display:none">
+    <div id="remove-player-dialog">
+      <h2>Remove Player</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Permanently remove a player from the current game. Use Undo (↺) to reverse.</p>
+      <div id="remove-player-content"></div>
+      <button id="remove-player-close-btn" style="margin-top:1rem; width:100%">Close</button>
     </div>
   </div>
 

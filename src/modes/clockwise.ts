@@ -49,6 +49,12 @@ abstract class ClockwiseBase implements GameMode {
     }
   }
 
+  onPlayerRemoved(hwid: string): void {
+    if (state.activeBoxId === hwid) {
+      this.activateNext(hwid);
+    }
+  }
+
   debugSkip(): void { /* no-op */ }
 
   protected activateNext(fromHwid: string): void {
