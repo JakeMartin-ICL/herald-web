@@ -16,6 +16,9 @@ const UPKEEP_BROWN = '#cc7700';
 export class EclipseMode implements GameMode {
   readonly id = 'eclipse';
 
+  get turnOrder(): string[] { return state.eclipse.turnOrder; }
+  set turnOrder(order: string[]) { state.eclipse.turnOrder = order; }
+
   private upkeepAnimTimer: ReturnType<typeof setTimeout> | null = null;
   private upkeepAnimFrames: { leds: string[]; duration: number; fade?: boolean }[] = [];
 
@@ -193,6 +196,20 @@ export class EclipseMode implements GameMode {
         </div>`,
       });
     }
+  }
+
+  activatePlayer(hwid: string): void {
+    if (state.eclipse.phase !== 'action') return;
+    if (state.activeBoxId && state.activeBoxId !== hwid) {
+      const curr = state.boxes[state.activeBoxId];
+      if (curr?.status === 'active' || curr?.status === 'reacting') curr.status = 'idle';
+    }
+    state.activeBoxId = hwid;
+    const box = state.boxes[hwid];
+    box.status = box.status === 'can-react' ? 'reacting' : 'active';
+    disableAllRfid();
+    enableRfid(hwid);
+    log(`${getDisplayName(hwid)}'s turn`, 'system');
   }
 
   onPlayerRemoved(hwid: string): void {

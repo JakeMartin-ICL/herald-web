@@ -1184,6 +1184,99 @@ select {
 }
 
 
+/* ---- Reorder dialog ---- */
+
+#reorder-dialog {
+  background: #16213e;
+  border: 1px solid #334;
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-width: 260px;
+  max-width: min(90vw, 380px);
+}
+
+#reorder-list {
+  margin-bottom: 0.75rem;
+}
+
+.ro-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.3rem;
+  border-bottom: 1px solid #223;
+  border-top: 2px solid transparent;
+  cursor: default;
+  user-select: none;
+}
+
+.ro-row:last-child {
+  border-bottom: none;
+}
+
+.ro-row.ro-active {
+  background: rgba(100, 200, 120, 0.1);
+  border-radius: 4px;
+}
+
+.ro-row.ro-dim {
+  opacity: 0.45;
+}
+
+.ro-row.ro-dragging {
+  opacity: 0.4;
+}
+
+.ro-row.ro-drag-over {
+  border-top-color: #c9a84c;
+}
+
+.ro-handle {
+  font-size: 1rem;
+  color: #555;
+  cursor: grab;
+  padding: 0 0.2rem;
+  flex-shrink: 0;
+}
+
+.ro-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.ro-activate-btn {
+  font-size: 0.72rem;
+  padding: 0.18rem 0.55rem;
+  background: #1a2a3e;
+  border: 1px solid #448;
+  color: #8af;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ro-activate-btn:hover {
+  background: #1a3a5e;
+}
+
+.ro-activate-placeholder {
+  display: inline-block;
+  width: 3.5rem;
+  flex-shrink: 0;
+}
+
+#reorder-footer {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+#reorder-footer button {
+  flex: 1;
+}
+
+
 /* ---- Remove Player dialog ---- */
 
 #remove-player-dialog {

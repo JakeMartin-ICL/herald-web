@@ -37,6 +37,19 @@ const TI_STRATEGY_LABELS: Record<string, string> = {
 export class TwilightImperiumMode implements GameMode {
   readonly id = 'ti';
 
+  get turnOrder(): string[] { return state.ti.turnOrder; }
+  set turnOrder(order: string[]) {
+    // Keep the phase turn index pointing at the current active player in the new order
+    if (state.activeBoxId) {
+      const newIdx = order.indexOf(state.activeBoxId);
+      if (newIdx !== -1) {
+        if (state.ti.phase === 'strategy') state.ti.strategyTurnIndex = newIdx;
+        else if (state.ti.phase === 'action') state.ti.actionTurnIndex = newIdx;
+      }
+    }
+    state.ti.turnOrder = order;
+  }
+
   start(): void {
     const speakerHwid = (document.getElementById('ti-speaker') as HTMLSelectElement).value;
     state.ti.speakerHwid = speakerHwid;
@@ -408,6 +421,42 @@ export class TwilightImperiumMode implements GameMode {
     this.updateBadges();
   }
 
+  activatePlayer(hwid: string): void {
+    const phase = state.ti.phase;
+
+    if (phase === 'strategy') {
+      if (state.activeBoxId && state.activeBoxId !== hwid) {
+        state.boxes[state.activeBoxId].status = 'idle';
+        state.boxes[state.activeBoxId].choosingLeds = null;
+      }
+      const idx = state.ti.turnOrder.indexOf(hwid);
+      if (idx !== -1) state.ti.strategyTurnIndex = idx;
+      state.activeBoxId = null;
+      this.activateStrategyTurn();
+
+    } else if (phase === 'action') {
+      if (state.activeBoxId && state.activeBoxId !== hwid) {
+        const curr = state.boxes[state.activeBoxId];
+        if (curr?.status !== 'passed') curr.status = 'idle';
+      }
+      // Cancel any in-progress secondary
+      if (state.ti.secondary) {
+        state.ti.secondary.pendingHwids.forEach(id => {
+          if (state.boxes[id]?.status === 'secondary') state.boxes[id].status = 'idle';
+        });
+        state.ti.secondary = null;
+      }
+      const idx = state.ti.turnOrder.indexOf(hwid);
+      if (idx !== -1) state.ti.actionTurnIndex = idx;
+      disableAllRfid();
+      state.activeBoxId = hwid;
+      enableRfid(hwid);
+      state.boxes[hwid].status = 'active';
+      log(`${getDisplayName(hwid)}'s turn`, 'system');
+      this.updateBadges();
+    }
+  }
+
   onFactionChanged(): void {
     this.updateBadges();
   }
@@ -535,6 +584,8 @@ export class TwilightImperiumMode implements GameMode {
   }
 
   private lowestInitiative(hwid: string): number {
+    // Naalu Collective: faction ability grants effective initiative 0 (always acts first)
+    if (getFactionForBox(hwid)?.id === 'naalu') return 0;
     const cards = state.ti.players[hwid].strategyCards;
     if (cards.length === 0) return 999;
     return Math.min(...cards.map(c => c.initiative));

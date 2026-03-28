@@ -10,16 +10,19 @@ import type { GameMode, Tag, ActionDef } from '../types';
 abstract class ClockwiseBase implements GameMode {
   abstract readonly id: string;
 
+  turnOrder: string[] = [];
+
   start(): void {
+    this.turnOrder = [...state.boxOrder];
     state.round = 1;
     startPhase('round');
-    state.boxOrder.forEach(hwid => { state.boxes[hwid].status = 'idle'; });
+    this.turnOrder.forEach(hwid => { state.boxes[hwid].status = 'idle'; });
     this.activateFirst();
     log(`Round 1 started`, 'system');
   }
 
   private activateFirst(): void {
-    const first = state.boxOrder.find(id => state.boxes[id]?.status === 'idle');
+    const first = this.turnOrder.find(id => state.boxes[id]?.status === 'idle');
     if (first) {
       state.activeBoxId = first;
       state.boxes[first].status = 'active';
@@ -51,14 +54,24 @@ abstract class ClockwiseBase implements GameMode {
 
   onPlayerRemoved(hwid: string): void {
     if (state.activeBoxId === hwid) {
-      this.activateNext(hwid);
+      this.activateNext(hwid); // hwid still in this.turnOrder for position lookup
     }
+    this.turnOrder = this.turnOrder.filter(id => id !== hwid);
+  }
+
+  activatePlayer(hwid: string): void {
+    if (state.activeBoxId && state.activeBoxId !== hwid) {
+      state.boxes[state.activeBoxId].status = 'idle';
+    }
+    state.activeBoxId = hwid;
+    state.boxes[hwid].status = 'active';
+    log(`${getDisplayName(hwid)}'s turn`, 'system');
   }
 
   debugSkip(): void { /* no-op */ }
 
   protected activateNext(fromHwid: string): void {
-    const order = state.boxOrder;
+    const order = this.turnOrder;
     const currentIndex = order.indexOf(fromHwid);
 
     for (let i = 1; i <= order.length; i++) {
@@ -86,10 +99,11 @@ abstract class ClockwiseBase implements GameMode {
   private newRound(): void {
     state.round++;
     startPhase('round');
-    state.boxOrder.forEach(hwid => {
-      if (state.boxes[hwid].status !== 'disconnected') state.boxes[hwid].status = 'idle';
+    this.turnOrder.forEach(hwid => {
+      const box = state.boxes[hwid];
+      if (box && box.status !== 'disconnected') box.status = 'idle';
     });
-    const first = state.boxOrder.find(id => state.boxes[id]?.status === 'idle');
+    const first = this.turnOrder.find(id => state.boxes[id]?.status === 'idle');
     if (first) {
       state.activeBoxId = first;
       state.boxes[first].status = 'active';

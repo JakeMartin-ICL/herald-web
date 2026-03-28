@@ -43,6 +43,15 @@ export function updateTurnTimers(): void {
   _timerTrackedActiveId = current;
 }
 
+/** Discard the current player's in-progress turn without recording it in stats. */
+export function cancelCurrentTurn(): void {
+  if (_timerTrackedActiveId) {
+    const box = state.boxes[_timerTrackedActiveId];
+    if (box) box.turnStartTime = null;
+    _timerTrackedActiveId = null;
+  }
+}
+
 export function substituteTimerTracking(oldHwid: string, newHwid: string): void {
   if (_timerTrackedActiveId === oldHwid) _timerTrackedActiveId = newHwid;
 }

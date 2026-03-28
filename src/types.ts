@@ -198,6 +198,8 @@ export interface AppState {
 
 export interface GameMode {
   readonly id: string;
+  /** Current phase turn order; the reorder dialog reads and writes this. */
+  turnOrder: string[];
   start(): void;
   onEndTurn(hwid: string): void;
   onPass(hwid: string): void;
@@ -213,4 +215,7 @@ export interface GameMode {
    *  'disconnected'. Implementations should advance any in-progress turn and clean
    *  up game-specific order arrays. */
   onPlayerRemoved?(hwid: string): void;
+  /** Immediately make hwid the active player, carrying on through turnOrder from their
+   *  position. Called AFTER cancelCurrentTurn() has discarded the previous player's stats. */
+  activatePlayer?(hwid: string): void;
 }

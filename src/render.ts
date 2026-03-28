@@ -113,6 +113,7 @@ export function renderTableToolbar(): void {
     btns.push(`<button id="tb-pause" class="toolbar-btn${state.paused ? ' paused' : ''}" title="${state.paused ? 'Resume' : 'Pause'}">${state.paused ? '▶' : '⏸'}</button>`);
     btns.push(`<button id="tb-undo" class="toolbar-btn" title="Undo"${canUndo() && !state.paused ? '' : ' disabled'}>↺</button>`);
     btns.push(`<button id="tb-graphs" class="toolbar-btn" title="Graphs">📊</button>`);
+    btns.push(`<button id="tb-reorder" class="toolbar-btn" title="Reorder turn order">🔀</button>`);
   }
   btns.push(`<button id="tb-box-settings" class="toolbar-btn" title="Box Settings">⚙</button>`);
   btns.push(`<button id="tb-active-style" class="toolbar-btn" title="Active Player Style">⭕</button>`);
@@ -125,6 +126,9 @@ export function renderTableToolbar(): void {
   el.querySelector('#tb-pause')?.addEventListener('click', () => { togglePause(); render(); });
   el.querySelector('#tb-undo')?.addEventListener('click', () => { undo(); render(); });
   el.querySelector('#tb-graphs')?.addEventListener('click', () => openGraphOverlay('live'));
+  el.querySelector('#tb-reorder')?.addEventListener('click', () => {
+    void import('./reorderDialog').then(({ openReorderDialog }) => openReorderDialog());
+  });
   el.querySelector('#tb-box-settings')?.addEventListener('click', () => {
     void import('./display-settings').then(({ openDisplaySettingsDialog }) => openDisplaySettingsDialog());
   });

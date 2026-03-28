@@ -10,6 +10,7 @@ import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, sav
 import { initActiveStyleDialog, loadActiveStyle } from './activeStyle';
 import { closeDisplaySettingsDialog } from './display-settings';
 import { openRemovePlayerDialog, closeRemovePlayerDialog } from './removePlayer';
+import { closeReorderDialog, initReorderDialogButtons } from './reorderDialog';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
@@ -61,6 +62,8 @@ on('debug-close-btn', 'click', () => closeDebugDialog());
 on('wifi-open-btn', 'click', () => openWifiDialog());
 
 // Active player style
+initReorderDialogButtons();
+on('reorder-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeReorderDialog(); });
 on('remove-player-open-btn', 'click', () => openRemovePlayerDialog());
 on('remove-player-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeRemovePlayerDialog(); });
 on('remove-player-close-btn', 'click', () => closeRemovePlayerDialog());
