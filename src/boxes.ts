@@ -7,6 +7,7 @@ import { substituteTimerTracking } from './timers';
 import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
 import { getFactionForBox } from './modes/eclipse';
+import { renderExpansionUI } from './expansions';
 import type { Badge } from './types';
 
 // ---- Box names ----
@@ -246,6 +247,8 @@ export function updateSetupUI(): void {
     (isEclipse && factionsLoaded) ? 'block' : 'none';
   (document.getElementById('set-factions-btn') as HTMLElement).style.display =
     ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
+
+  renderExpansionUI(mode);
 
   if (isEclipse) {
     const select = document.getElementById('first-player') as HTMLSelectElement;

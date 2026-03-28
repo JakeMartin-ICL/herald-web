@@ -1,6 +1,7 @@
 import { state } from './state';
 import { log } from './logger';
 import { currentGame } from './currentGame';
+import { isExpansionEnabled } from './expansions';
 import type { Tag, AllTags } from './types';
 
 export async function loadTags(): Promise<void> {
@@ -44,8 +45,21 @@ export function getTagsByGame(game: string): Tag[] {
   return state.allTags?.[game] ?? [];
 }
 
+/** Returns true if the faction tag's expansion is enabled (or tag is not a faction tag). */
+function isFactionTagEnabled(game: string, tagId: string): boolean {
+  if (!tagId.includes(':faction:')) return true;
+  const factionId = tagId.split(':')[2];
+  if (!factionId) return true;
+  const gameKey = game === 'ti' ? 'twilight_imperium' : game;
+  const factions = state.factions?.[gameKey as keyof typeof state.factions];
+  if (!Array.isArray(factions)) return true;
+  const faction = factions.find(f => f.id === factionId);
+  if (!faction?.expansion || faction.expansion === 'base') return true;
+  return isExpansionEnabled(game, faction.expansion);
+}
+
 export function filterTags(game: string, predicate: (t: Tag) => boolean): Tag[] {
-  return getTagsByGame(game).filter(predicate);
+  return getTagsByGame(game).filter(t => predicate(t) && isFactionTagEnabled(game, t.id));
 }
 
 // Returns relevant RFID tags for a specific box. Empty list → hide the RFID button.

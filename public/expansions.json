@@ -1,0 +1,13 @@
+{
+  "ti": [
+    { "id": "base",         "name": "Base Game" },
+    { "id": "pok",          "name": "Prophecy of Kings" },
+    { "id": "codex3",       "name": "Codex III: Vigil" },
+    { "id": "thundersedge", "name": "Thunder's Edge" }
+  ],
+  "eclipse": [
+    { "id": "base",     "name": "Base Game" },
+    { "id": "outcasts", "name": "Outcasts" },
+    { "id": "seekers",  "name": "Seekers" }
+  ]
+}

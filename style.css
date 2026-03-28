@@ -129,6 +129,29 @@ select {
   color: #888;
 }
 
+#expansion-dialog {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: min(90vw, 360px);
+}
+
+.expansion-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.expansion-cb-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: #ccc;
+  cursor: pointer;
+}
+
 #start-btn {
   width: 100%;
   padding: 0.6rem;

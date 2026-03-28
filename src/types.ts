@@ -142,6 +142,12 @@ export interface Faction {
   name: string;
   nickname?: string;
   color: string;
+  expansion?: string;
+}
+
+export interface Expansion {
+  id: string;
+  name: string;
 }
 
 export interface Factions {
@@ -150,6 +156,8 @@ export interface Factions {
 }
 
 export type AllTags = Record<string, Tag[]>;
+
+export type SelectedExpansions = Record<string, string[]>;
 
 export interface ActivePlayerStyle {
   mode: 'solid' | 'breathe' | 'spinner';
@@ -192,6 +200,9 @@ export interface AppState {
   autoCountdownSecs: number;
   paused: boolean;
   pauseStartTime: number | null;
+  expansions: Record<string, Expansion[]>;
+  /** game → enabled expansion IDs; absent key = all enabled */
+  selectedExpansions: SelectedExpansions;
 }
 
 // ---- GameMode interface ----

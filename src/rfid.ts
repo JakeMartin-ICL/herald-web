@@ -4,7 +4,7 @@ import { enableRfid, disableRfid, disableAllRfid, sendToBox, sendRfidPrompt, han
 import { getDisplayName, updateSetupUI, setAutoName } from './boxes';
 import { render, renderBoxes } from './render';
 import { isManuallyRenamed } from './render';
-import { getTagsByGame, getRelevantTagsForBox } from './tags';
+import { filterTags, getRelevantTagsForBox } from './tags';
 import { currentGame } from './currentGame';
 import { persistState } from './persist';
 import { snapshotForUndo } from './undo';
@@ -54,7 +54,7 @@ let tagWritingActive = false;
 let tagWritingPending = false;
 
 export function buildTagQueue(game: string): TagQueueItem[] {
-  return getTagsByGame(game).map(t => ({
+  return filterTags(game, () => true).map(t => ({
     prompt: `Tap ${t.display} on the hub box`,
     internalId: t.id,
   }));

@@ -4,6 +4,7 @@ import { disableAllRfid } from './websockets';
 import { render } from './render';
 import { updateSetupUI } from './boxes';
 import { loadTags } from './tags';
+import { loadExpansions } from './expansions';
 import { fetchLatestFirmware } from './firmware';
 import { offerResume } from './persist';
 import { setWakeLockHandlers, updateSilentAudioContext } from './render';
@@ -121,6 +122,7 @@ export async function init(): Promise<void> {
   setWakeLockHandlers(() => { void releaseWakeLock(); }, null);
   await loadFactions();
   void loadTags();
+  void loadExpansions().then(() => updateSetupUI());
   void fetchLatestFirmware();
   render();
   updateSetupUI();

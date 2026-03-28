@@ -7,10 +7,12 @@ A TypeScript + Vite app that connects over WebSocket to a Herald hub box and man
 ```
 index.html       — Single page app shell + all dialog overlays (no inline onclick handlers)
 style.css        — All styles
-factions.json    — Faction data for TI and Eclipse (names, colours, IDs)
-tags.json        — RFID tag definitions for each game (display name + internalId);
+public/
+  factions.json  — Faction data for TI and Eclipse (names, colours, IDs, expansion)
+  tags.json      — RFID tag definitions for each game (display name + internalId);
                    wildcard entries { display: "*", id: "game:faction:*" } expand to
                    faction tags at load time using factions.json
+  expansions.json — Expansion definitions per game (id + display name)
 src/
   main.ts        — Entry point: imports all modules, wires all DOM event listeners
   types.ts       — All shared TypeScript interfaces and types (GameMode, AppState,
@@ -26,9 +28,14 @@ src/
   leds.ts        — LED colour helpers (ledSolid, ledOff, ledSectors…), ledStateForStatus(),
                    syncLeds(); brightness: setBrightness(hwid,value), sendBrightnessToBox(hwid),
                    receiveBoxBrightness(hwid,value)
-  tags.ts        — Loads and expands tags.json into state.allTags; filterTags(game, fn);
+  tags.ts        — Loads and expands tags.json into state.allTags; filterTags(game, fn)
+                   automatically filters faction tags by enabled expansions;
                    getRelevantTagsForBox(hwid) — returns context-aware tag list for sim
                    RFID dialog (empty = hide button); delegates to mode.getRelevantTags()
+  expansions.ts  — loadExpansions() fetches expansions.json into state.expansions;
+                   isExpansionEnabled(game, expansionId) checks state.selectedExpansions
+                   (absent key = all enabled); renderExpansionUI(mode) renders checkboxes
+                   in #expansion-row; selection persisted to localStorage 'herald-expansions'
   timers.ts      — Per-player turn timers, phase timing (startPhase/endPhase), formatDuration()
   graphs.ts      — Stats/graphs overlay (openGraphOverlay, renderGraph, renderStats,
                    captureGameStats, snapshotPlayer, renderTimerInfo)

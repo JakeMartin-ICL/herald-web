@@ -51,6 +51,10 @@
           <label>Speaker</label>
           <select id="ti-speaker"></select>
         </div>
+        <div class="setup-row" id="expansion-row" style="display:none">
+          <label>Expansions</label>
+          <button id="expansion-open-btn">All expansions</button>
+        </div>
         <button id="ti-learn-tags-btn" style="display:none">Write Tags</button>
         <button id="eclipse-learn-faction-tags-btn" style="display:none">Write Tags</button>
         <button id="set-factions-btn" style="display:none">Set Factions</button>
@@ -292,6 +296,15 @@
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Press End Turn, Pass, then scan any RFID tag on each box to verify hardware.</p>
       <div id="hwtest-dialog-content"></div>
       <button id="hwtest-close-btn" style="margin-top:1rem; width:100%">Close</button>
+    </div>
+  </div>
+
+  <div id="expansion-overlay" class="overlay" style="display:none">
+    <div id="expansion-dialog">
+      <h2>Expansions</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Base game content is always included.</p>
+      <div id="expansion-dialog-checkboxes" class="expansion-checkboxes"></div>
+      <button id="expansion-close-btn" style="margin-top:1rem; width:100%">Done</button>
     </div>
   </div>
 

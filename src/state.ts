@@ -1,4 +1,4 @@
-import type { AppState } from './types';
+import type { AppState, SelectedExpansions } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -58,6 +58,11 @@ export const state: AppState = {
   autoCountdownSecs: 0,
   paused: false,
   pauseStartTime: null,
+  expansions: {},
+  selectedExpansions: (() => {
+    try { return JSON.parse(localStorage.getItem('herald-expansions') ?? 'null') as SelectedExpansions | null ?? {}; }
+    catch { return {}; }
+  })(),
 
   ti: {
     phase: null,

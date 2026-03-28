@@ -11,6 +11,7 @@ import { initActiveStyleDialog, loadActiveStyle } from './activeStyle';
 import { closeDisplaySettingsDialog } from './display-settings';
 import { openRemovePlayerDialog, closeRemovePlayerDialog } from './removePlayer';
 import { closeReorderDialog, initReorderDialogButtons } from './reorderDialog';
+import { openExpansionDialog, closeExpansionDialog } from './expansions';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
@@ -57,6 +58,15 @@ on('ota-force-close-btn', 'click', () => forceCloseOtaDialog());
 on('debug-open-btn', 'click', () => openDebugDialog());
 on('debug-log-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDebugDialog(); });
 on('debug-close-btn', 'click', () => closeDebugDialog());
+
+// Expansion selection
+on('expansion-open-btn', 'click', () => {
+  const mode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  const game = mode === 'ti' ? 'ti' : 'eclipse';
+  openExpansionDialog(game);
+});
+on('expansion-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeExpansionDialog(); });
+on('expansion-close-btn', 'click', () => closeExpansionDialog());
 
 // WiFi
 on('wifi-open-btn', 'click', () => openWifiDialog());
