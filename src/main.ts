@@ -13,6 +13,8 @@ import { openRemovePlayerDialog, closeRemovePlayerDialog } from './removePlayer'
 import { closeReorderDialog, initReorderDialogButtons } from './reorderDialog';
 import { openExpansionDialog, closeExpansionDialog } from './expansions';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
+import { openGitHubSettingsDialog, closeGitHubSettingsDialog } from './github-settings';
+import { cancelScoreEntry, confirmScoreEntry, skipScoreEntry } from './score-entry';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
 import { cancelEndGame, endGame } from './render';
@@ -67,6 +69,16 @@ on('expansion-open-btn', 'click', () => {
 });
 on('expansion-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeExpansionDialog(); });
 on('expansion-close-btn', 'click', () => closeExpansionDialog());
+
+// GitHub sync
+on('github-sync-open-btn', 'click', () => openGitHubSettingsDialog());
+on('github-sync-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeGitHubSettingsDialog(); });
+on('github-sync-close-btn', 'click', () => closeGitHubSettingsDialog());
+
+// Score entry
+on('score-entry-overlay', 'click', (e) => { if (e.target === e.currentTarget) cancelScoreEntry(); });
+on('score-confirm-btn', 'click', () => confirmScoreEntry());
+on('score-skip-btn', 'click', () => skipScoreEntry());
 
 // WiFi
 on('wifi-open-btn', 'click', () => openWifiDialog());

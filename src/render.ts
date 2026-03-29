@@ -266,10 +266,17 @@ export function cancelEndGame(): void {
 }
 
 export function endGame(): void {
-  disableAllRfid();
   cancelEndGame();
+  void import('./score-entry').then(({ openScoreEntryDialog }) => openScoreEntryDialog(finalizeEndGame));
+}
+
+/** Actual game teardown — called by score-entry.ts after the user confirms/skips scores. */
+export function finalizeEndGame(): void {
+  disableAllRfid();
   state.gameActive = false;
   state.activeBoxId = null;
+  // Capture stats before clearing factionId so faction colours are preserved
+  captureGameStats();
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
     state.boxes[hwid].badges = [];
@@ -286,7 +293,6 @@ export function endGame(): void {
   state.paused = false;
   state.pauseStartTime = null;
   endPhase();
-  captureGameStats();
   clearPersistedState();
   clearUndoHistory();
   state.gameStartTime = null;

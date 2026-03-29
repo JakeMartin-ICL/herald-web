@@ -1,4 +1,5 @@
 import { state, VIRTUAL_BOX_ID_OFFSET, RECONNECT_INTERVAL_MS } from './state';
+import { loadGitHubConfig, saveGitHubConfig } from './github-config';
 import { log, setStatus } from './logger';
 import { syncLeds, sendBrightnessToBox, receiveBoxBrightness } from './leds';
 import { render, renderBoxes } from './render';
@@ -29,7 +30,8 @@ export function connect(): void {
   ws = new WebSocket(`ws://${address}`);
 
   ws.onopen = () => {
-    send({ type: 'hello', client: 'app' });
+    const ghConfig = loadGitHubConfig();
+    send({ type: 'hello', client: 'app', github_config_entered_at: ghConfig?.entered_at ?? 0 });
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   };
 
@@ -123,6 +125,17 @@ export function handleMessage(msg: any): void {
       log('Connected to hub', 'system');
       (document.getElementById('connect-btn') as HTMLButtonElement).textContent = 'Disconnect';
       if (state.gameActive) syncLeds();
+      // Sync GitHub credentials with hub (hello_ack is not logged, PAT stays out of event log)
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const hubConfig = msg.github_config as any;
+        const localConfig = loadGitHubConfig();
+        if (hubConfig?.entered_at && (!localConfig || hubConfig.entered_at > localConfig.entered_at)) {
+          saveGitHubConfig(hubConfig);
+        } else if (localConfig && (!hubConfig?.entered_at || localConfig.entered_at > hubConfig.entered_at)) {
+          sendSilent({ type: 'github_config_set', ...localConfig });
+        }
+      }
       break;
     case 'connected':
       addBox(msg.hwid as string, false);

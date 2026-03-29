@@ -205,6 +205,50 @@ export interface AppState {
   selectedExpansions: SelectedExpansions;
 }
 
+// ---- Game log ----
+
+export interface GameLogStats {
+  turns: number;
+  total_turn_time_ms: number;
+  longest_turn_ms: number;
+}
+
+export interface GameLogTurnRecord {
+  hwid: string;
+  round: number | null;
+  duration_ms: number;
+}
+
+export interface GameLog {
+  version: 1;
+  filename: string;
+  started_at: number;          // Unix seconds
+  ended_at: number;            // Unix seconds
+  game_mode: string;
+  rounds: number;
+  total_game_time_ms: number | null;
+  players: Record<string, string>;           // hwid → display name
+  factions: Record<string, string | null>;   // hwid → factionId
+  scores: Record<string, number | null>;     // hwid → score
+  stats: Record<string, GameLogStats>;
+  turn_history: GameLogTurnRecord[];
+  phase_log: { phase: string; duration: number; round: number }[];
+}
+
+export interface GameLogIndexEntry {
+  filename: string;
+  started_at: number;
+  ended_at: number;
+  game_mode: string;
+  player_names: string[];
+}
+
+export interface GitHubConfig {
+  pat: string;
+  gist_id: string;
+  entered_at: number;          // Unix seconds, set client-side at save time
+}
+
 // ---- GameMode interface ----
 
 export interface GameMode {

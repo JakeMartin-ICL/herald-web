@@ -111,6 +111,7 @@
         <button id="wifi-open-btn">WiFi Networks</button>
         <button id="remove-player-open-btn">Remove Player</button>
         <button id="hwtest-open-btn">Hardware Test</button>
+        <button id="github-sync-open-btn">GitHub Sync</button>
         <div id="keepalive-status" style="font-size:0.75rem; margin-top:0.4rem;"></div>
       </div>
     </div>
@@ -296,6 +297,27 @@
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem;">Press End Turn, Pass, then scan any RFID tag on each box to verify hardware.</p>
       <div id="hwtest-dialog-content"></div>
       <button id="hwtest-close-btn" style="margin-top:1rem; width:100%">Close</button>
+    </div>
+  </div>
+
+  <div id="score-entry-overlay" class="overlay" style="display:none">
+    <div id="score-entry-dialog">
+      <h2>Final Scores</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Enter final scores, or skip to save without scores.</p>
+      <div id="score-entry-content"></div>
+      <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+        <button id="score-skip-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Skip</button>
+        <button id="score-confirm-btn" style="flex:1;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="github-sync-overlay" class="overlay" style="display:none">
+    <div id="github-sync-dialog">
+      <h2>GitHub Sync</h2>
+      <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Sync game logs to a private GitHub Gist. Credentials are stored on all boxes.</p>
+      <div id="github-sync-content"></div>
+      <button id="github-sync-close-btn" style="width:100%; margin-top:1rem; background:#1a1a3e; color:#aaa;">Close</button>
     </div>
   </div>
 

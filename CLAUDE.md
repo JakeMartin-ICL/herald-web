@@ -49,7 +49,9 @@ src/
                    and LED brightness (5 steps: 20/40/60/80/100%); per-box toggles + "all boxes"
                    buttons; calls syncDisplay() after OLED changes, setBrightness() for LED changes
   render.ts      — Table rendering (renderBoxes, renderGameControls, renderTableLabel),
-                   box cards, drag-to-reorder, name editing, sim toggle, endGame(),
+                   box cards, drag-to-reorder, name editing, sim toggle,
+                   endGame() (opens score-entry dialog), finalizeEndGame() (actual state reset,
+                   called by score-entry.ts after log is saved),
                    togglePause() (pauses timers + blanks LEDs; blocked input while paused),
                    setWakeLockHandlers(), isManuallyRenamed()
   game.ts        — Game start (startGame), mode dispatch (handleEndTurn, handlePass,
@@ -64,6 +66,21 @@ src/
                    2s delay once all 3 tests pass; sets box.leds to preserve state across syncLeds
   ota.ts         — OTA firmware update dialog (openOtaDialog, renderOtaDialog, identifyBox)
   settings.ts    — WiFi credentials dialog + debug logging dialog
+  gamelog.ts     — Game log: buildGameLog() captures full game state before endGame resets it;
+                   saveGameLog()/importGameLog()/loadGameLog()/loadGameLogIndex() store logs
+                   per-game in localStorage ('herald-game-log-{filename}') plus a lightweight
+                   index ('herald-game-logs-index') for history browsing
+  github-config.ts — Credentials storage: loadGitHubConfig()/saveGitHubConfig() — localStorage
+                   key 'herald-github-config'; no API calls; safe to import anywhere
+  gist.ts        — GitHub Gist API: createGist(pat) → new gist ID; syncWithGist(config, onStatus?)
+                   → fetches gist, uploads missing local games, downloads missing remote games,
+                   patches _index.json atomically; all sync done in the browser
+  score-entry.ts — Score entry dialog: intercepts endGame() flow; openScoreEntryDialog(finalizeEndGame)
+                   calls buildGameLog() while state is still intact, shows score inputs, then
+                   calls finalizeEndGame() + saveGameLog() + auto-sync on confirm/skip;
+                   cancelScoreEntry() dismisses without ending the game
+  github-settings.ts — GitHub Sync dialog: PAT input, Gist ID field, Create/Save/Sync buttons;
+                   saves to localStorage + sends github_config_set to hub via sendSilent
   removePlayer.ts — Remove Player dialog (debug panel): removePlayer(hwid) snapshots undo,
                    sets box.status='disconnected', calls mode.onPlayerRemoved?(), removes from
                    boxOrder (box object kept for stats); each GameMode implements onPlayerRemoved

@@ -129,6 +129,93 @@ select {
   color: #888;
 }
 
+/* ---- Score entry dialog ---- */
+
+#score-entry-dialog {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: min(90vw, 340px);
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+}
+
+.score-name {
+  font-size: 0.9rem;
+  color: #ccc;
+  flex: 1;
+}
+
+.score-input {
+  width: 5rem;
+  text-align: right;
+  background: #0d0d1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* ---- GitHub sync dialog ---- */
+
+#github-sync-dialog {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: min(90vw, 400px);
+}
+
+.gh-field {
+  margin-bottom: 0.75rem;
+}
+
+.gh-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 0.25rem;
+}
+
+.gh-gist-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.gh-gist-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.gh-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.gh-status {
+  font-size: 0.8rem;
+  color: #4a7;
+  flex: 1;
+}
+
+.gh-divider {
+  border: none;
+  border-top: 1px solid #2a2a4a;
+  margin: 0.75rem 0;
+}
+
+/* ---- Expansion selection dialog ---- */
+
 #expansion-dialog {
   background: #1a1a2e;
   border: 1px solid #333;
