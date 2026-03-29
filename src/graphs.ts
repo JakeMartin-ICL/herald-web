@@ -2,6 +2,7 @@ import { state } from './state';
 import { formatDuration, getCurrentRound, timerSettings } from './timers';
 import { getDisplayName } from './boxes';
 import { getFactionForBox } from './modes/eclipse';
+import type { GameLog, Faction, ScoreBreakdown } from './types';
 
 const SORT_MODES  = ['table', 'name', 'faction', 'highest'] as const;
 type SortMode = typeof SORT_MODES[number];
@@ -11,8 +12,12 @@ const SORT_LABELS: Record<SortMode, string> = {
 
 let graphType   = 'total';
 let graphSort: SortMode = 'table';
-let graphSource = 'live'; // 'live' | 'prev'
+let graphSource = 'live'; // 'live' | 'prev' | 'log'
 let _graphInterval: ReturnType<typeof setInterval> | null = null;
+let _logStats: GameStats | null = null;
+let _logTitle = '';
+let _logBreakdown: ScoreBreakdown | null = null;
+let _logPlayers: { hwid: string; name: string }[] = [];
 
 interface PlayerSnapshot {
   name: string;
@@ -20,6 +25,7 @@ interface PlayerSnapshot {
   factionName: string;
   totalTurnTime: number;
   turnHistory: { duration: number; round: number | null }[];
+  score?: number | null;
 }
 
 interface GameStats {
@@ -39,7 +45,7 @@ export function snapshotPlayer(id: string): PlayerSnapshot {
   return {
     name: getDisplayName(id),
     color: faction?.color ?? '#c9a84c',
-    factionName: faction?.name ?? '',
+    factionName: faction?.nickname ?? faction?.name ?? '',
     totalTurnTime: (box.totalTurnTime ?? 0) + inProgress,
     turnHistory: [
       ...(box.turnHistory ?? []),
@@ -49,10 +55,6 @@ export function snapshotPlayer(id: string): PlayerSnapshot {
 }
 
 export function captureGameStats(): void {
-  const modeNames: Record<string, string> = {
-    clockwise: 'Clockwise', clockwise_pass: 'Clockwise with Passing',
-    eclipse: 'Eclipse', ti: 'Twilight Imperium',
-  };
   const phaseLog = [...state.phaseLog];
   if (state.currentPhaseStart) {
     phaseLog.push({
@@ -62,7 +64,7 @@ export function captureGameStats(): void {
     });
   }
   prevGameStats = {
-    gameMode: modeNames[state.gameMode] || state.gameMode,
+    gameMode: MODE_NAMES[state.gameMode] || state.gameMode,
     players: state.boxOrder.filter(id => state.boxes[id]).map(snapshotPlayer),
     totalGameTime: state.gameStartTime ? Date.now() - state.gameStartTime : null,
     phaseLog,
@@ -71,6 +73,7 @@ export function captureGameStats(): void {
 }
 
 function getGraphPlayers(): PlayerSnapshot[] {
+  if (graphSource === 'log' && _logStats) return _logStats.players;
   if (graphSource === 'prev' && prevGameStats) return prevGameStats.players;
   return state.boxOrder.filter(id => state.boxes[id]).map(snapshotPlayer);
 }
@@ -95,6 +98,7 @@ function getSortedPlayers(): PlayerSnapshot[] {
 }
 
 function getPhaseLog() {
+  if (graphSource === 'log' && _logStats) return _logStats.phaseLog;
   if (graphSource === 'prev' && prevGameStats) return prevGameStats.phaseLog;
   const log = [...state.phaseLog];
   if (state.currentPhaseStart) {
@@ -134,10 +138,15 @@ function getRoundItems() {
     }));
 }
 
+function axisName(p: PlayerSnapshot): string {
+  if (p.factionName && p.factionName !== p.name) return `${p.name} – ${p.factionName}`;
+  return p.name;
+}
+
 function getGraphItems() {
   if (graphType === 'by_round') return getRoundItems();
   if (graphType.startsWith('phase:')) return getPhaseRoundItems(graphType.slice(6));
-  return getSortedPlayers().map(p => ({ name: p.name, color: p.color, value: graphValueForPlayer(p) }));
+  return getSortedPlayers().map(p => ({ name: axisName(p), color: p.color, value: graphValueForPlayer(p) }));
 }
 
 function formatGraphValue(value: number): string {
@@ -145,10 +154,31 @@ function formatGraphValue(value: number): string {
   return value > 0 ? formatDuration(value) : '—';
 }
 
+function renderScores(): void {
+  const el = document.getElementById('graph-content');
+  if (!el) return;
+  const players = [...getGraphPlayers()].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  const maxScore = Math.max(...players.map(p => p.score ?? 0), 1);
+  el.innerHTML = players.map(p => {
+    const score = p.score ?? null;
+    const pct = score !== null ? (score / maxScore * 100).toFixed(1) : '0';
+    const scoreStr = score !== null ? String(score) : '—';
+    return `<div class="graph-row">
+      <div class="graph-name" style="color:${p.color}">${axisName(p)}</div>
+      <div class="graph-bar-wrap">
+        ${score !== null ? `<div class="graph-bar" style="width:${pct}%;background:${p.color}66;border-right:2px solid ${p.color}"></div>` : ''}
+      </div>
+      <div class="graph-val">${scoreStr}</div>
+    </div>`;
+  }).join('');
+  requestAnimationFrame(applyExpandedLayout);
+}
+
 function renderGraph(): void {
   const el = document.getElementById('graph-content');
   if (!el) return;
   if (graphType === 'stats') { renderStats(); return; }
+  if (graphType === 'scores') { renderScores(); return; }
   const items  = getGraphItems();
   const maxVal = Math.max(...items.map(i => i.value), 1);
   el.innerHTML = items.map(item => {
@@ -161,18 +191,21 @@ function renderGraph(): void {
       <div class="graph-val">${formatGraphValue(item.value)}</div>
     </div>`;
   }).join('');
+  requestAnimationFrame(applyExpandedLayout);
 }
 
 function renderStats(): void {
   const el = document.getElementById('graph-content');
   if (!el) return;
 
-  const isPrev = graphSource === 'prev' && prevGameStats;
-  const gameTime = isPrev
-    ? prevGameStats!.totalGameTime
+  const activeStats =
+    (graphSource === 'log' && _logStats) ? _logStats :
+    (graphSource === 'prev' && prevGameStats) ? prevGameStats : null;
+  const gameTime = activeStats
+    ? activeStats.totalGameTime
     : (state.gameStartTime ? Date.now() - state.gameStartTime : null);
-  const playerCount = isPrev
-    ? prevGameStats!.playerCount
+  const playerCount = activeStats
+    ? activeStats.playerCount
     : state.boxOrder.filter(id => state.boxes[id]).length;
 
   const phaseLog = getPhaseLog();
@@ -208,16 +241,29 @@ function renderStats(): void {
   el.innerHTML = `<div class="stats-list">${rows.map(r =>
     `<div class="stats-row"><span class="stats-label">${r.label}</span><span class="stats-val">${r.value}</span></div>`
   ).join('')}</div>`;
+  requestAnimationFrame(applyExpandedLayout);
 }
 
 function renderGraphOverlay(): void {
-  const title = graphSource === 'prev' && prevGameStats
-    ? `Previous game — ${prevGameStats.gameMode}`
-    : 'Current game';
+  const isLog = graphSource === 'log' && _logStats;
+  const title = isLog ? _logTitle
+    : (graphSource === 'prev' && prevGameStats ? `Previous game — ${prevGameStats.gameMode}` : 'Current game');
   (document.getElementById('graph-dialog-title') as HTMLElement).textContent = title;
 
   const select = document.getElementById('graph-type-select') as HTMLSelectElement;
   Array.from(select.options).filter(o => o.value.startsWith('phase:')).forEach(o => o.remove());
+
+  // Add/remove 'Scores' option based on source
+  const scoresOpt = Array.from(select.options).find(o => o.value === 'scores');
+  if (isLog && !scoresOpt) {
+    const opt = document.createElement('option');
+    opt.value = 'scores';
+    opt.textContent = 'Scores';
+    select.appendChild(opt);
+  } else if (!isLog && scoresOpt) {
+    scoresOpt.remove();
+  }
+
   const statsOpt = Array.from(select.options).find(o => o.value === 'stats');
   getDistinctPhases().forEach(phase => {
     const opt = document.createElement('option');
@@ -230,13 +276,119 @@ function renderGraphOverlay(): void {
 
   const sortBtn = document.getElementById('graph-sort-btn') as HTMLElement;
   sortBtn.textContent = `Sort: ${SORT_LABELS[graphSort]}`;
-  const hideSort = graphType === 'by_round' || graphType === 'stats' || graphType.startsWith('phase:');
+  const hideSort = graphType === 'by_round' || graphType === 'stats' || graphType === 'scores' || graphType.startsWith('phase:');
   sortBtn.style.display = hideSort ? 'none' : '';
+  const ssBtn = document.getElementById('graph-scoresheet-btn') as HTMLElement;
+  ssBtn.style.display = (graphSource === 'log' && _logBreakdown) ? '' : 'none';
+
   renderGraph();
+}
+
+function findFactionById(factionId: string | null): Faction | null {
+  if (!factionId || !state.factions) return null;
+  for (const list of Object.values(state.factions)) {
+    const f = (list as Faction[]).find(x => x.id === factionId);
+    if (f) return f;
+  }
+  return null;
+}
+
+const MODE_NAMES: Record<string, string> = {
+  clockwise: 'Clockwise', clockwise_pass: 'Clockwise with Passing',
+  eclipse: 'Eclipse', ti: 'Twilight Imperium',
+};
+
+export function openGraphOverlayWithLog(log: GameLog): void {
+  const players: PlayerSnapshot[] = Object.keys(log.players).map(hwid => {
+    const faction = findFactionById(log.factions[hwid] ?? null);
+    const s = log.stats[hwid] ?? { turns: 0, total_turn_time_ms: 0, longest_turn_ms: 0 };
+    const history = log.turn_history
+      .filter(t => t.hwid === hwid)
+      .map(t => ({ duration: t.duration_ms, round: t.round }));
+    return {
+      name: log.players[hwid],
+      color: faction?.color ?? '#c9a84c',
+      factionName: faction?.nickname ?? faction?.name ?? '',
+      totalTurnTime: s.total_turn_time_ms,
+      turnHistory: history,
+      score: log.scores[hwid] ?? null,
+    };
+  });
+
+  const d = new Date(log.started_at * 1000);
+  const dateStr = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const modeName = MODE_NAMES[log.game_mode] || log.game_mode;
+
+  _logStats = {
+    gameMode: modeName,
+    players,
+    totalGameTime: log.total_game_time_ms,
+    phaseLog: log.phase_log,
+    playerCount: players.length,
+  };
+  _logTitle = `${dateStr} — ${modeName}`;
+  _logBreakdown = log.score_breakdown ?? null;
+  _logPlayers = Object.keys(log.players).map((hwid, i) => {
+    const fn = players[i].factionName;
+    return { hwid, name: log.players[hwid], factionName: fn && fn !== log.players[hwid] ? fn : undefined };
+  });
+  graphSource = 'log';
+  graphType = 'total';
+  const dialog = document.getElementById('graph-dialog') as HTMLElement;
+  dialog.classList.remove('expanded');
+  (document.getElementById('graph-expand-btn') as HTMLElement).textContent = '⤢';
+  (document.getElementById('graph-overlay') as HTMLElement).style.display = 'flex';
+  renderGraphOverlay();
+}
+
+function applyExpandedLayout(): void {
+  const dialog = document.getElementById('graph-dialog') as HTMLElement | null;
+  if (!dialog?.classList.contains('expanded')) return;
+  const content = document.getElementById('graph-content') as HTMLElement | null;
+  if (!content) return;
+
+  const graphRows = content.querySelectorAll<HTMLElement>('.graph-row');
+  const statsRows = content.querySelectorAll<HTMLElement>('.stats-row');
+
+  if (graphRows.length > 0) {
+    const availH = content.clientHeight;
+    const dialogW = dialog.clientWidth - 48;
+    const n = graphRows.length;
+    const GAP = 10;
+    const rowH = Math.max(22, Math.min(80, Math.floor((availH - (n - 1) * GAP) / n)));
+    const fontSize = Math.max(0.75, Math.min(3.0, rowH / 24));
+    const nameW = Math.max(140, Math.min(Math.round(dialogW * 0.35), Math.round(fontSize * 200)));
+    const valW = Math.max(52, Math.round(rowH * 2.2));
+    dialog.style.setProperty('--exp-row-h', `${rowH}px`);
+    dialog.style.setProperty('--exp-font', `${fontSize.toFixed(2)}rem`);
+    dialog.style.setProperty('--exp-name-w', `${nameW}px`);
+    dialog.style.setProperty('--exp-val-w', `${valW}px`);
+  } else if (statsRows.length > 0) {
+    const availH = content.clientHeight;
+    const n = statsRows.length;
+    const GAP = 8;
+    const rowH = Math.max(24, Math.min(80, Math.floor((availH - (n - 1) * GAP) / n)));
+    const fontSize = Math.max(0.85, Math.min(2.5, rowH / 24));
+    dialog.style.setProperty('--exp-stats-font', `${fontSize.toFixed(2)}rem`);
+  }
+}
+
+export function toggleGraphExpand(): void {
+  const dialog = document.getElementById('graph-dialog') as HTMLElement;
+  const btn = document.getElementById('graph-expand-btn') as HTMLElement;
+  const expanded = dialog.classList.toggle('expanded');
+  btn.textContent = expanded ? '⤡' : '⤢';
+  // Apply after CSS transition settles (200ms)
+  setTimeout(() => requestAnimationFrame(applyExpandedLayout), 220);
 }
 
 export function openGraphOverlay(source = 'live'): void {
   graphSource = source;
+  _logBreakdown = null;
+  _logPlayers = [];
+  const dialog = document.getElementById('graph-dialog') as HTMLElement;
+  dialog.classList.remove('expanded');
+  (document.getElementById('graph-expand-btn') as HTMLElement).textContent = '⤢';
   (document.getElementById('graph-overlay') as HTMLElement).style.display = 'flex';
   renderGraphOverlay();
   if (source === 'live') _graphInterval = setInterval(renderGraph, 1000);
@@ -256,6 +408,13 @@ export function cycleGraphSort(): void {
 export function onGraphTypeChange(val: string): void {
   graphType = val;
   renderGraphOverlay();
+}
+
+export function openLogScoresheet(): void {
+  if (!_logBreakdown || _logPlayers.length === 0) return;
+  void import('./scoresheet').then(({ openScoresheet }) => {
+    openScoresheet(_logPlayers, _logBreakdown!.categories, _logBreakdown!.values, true);
+  });
 }
 
 export function renderTimerInfo(_hwid: string, box: typeof state.boxes[string]): string {

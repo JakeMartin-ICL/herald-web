@@ -139,6 +139,31 @@ select {
   width: min(90vw, 340px);
 }
 
+.score-game-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.score-game-label {
+  font-size: 0.8rem;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.score-game-input {
+  flex: 1;
+  background: #0d0d1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+}
+
 .score-row {
   display: flex;
   align-items: center;
@@ -237,6 +262,281 @@ select {
   font-size: 0.9rem;
   color: #ccc;
   cursor: pointer;
+}
+
+/* ---- History browser dialog ---- */
+
+#history-browser-dialog {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.25rem;
+  width: min(480px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#history-browser-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#history-mode-filter {
+  flex: 1;
+  background: #12122a;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+#history-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 100px;
+}
+
+.history-entry {
+  background: #12122a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.history-entry:hover {
+  border-color: #556;
+}
+
+.history-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-delete-btn {
+  background: none;
+  border: none;
+  color: #c44;
+  font-size: 1rem;
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.history-delete-btn:hover {
+  background: #3a1010;
+}
+
+.history-entry-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #888;
+  margin-bottom: 0.2rem;
+}
+
+.history-entry-mode {
+  color: #aaa;
+}
+
+.history-entry-players {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.history-empty {
+  color: #666;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+/* ---- Scoresheet overlay ---- */
+
+#scoresheet-overlay {
+  z-index: 1200;
+}
+
+#scoresheet-dialog {
+  background: #16213e;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  padding: 1rem;
+  width: 98vw;
+  height: 96vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#scoresheet-header {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #c9a84c;
+}
+
+#scoresheet-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.ss-scroll-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.ss-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-size: var(--ss-font, 1rem);
+}
+
+/* Sticky header row (player names across top) */
+.ss-th {
+  background: #0d1b3e;
+  color: #c9a84c;
+  padding: 0.3em 0.4em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border: 1px solid #2a2a4a;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Sticky category label column (left side) */
+.ss-th-cat-label,
+.ss-th-cat {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #0d1b3e;
+  padding: 0.3em 0.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The top-left corner cell needs both sticky top and left */
+.ss-th-cat-label {
+  z-index: 4;
+}
+
+.ss-th-player {
+  overflow: hidden;
+}
+
+.ss-player-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-player-faction {
+  font-size: 0.8em;
+  color: #aaa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-rm-cat {
+  background: none;
+  border: none;
+  color: #c44;
+  font-size: 0.75em;
+  cursor: pointer;
+  padding: 0 0.2em;
+  margin-left: 0.3em;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.ss-rm-cat:hover { color: #f55; }
+
+.ss-td {
+  border: 1px solid #2a2a4a;
+  padding: 0;
+  height: var(--ss-row-h, 48px);
+  vertical-align: middle;
+  text-align: center;
+}
+
+.ss-val { }
+
+.ss-total-row .ss-th-cat { color: #eee; }
+
+.ss-total-cell {
+  background: #121e40;
+  font-weight: bold;
+  color: #e0e0e0;
+}
+
+.ss-cell-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  text-align: center;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0 0.3em;
+  box-sizing: border-box;
+  -moz-appearance: textfield;
+  display: block;
+}
+
+.ss-cell-input::-webkit-outer-spin-button,
+.ss-cell-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.ss-cell-input:focus {
+  outline: 2px solid #c9a84c;
+  outline-offset: -2px;
+  background: #1a1a3e;
+}
+
+.ss-add-row td {
+  border: none;
+  padding: 0.4rem 0;
+}
+
+.ss-add-wrap {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.ss-new-cat-input {
+  flex: 1;
+  background: #12122a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ccc;
+  padding: 0.3em 0.5em;
+  font-size: var(--ss-font, 1rem);
+}
+
+#scoresheet-footer {
+  flex-shrink: 0;
 }
 
 #start-btn {
@@ -651,16 +951,27 @@ select {
 
 /* ---- Graph overlay ---- */
 
+#graph-overlay {
+  z-index: 1100;
+}
+
 #graph-dialog {
   background: #16213e;
   border: 2px solid #c9a84c;
   border-radius: 8px;
   padding: 1.5rem;
-  width: min(520px, 92vw);
+  width: min(560px, 92vw);
   max-height: 80vh;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  transition: width 0.2s, max-height 0.2s;
+}
+
+#graph-dialog.expanded {
+  width: 96vw;
+  height: 96vh;
+  max-height: 96vh;
 }
 
 #graph-header {
@@ -687,12 +998,40 @@ select {
 }
 
 .graph-name {
-  width: 80px;
+  width: 160px;
   font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 0;
+}
+
+#graph-dialog.expanded #graph-content {
+  gap: 10px;
+  min-height: 0;
+  justify-content: center;
+}
+
+#graph-dialog.expanded .graph-name {
+  width: var(--exp-name-w, 220px);
+  font-size: var(--exp-font, 1rem);
+}
+
+#graph-dialog.expanded .graph-bar-wrap {
+  height: var(--exp-row-h, 26px);
+}
+
+#graph-dialog.expanded .graph-val {
+  width: var(--exp-val-w, 72px);
+  font-size: var(--exp-font, 1rem);
+}
+
+#graph-dialog.expanded .stats-label {
+  font-size: var(--exp-stats-font, 1rem);
+}
+
+#graph-dialog.expanded .stats-val {
+  font-size: calc(var(--exp-stats-font, 1rem) * 1.15);
 }
 
 .graph-bar-wrap {

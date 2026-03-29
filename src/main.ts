@@ -3,7 +3,7 @@ import { toggleConnect } from './websockets';
 import { onGameModeChange, addVirtualBox, confirmSubstitution, cancelSubstitution } from './boxes';
 import { startGame, toggleDebug, debugSkipPhase } from './game';
 import { confirmResume, discardResume } from './persist';
-import { openGraphOverlay, closeGraphOverlay, cycleGraphSort, onGraphTypeChange } from './graphs';
+import { openGraphOverlay, closeGraphOverlay, cycleGraphSort, onGraphTypeChange, toggleGraphExpand, openLogScoresheet } from './graphs';
 import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, simulateTagTap, startTagWriting, buildTagQueue } from './rfid';
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
@@ -14,7 +14,9 @@ import { closeReorderDialog, initReorderDialogButtons } from './reorderDialog';
 import { openExpansionDialog, closeExpansionDialog } from './expansions';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { openGitHubSettingsDialog, closeGitHubSettingsDialog } from './github-settings';
-import { cancelScoreEntry, confirmScoreEntry, skipScoreEntry } from './score-entry';
+import { closeHistoryBrowser, renderHistoryBrowser, toggleHistoryLock } from './history-browser';
+import { cancelScoreEntry, confirmScoreEntry, skipScoreEntry, openScoresheetFromScoreEntry } from './score-entry';
+import { closeScoresheetDone } from './scoresheet';
 import { closeCountdownPopup, countdownChoiceClick, countdownCustomClick, countdownCancelClick } from './countdown';
 import { clearLog } from './logger';
 import { cancelEndGame, endGame } from './render';
@@ -79,6 +81,13 @@ on('github-sync-close-btn', 'click', () => closeGitHubSettingsDialog());
 on('score-entry-overlay', 'click', (e) => { if (e.target === e.currentTarget) cancelScoreEntry(); });
 on('score-confirm-btn', 'click', () => confirmScoreEntry());
 on('score-skip-btn', 'click', () => skipScoreEntry());
+on('scoresheet-open-btn', 'click', () => openScoresheetFromScoreEntry());
+
+// Scoresheet
+on('scoresheet-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeScoresheetDone(); });
+
+// Graph scoresheet button
+on('graph-scoresheet-btn', 'click', () => openLogScoresheet());
 
 // WiFi
 on('wifi-open-btn', 'click', () => openWifiDialog());
@@ -122,7 +131,14 @@ on('graph-overlay', 'click', () => closeGraphOverlay());
 on('graph-dialog', 'click', (e) => e.stopPropagation());
 on('close-graph-btn', 'click', () => closeGraphOverlay());
 on('graph-sort-btn', 'click', () => cycleGraphSort());
+on('graph-expand-btn', 'click', () => toggleGraphExpand());
 on('graph-type-select', 'change', (e) => onGraphTypeChange((e.target as HTMLSelectElement).value));
+
+// History browser
+on('history-browser-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeHistoryBrowser(); });
+on('history-browser-close-btn', 'click', () => closeHistoryBrowser());
+on('history-mode-filter', 'change', () => renderHistoryBrowser());
+on('history-lock-btn', 'click', () => toggleHistoryLock());
 
 // Log
 on('clear-log-btn', 'click', () => clearLog());

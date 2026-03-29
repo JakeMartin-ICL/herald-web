@@ -37,8 +37,10 @@ src/
                    (absent key = all enabled); renderExpansionUI(mode) renders checkboxes
                    in #expansion-row; selection persisted to localStorage 'herald-expansions'
   timers.ts      — Per-player turn timers, phase timing (startPhase/endPhase), formatDuration()
-  graphs.ts      — Stats/graphs overlay (openGraphOverlay, renderGraph, renderStats,
-                   captureGameStats, snapshotPlayer, renderTimerInfo)
+  graphs.ts      — Stats/graphs overlay (openGraphOverlay, openGraphOverlayWithLog, renderGraph,
+                   renderStats, renderScores, captureGameStats, snapshotPlayer, renderTimerInfo);
+                   'log' graphSource for viewing historical GameLog data; 'Scores' option added
+                   dynamically when source is 'log'
   display.ts     — OLED display sync (syncDisplay); sends { type: 'display', name, status,
                    round?, timerRunning?, timerSecs? } to each connected real box on every
                    render(); extras sent based on per-box DisplayBoxSettings
@@ -81,6 +83,9 @@ src/
                    cancelScoreEntry() dismisses without ending the game
   github-settings.ts — GitHub Sync dialog: PAT input, Gist ID field, Create/Save/Sync buttons;
                    saves to localStorage + sends github_config_set to hub via sendSilent
+  history-browser.ts — History browser dialog (openHistoryBrowser, closeHistoryBrowser,
+                   renderHistoryBrowser); auto-syncs gist on open (silent fail); filter by
+                   game mode; clicking a game calls openGraphOverlayWithLog() in graphs.ts
   removePlayer.ts — Remove Player dialog (debug panel): removePlayer(hwid) snapshots undo,
                    sets box.status='disconnected', calls mode.onPlayerRemoved?(), removes from
                    boxOrder (box object kept for stats); each GameMode implements onPlayerRemoved

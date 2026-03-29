@@ -15,6 +15,10 @@ const UPKEEP_BROWN = '#cc7700';
 
 export class EclipseMode implements GameMode {
   readonly id = 'eclipse';
+  readonly scoreBreakdownCategories: readonly string[] = [
+    'Reputation', 'Ambassadors', 'Sectors', 'Monoliths',
+    'Discoveries', 'Traitor', 'Tech', 'Species',
+  ];
 
   get turnOrder(): string[] { return state.eclipse.turnOrder; }
   set turnOrder(order: string[]) { state.eclipse.turnOrder = order; }

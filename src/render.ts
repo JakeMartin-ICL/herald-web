@@ -108,6 +108,7 @@ export function renderTableToolbar(): void {
 
   const btns: string[] = [
     `<button id="tb-battery" class="toolbar-btn${state.showBatteryVoltage ? ' active' : ''}" title="Toggle battery %">🔋</button>`,
+    `<button id="tb-history" class="toolbar-btn" title="Game History">📋</button>`,
   ];
   if (state.gameActive) {
     btns.push(`<button id="tb-pause" class="toolbar-btn${state.paused ? ' paused' : ''}" title="${state.paused ? 'Resume' : 'Pause'}">${state.paused ? '▶' : '⏸'}</button>`);
@@ -122,6 +123,9 @@ export function renderTableToolbar(): void {
   el.querySelector('#tb-battery')?.addEventListener('click', () => {
     state.showBatteryVoltage = !state.showBatteryVoltage;
     render();
+  });
+  el.querySelector('#tb-history')?.addEventListener('click', () => {
+    void import('./history-browser').then(({ openHistoryBrowser }) => openHistoryBrowser());
   });
   el.querySelector('#tb-pause')?.addEventListener('click', () => { togglePause(); render(); });
   el.querySelector('#tb-undo')?.addEventListener('click', () => { undo(); render(); });

@@ -109,3 +109,31 @@ export async function syncWithGist(config: GitHubConfig, onStatus?: SyncStatusFn
   status(`Sync complete — ${uploaded} uploaded, ${downloaded} downloaded`);
   return { uploaded, downloaded };
 }
+
+export async function deleteGameFromGist(config: GitHubConfig, filename: string): Promise<void> {
+  const resp = await fetch(`${GIST_API}/${config.gist_id}`, {
+    headers: { 'Authorization': `Bearer ${config.pat}`, 'Accept': 'application/vnd.github+json' },
+  });
+  if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+  const gist = (await resp.json()) as { files: Record<string, { content?: string }> };
+
+  let remoteGames: GameLogIndexEntry[] = [];
+  const indexContent = gist.files['_index.json']?.content;
+  if (indexContent) {
+    try { remoteGames = (JSON.parse(indexContent) as { games: GameLogIndexEntry[] }).games ?? []; }
+    catch { /* ignore */ }
+  }
+  const newGames = remoteGames.filter(e => e.filename !== filename);
+
+  // null value in files object tells GitHub to delete the file
+  const patchFiles: Record<string, { content: string } | null> = {
+    '_index.json': { content: JSON.stringify({ version: 1, games: newGames }, null, 2) },
+  };
+  if (gist.files[filename]) patchFiles[filename] = null;
+
+  await fetch(`${GIST_API}/${config.gist_id}`, {
+    method: 'PATCH',
+    headers: authHeaders(config.pat),
+    body: JSON.stringify({ files: patchFiles }),
+  });
+}

@@ -243,7 +243,11 @@
         <button id="graph-sort-btn">Sort: Table order</button>
       </div>
       <div id="graph-content"></div>
-      <button id="close-graph-btn">Close</button>
+      <div style="display:flex; gap:0.5rem;">
+        <button id="close-graph-btn" style="flex:1">Close</button>
+        <button id="graph-scoresheet-btn" style="display:none">📋 Scoresheet</button>
+        <button id="graph-expand-btn" title="Expand" style="width:2.5rem">⤢</button>
+      </div>
     </div>
   </div>
 
@@ -304,6 +308,12 @@
     <div id="score-entry-dialog">
       <h2>Final Scores</h2>
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Enter final scores, or skip to save without scores.</p>
+      <button id="scoresheet-open-btn" style="width:100%;margin-bottom:0.75rem">📋 Open Scoresheet</button>
+      <div class="score-game-row">
+        <label class="score-game-label">Game</label>
+        <input type="text" id="score-game-input" class="score-game-input" list="score-game-datalist" autocomplete="off" placeholder="Game name">
+        <datalist id="score-game-datalist"></datalist>
+      </div>
       <div id="score-entry-content"></div>
       <div style="display:flex; gap:0.5rem; margin-top:1rem;">
         <button id="score-skip-btn" style="flex:1; background:#1a1a3e; color:#aaa;">Skip</button>
@@ -327,6 +337,30 @@
       <p style="color:#888; font-size:0.8rem; margin-bottom:0.75rem">Base game content is always included.</p>
       <div id="expansion-dialog-checkboxes" class="expansion-checkboxes"></div>
       <button id="expansion-close-btn" style="margin-top:1rem; width:100%">Done</button>
+    </div>
+  </div>
+
+  <div id="history-browser-overlay" class="overlay" style="display:none">
+    <div id="history-browser-dialog">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.25rem;">
+        <h2 style="margin:0">Game History</h2>
+        <button id="history-lock-btn" class="toolbar-btn" title="Unlock to enable deletion">🔒</button>
+      </div>
+      <div id="history-browser-controls">
+        <select id="history-mode-filter"></select>
+      </div>
+      <div id="history-list"></div>
+      <button id="history-browser-close-btn">Close</button>
+    </div>
+  </div>
+
+  <div id="scoresheet-overlay" class="overlay" style="display:none">
+    <div id="scoresheet-dialog">
+      <div id="scoresheet-header">
+        <span id="scoresheet-title">Scoresheet</span>
+      </div>
+      <div id="scoresheet-content"></div>
+      <div id="scoresheet-footer"></div>
     </div>
   </div>
 

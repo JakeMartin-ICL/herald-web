@@ -117,3 +117,9 @@ export function loadGameLog(filename: string): GameLog | null {
     return raw ? JSON.parse(raw) as GameLog : null;
   } catch { return null; }
 }
+
+export function deleteGameLog(filename: string): void {
+  localStorage.removeItem(LOG_KEY_PREFIX + filename);
+  const index = loadGameLogIndex().filter(e => e.filename !== filename);
+  localStorage.setItem(LOG_INDEX_KEY, JSON.stringify(index));
+}

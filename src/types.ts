@@ -219,6 +219,12 @@ export interface GameLogTurnRecord {
   duration_ms: number;
 }
 
+export interface ScoreBreakdown {
+  categories: string[];
+  /** hwid → category → value */
+  values: Record<string, Record<string, number | null>>;
+}
+
 export interface GameLog {
   version: 1;
   filename: string;
@@ -233,6 +239,7 @@ export interface GameLog {
   stats: Record<string, GameLogStats>;
   turn_history: GameLogTurnRecord[];
   phase_log: { phase: string; duration: number; round: number }[];
+  score_breakdown?: ScoreBreakdown;
 }
 
 export interface GameLogIndexEntry {
@@ -255,6 +262,8 @@ export interface GameMode {
   readonly id: string;
   /** Current phase turn order; the reorder dialog reads and writes this. */
   turnOrder: string[];
+  /** Optional ordered list of score categories for the end-of-game scoresheet. */
+  scoreBreakdownCategories?: readonly string[];
   start(): void;
   onEndTurn(hwid: string): void;
   onPass(hwid: string): void;
