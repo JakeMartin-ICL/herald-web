@@ -245,8 +245,9 @@ export function updateSetupUI(): void {
     (isTi && factionsLoaded) ? 'block' : 'none';
   (document.getElementById('eclipse-learn-faction-tags-btn') as HTMLElement).style.display =
     (isEclipse && factionsLoaded) ? 'block' : 'none';
-  (document.getElementById('set-factions-btn') as HTMLElement).style.display =
-    ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
+  const showFactions = ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
+  (document.getElementById('set-factions-btn') as HTMLElement).style.display = showFactions;
+  (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;
 
   renderExpansionUI(mode);
 

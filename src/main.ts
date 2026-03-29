@@ -41,6 +41,7 @@ on('prev-stats-btn', 'click', () => openGraphOverlay('prev'));
 // Faction scan
 on('stop-faction-scan-btn', 'click', () => stopFactionScan());
 on('set-factions-btn', 'click', () => startFactionScan());
+on('set-factions-debug-btn', 'click', () => startFactionScan());
 
 // Tag writing
 on('ti-learn-tags-btn', 'click', () => startTagWriting(buildTagQueue('ti'), 'Write TI Tags'));

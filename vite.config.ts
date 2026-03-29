@@ -20,7 +20,7 @@ export default defineConfig({
         name: 'Herald',
         short_name: 'Herald',
         description: 'Board game turn order manager',
-        theme_color: '#16213e',
+        theme_color: '#181944',
         background_color: '#0a0a1a',
         display: 'standalone',
         icons: [
