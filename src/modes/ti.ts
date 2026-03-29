@@ -298,9 +298,10 @@ export class TwilightImperiumMode implements GameMode {
       },
     });
     actionDefs.push({
-      html: `<label class="gc-check-row">
+      html: `<label class="gc-check-row toggle-wrap">
         <input type="checkbox" id="gc-mecatol"${state.ti.mecatolControlled ? ' checked' : ''}>
-        Mecatol Rex controlled
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Mecatol Rex controlled</span>
       </label>`,
       id: 'gc-mecatol',
       event: 'change',
@@ -309,13 +310,6 @@ export class TwilightImperiumMode implements GameMode {
         log(`Mecatol ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
       },
     });
-    if (state.factions) {
-      actionDefs.push({
-        html: '<button id="gc-factions">Set Factions</button>',
-        id: 'gc-factions',
-        fn: () => { void import('../rfid').then(({ startFactionScan }) => startFactionScan()); },
-      });
-    }
   }
 
   onPlayerRemoved(hwid: string): void {

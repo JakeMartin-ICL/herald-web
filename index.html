@@ -39,12 +39,18 @@
         </div>
         <div class="setup-row" id="eclipse-mode-row" style="display:none">
           <label>Reaction Cards</label>
-          <input type="checkbox" id="eclipse-reaction-cards" checked />
+          <label class="toggle-wrap">
+            <input type="checkbox" id="eclipse-reaction-cards" checked />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
           <span class="hint">Enforce passing via RFID tap</span>
         </div>
         <div class="setup-row" id="eclipse-order-row" style="display:none">
           <label>Turn Order</label>
-          <input type="checkbox" id="eclipse-advanced-order" />
+          <label class="toggle-wrap">
+            <input type="checkbox" id="eclipse-advanced-order" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
           <span class="hint">Advanced (next round order = pass order)</span>
         </div>
         <div class="setup-row" id="ti-speaker-row" style="display:none">
@@ -55,9 +61,6 @@
           <label>Expansions</label>
           <button id="expansion-open-btn">All expansions</button>
         </div>
-        <button id="ti-learn-tags-btn" style="display:none">Write Tags</button>
-        <button id="eclipse-learn-faction-tags-btn" style="display:none">Write Tags</button>
-        <button id="set-factions-btn" style="display:none">Set Factions</button>
         <div id="resume-banner" style="display:none; flex-direction:column; gap:0.4rem; background:#1a1a3e; border:1px solid #4a4a8a; border-radius:6px; padding:0.75rem; margin-bottom:0.5rem;">
           <div id="resume-mode-label" style="font-weight:bold; color:#c9a84c;"></div>
           <div id="resume-detail-label" style="color:#aaa; font-size:0.85rem;"></div>
@@ -67,7 +70,6 @@
             <button id="discard-resume-btn" style="background:#1a1a3e; color:#aaa;">Discard</button>
           </div>
         </div>
-        <button id="add-virtual-btn">Add Virtual Box</button>
         <button id="prev-stats-btn" style="display:none">Previous game stats</button>
         <button id="start-btn" disabled>Start Game</button>
       </section>
@@ -103,9 +105,12 @@
 
     <div id="debug-bar" style="text-align:center; padding:0.5rem; opacity:0.3">
       <button id="debug-toggle-btn" style="font-size:0.7rem; background:none; border:none; color:#888; cursor:pointer">debug</button>
-      <div id="debug-panel" style="display:none; margin-top:0.5rem">
+      <div id="debug-panel" style="display:none; margin-top:0.5rem; flex-wrap:wrap; justify-content:center; gap:0.4rem;">
         <button id="debug-skip-btn">Skip Phase</button>
         <button id="add-virtual-debug-btn">Add Virtual Box</button>
+        <button id="ti-learn-tags-btn" style="display:none">Write TI Tags</button>
+        <button id="eclipse-learn-faction-tags-btn" style="display:none">Write Eclipse Tags</button>
+        <button id="set-factions-btn" style="display:none">Set Factions</button>
         <button id="ota-open-btn">Firmware Updates</button>
         <button id="debug-open-btn">Debug Logging</button>
         <button id="wifi-open-btn">WiFi Networks</button>
@@ -278,7 +283,11 @@
         <button id="style-white-btn" class="style-mode-btn">White</button>
         <div id="style-colour-swatch"></div>
         <input type="range" id="style-hue" min="0" max="359" step="1" value="200" style="flex:1">
-        <label class="style-rainbow-label"><input type="checkbox" id="style-rainbow"> Rainbow</label>
+        <label class="toggle-wrap style-rainbow-label">
+          <input type="checkbox" id="style-rainbow">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">Rainbow</span>
+        </label>
       </div>
 
       <div id="style-speed-section">

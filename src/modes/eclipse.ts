@@ -167,9 +167,10 @@ export class EclipseMode implements GameMode {
 
     // Tap-to-pass toggle
     actionDefs.push({
-      html: `<label class="gc-check-row">
+      html: `<label class="gc-check-row toggle-wrap">
         <input type="checkbox" id="gc-tap-to-pass"${state.eclipse.tapToPass ? ' checked' : ''}>
-        Tap to pass
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Tap to pass</span>
       </label>`,
       id: 'gc-tap-to-pass', event: 'change',
       fn: (e) => {

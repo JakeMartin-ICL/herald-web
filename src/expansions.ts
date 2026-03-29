@@ -76,9 +76,10 @@ export function openExpansionDialog(game: string): void {
   const selected = state.selectedExpansions[game] ?? exps.map(e => e.id);
 
   container.innerHTML = exps.map(e =>
-    `<label class="expansion-cb-label">` +
+    `<label class="expansion-cb-label toggle-wrap">` +
     `<input type="checkbox" class="expansion-cb" data-game="${game}" data-id="${e.id}"${selected.includes(e.id) ? ' checked' : ''}>` +
-    `${e.name}</label>`
+    `<span class="toggle-track"><span class="toggle-thumb"></span></span>` +
+    `<span class="toggle-label">${e.name}</span></label>`
   ).join('');
 
   container.querySelectorAll<HTMLInputElement>('.expansion-cb').forEach(cb => {

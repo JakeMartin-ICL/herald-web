@@ -30,9 +30,10 @@ function renderDebugDialog(): void {
     const checked = box.debugEnabled ? 'checked' : '';
     return `<div class="debug-log-row">
       <span class="debug-log-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>
-      <label class="debug-toggle">
+      <label class="debug-toggle toggle-wrap">
         <input type="checkbox" ${checked} data-hwid="${hwid}" class="debug-toggle-cb">
-        <span>Debug</span>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Debug</span>
       </label>
     </div>`;
   }).join('');

@@ -129,6 +129,7 @@ select {
   color: #888;
 }
 
+
 /* ---- Score entry dialog ---- */
 
 #score-entry-dialog {
@@ -253,6 +254,62 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
+}
+
+/* ---- Toggle switch (replaces checkboxes everywhere) ---- */
+
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle-wrap input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.toggle-track {
+  display: inline-flex;
+  align-items: center;
+  width: 2.2rem;
+  height: 1.2rem;
+  border-radius: 0.6rem;
+  background: #333;
+  border: 1px solid #555;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.toggle-thumb {
+  position: absolute;
+  left: 2px;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: #888;
+  transition: left 0.15s, background 0.15s;
+}
+
+input[type="checkbox"]:checked + .toggle-track {
+  background: #2a5a2a;
+  border-color: #4a9a4a;
+}
+
+input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
+  left: calc(100% - 0.85rem - 2px);
+  background: #6dbd6d;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: #aaa;
+  user-select: none;
 }
 
 .expansion-cb-label {
@@ -539,9 +596,12 @@ select {
   flex-shrink: 0;
 }
 
+#start-btn, #set-factions-btn {
+  padding: 0.6rem;
+}
+
 #start-btn {
   width: 100%;
-  padding: 0.6rem;
   margin-top: 0.25rem;
 }
 
@@ -644,7 +704,7 @@ select {
   width: calc(110px * var(--card-scale));
   transform: translate(-50%, -50%);
   background: #0f3460;
-  border: calc(6px * var(--card-scale)) solid var(--faction-color, #334);
+  border: calc(3px * var(--card-scale)) solid var(--faction-color, #334);
   border-radius: calc(8px * var(--card-scale));
   padding: calc(0.4rem * var(--card-scale));
   text-align: center;
@@ -896,6 +956,10 @@ select {
   font-size: 0.85rem;
   color: #aaa;
   cursor: pointer;
+}
+
+.gc-check-row .toggle-label {
+  font-size: 0.85rem;
 }
 
 .gc-swatch-row {
@@ -1350,8 +1414,6 @@ select {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.8rem;
-  color: #aaa;
   cursor: pointer;
 }
 
@@ -1515,8 +1577,6 @@ select {
 }
 
 .style-rainbow-label {
-  font-size: 0.8rem;
-  color: #aaa;
   white-space: nowrap;
   cursor: pointer;
 }

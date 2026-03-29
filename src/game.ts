@@ -90,7 +90,7 @@ export function handleLongPress(hwid: string): void {
 
 export function toggleDebug(): void {
   const panel = document.getElementById('debug-panel') as HTMLElement;
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
 }
 
 export function debugSkipPhase(): void {

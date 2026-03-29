@@ -169,9 +169,10 @@ export function renderGameControls(): void {
 
   // Common controls
   actionDefs.push({
-    html: `<label class="gc-check-row">
+    html: `<label class="gc-check-row toggle-wrap">
       <input type="checkbox" id="gc-timer-game"${timerSettings.showGameTimer ? ' checked' : ''}>
-      Show game timer
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-label">Show game timer</span>
     </label>`,
     id: 'gc-timer-game', event: 'change',
     fn: (e: Event) => {
@@ -182,9 +183,10 @@ export function renderGameControls(): void {
     },
   });
   actionDefs.push({
-    html: `<label class="gc-check-row">
+    html: `<label class="gc-check-row toggle-wrap">
       <input type="checkbox" id="gc-timer-current"${timerSettings.showCurrent ? ' checked' : ''}>
-      Show turn time
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-label">Show turn time</span>
     </label>`,
     id: 'gc-timer-current', event: 'change',
     fn: (e: Event) => {
@@ -195,9 +197,10 @@ export function renderGameControls(): void {
     },
   });
   actionDefs.push({
-    html: `<label class="gc-check-row">
+    html: `<label class="gc-check-row toggle-wrap">
       <input type="checkbox" id="gc-timer-total"${timerSettings.showTotal ? ' checked' : ''}>
-      Show total time
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      <span class="toggle-label">Show total time</span>
     </label>`,
     id: 'gc-timer-total', event: 'change',
     fn: (e: Event) => { timerSettings.showTotal = (e.target as HTMLInputElement).checked; renderBoxes(); },
@@ -206,8 +209,11 @@ export function renderGameControls(): void {
   const cdEnabled = state.autoCountdownSecs > 0;
   actionDefs.push({
     html: `<div class="gc-check-row">
-      <input type="checkbox" id="gc-auto-cd-enable"${cdEnabled ? ' checked' : ''}>
-      <label for="gc-auto-cd-enable" style="cursor:pointer">Auto-countdown</label>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="gc-auto-cd-enable"${cdEnabled ? ' checked' : ''}>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Auto-countdown</span>
+      </label>
       ${cdEnabled ? `<input type="number" id="gc-auto-countdown" min="1" max="600" style="width:3.5em; margin-left:0.25rem" value="${state.autoCountdownSecs}"> s` : ''}
     </div>`,
   });
