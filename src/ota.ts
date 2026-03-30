@@ -82,9 +82,9 @@ export function startOtaUpdateAll(): void {
       box.otaUpdating = true;
       box.otaProgress = 0;
       box.otaError = null;
+      send({ type: 'ota_update', hwid, url: state.latestFirmware!.binUrl, version: state.latestFirmware!.version });
     }
   });
-  send({ type: 'ota_update', hwid: 'all', url: state.latestFirmware.binUrl, version: state.latestFirmware.version });
   renderOtaDialog();
 }
 

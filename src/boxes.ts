@@ -1,8 +1,8 @@
 import { state, VIRTUAL_BOX_ID_OFFSET } from './state';
 import { log } from './logger';
 import { disableRfid, disableAllRfid } from './websockets';
-import { syncLeds } from './leds';
-import { render } from './render';
+import { syncLeds, syncLedsForBox } from './leds';
+import { render, scheduleRender } from './render';
 import { substituteTimerTracking } from './timers';
 import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
@@ -57,9 +57,9 @@ export function addBox(hwid: string, isVirtual: boolean): void {
     state.boxes[hwid].otaProgress = null;
     log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
     if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
-    if (state.gameActive) syncLeds();
+    if (state.gameActive) syncLedsForBox(hwid);
     updateSetupUI();
-    render();
+    scheduleRender();
     return;
   }
 
@@ -91,7 +91,7 @@ export function addBox(hwid: string, isVirtual: boolean): void {
   applyPendingPersistedBox(hwid);
   log(`${isVirtual ? 'Virtual box' : 'Box'} ${getDisplayName(hwid)} connected`, 'system');
   updateSetupUI();
-  render();
+  scheduleRender();
 }
 
 export function handleBoxDisconnect(hwid: string): void {

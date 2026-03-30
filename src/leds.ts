@@ -164,6 +164,18 @@ export function normalizeColor(color: string): string {
 
 // ---- syncLeds ----
 
+export function syncLedsForBox(hwid: string): void {
+  if (state.factionScanActive) return;
+  const box = state.boxes[hwid];
+  if (!box || box.isVirtual || box.status === 'disconnected') return;
+  const now = Date.now();
+  if (state.paused) { sendToBox(hwid, { type: 'led_off' }); return; }
+  if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
+  if (box.status === 'upkeep' || box.status === 'choosing' || box.countdownActive) return;
+  const cmd = box.leds ?? ledStateForStatus(box.status, box, hwid);
+  sendToBox(hwid, cmd);
+}
+
 export function syncLeds(): void {
   if (state.factionScanActive) return;
   const now = Date.now();

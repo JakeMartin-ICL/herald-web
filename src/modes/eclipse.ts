@@ -1,6 +1,6 @@
 import { state } from '../state';
 import { log } from '../logger';
-import { disableAllRfid, enableRfid, sendToBox } from '../websockets';
+import { disableAllRfid, disableRfid, enableRfid, sendToBox } from '../websockets';
 import { getDisplayName } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
@@ -176,7 +176,7 @@ export class EclipseMode implements GameMode {
       fn: (e) => {
         state.eclipse.tapToPass = (e.target as HTMLInputElement).checked;
         log(`Tap to pass ${state.eclipse.tapToPass ? 'enabled' : 'disabled'}`, 'system');
-        if (state.eclipse.phase === 'action') this.syncActionRfid();
+        if (state.eclipse.phase === 'action') this.syncActionRfid(null);
         if (state.eclipse.phase === 'upkeep') {
           if (state.eclipse.tapToPass) {
             disableAllRfid();
@@ -205,15 +205,18 @@ export class EclipseMode implements GameMode {
 
   activatePlayer(hwid: string): void {
     if (state.eclipse.phase !== 'action') return;
-    if (state.activeBoxId && state.activeBoxId !== hwid) {
-      const curr = state.boxes[state.activeBoxId];
+    const prevHwid = state.activeBoxId !== hwid ? state.activeBoxId : null;
+    if (prevHwid) {
+      const curr = state.boxes[prevHwid];
       if (curr?.status === 'active' || curr?.status === 'reacting') curr.status = 'idle';
     }
     state.activeBoxId = hwid;
     const box = state.boxes[hwid];
     box.status = box.status === 'can-react' ? 'reacting' : 'active';
-    disableAllRfid();
-    enableRfid(hwid);
+    if (state.eclipse.tapToPass) {
+      if (prevHwid) disableRfid(prevHwid);
+      enableRfid(hwid);
+    }
     log(`${getDisplayName(hwid)}'s turn`, 'system');
   }
 
@@ -294,7 +297,7 @@ export class EclipseMode implements GameMode {
         state.activeBoxId = nextId;
         state.boxes[nextId].status = 'active';
         log(`${getDisplayName(nextId)}'s turn`, 'system');
-        this.syncActionRfid();
+        this.syncActionRfid(current);
         return;
       }
 
@@ -305,7 +308,7 @@ export class EclipseMode implements GameMode {
         state.activeBoxId = nextId;
         state.boxes[nextId].status = 'reacting';
         log(`${getDisplayName(nextId)} reaction opportunity`, 'system');
-        this.syncActionRfid();
+        this.syncActionRfid(current);
         return;
       }
     }
@@ -313,8 +316,9 @@ export class EclipseMode implements GameMode {
     this.endActionPhase();
   }
 
-  private syncActionRfid(): void {
-    disableAllRfid();
+  private syncActionRfid(prevHwid: string | null): void {
+    if (!state.eclipse.tapToPass) return;
+    if (prevHwid) disableRfid(prevHwid);
     if (state.activeBoxId) enableRfid(state.activeBoxId);
   }
 

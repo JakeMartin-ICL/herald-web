@@ -54,6 +54,17 @@ function voltageToPercent(v: number): number {
 
 // ---- Render ----
 
+let _renderScheduled = false;
+
+export function scheduleRender(): void {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => {
+    _renderScheduled = false;
+    render();
+  });
+}
+
 export function render(): void {
   updateTurnTimers();
   syncLeds();

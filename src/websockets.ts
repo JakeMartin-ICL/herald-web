@@ -2,7 +2,7 @@ import { state, VIRTUAL_BOX_ID_OFFSET, RECONNECT_INTERVAL_MS } from './state';
 import { loadGitHubConfig, saveGitHubConfig } from './github-config';
 import { log, setStatus } from './logger';
 import { syncLeds, sendBrightnessToBox, receiveBoxBrightness } from './leds';
-import { render, renderBoxes } from './render';
+import { renderBoxes, scheduleRender } from './render';
 import { renderOtaDialog } from './ota';
 import { renderWifiDialog } from './settings';
 import { applyHubBackup } from './persist';
@@ -50,7 +50,7 @@ export function connect(): void {
     log('Disconnected from hub', 'system');
     (document.getElementById('connect-btn') as HTMLButtonElement).textContent = 'Connect';
     ws = null;
-    render();
+    scheduleRender();
     scheduleReconnect();
   };
 }
@@ -147,27 +147,27 @@ export function handleMessage(msg: any): void {
       break;
     case 'endturn':
       if (!handleHwTestEvent(msg.hwid as string, 'endturn')) handleEndTurn(msg.hwid as string);
-      break;
+      return;
     case 'pass':
       if (!handleHwTestEvent(msg.hwid as string, 'pass')) handlePass(msg.hwid as string);
-      break;
+      return;
     case 'longpress':
       handleLongPress(msg.hwid as string);
-      break;
+      return;
     case 'rfid':
       if (handleHwTestRfid(msg.hwid as string, msg.tagId as string)) break;
       handleRfid(msg.hwid as string, msg.tagId as string);
-      break;
+      return;
     case 'rfid_write_result':
       handleRfidWriteResult(msg);
-      break;
+      return;
     case 'ota_progress':
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].otaProgress = msg.percent as number;
         state.boxes[msg.hwid].otaUpdating = true;
       }
       renderOtaDialog();
-      break;
+      return;
     case 'ota_complete':
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].version = msg.version as string;
@@ -177,7 +177,7 @@ export function handleMessage(msg: any): void {
       }
       log(`${getDisplayName(msg.hwid as string)} firmware updated to ${msg.version as string}`, 'system');
       renderOtaDialog();
-      break;
+      return;
     case 'ota_error':
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].otaError = msg.message as string;
@@ -186,7 +186,7 @@ export function handleMessage(msg: any): void {
       }
       log(`${getDisplayName(msg.hwid as string)} OTA failed: ${msg.message as string}`, 'error');
       renderOtaDialog();
-      break;
+      return;
     case 'battery':
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].batteryVoltage = msg.voltage as number;
@@ -205,7 +205,7 @@ export function handleMessage(msg: any): void {
       return;
     case 'box_brightness':
       receiveBoxBrightness(msg.hwid as string, msg.value as number);
-      break;
+      return;
     case 'state_backup_none':
       return;
     case 'wifi_credentials_ack': {
@@ -218,7 +218,7 @@ export function handleMessage(msg: any): void {
     }
   }
 
-  render();
+  scheduleRender();
 }
 
 // Forward wifi_credentials message to settings module
