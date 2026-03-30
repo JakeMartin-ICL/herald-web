@@ -1,6 +1,7 @@
 import { state } from '../state';
 import { log } from '../logger';
 import { disableAllRfid, enableRfid, sendToBox } from '../websockets';
+import { startGuidedPhase, advanceGuidedPhase, clearGuidedPhase, isGuidedPhaseActive, currentGuidedStep, guidedPhaseProgress } from '../guided-phase';
 import { getDisplayName } from '../boxes';
 import { render, renderBoxes } from '../render';
 import { setBoxBadges } from '../boxes';
@@ -11,6 +12,17 @@ import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
 import { getFactionForBox } from './eclipse';
 import type { GameMode, Tag, ActionDef, StrategyCard } from '../types';
+
+const TI_STATUS_STEPS = [
+  'Score objectives',
+  'Reveal public objective',
+  'Draw action cards',
+  'Remove command tokens',
+  'Gain & redist. tokens',
+  'Ready cards',
+  'Repair units',
+  'Return strategy cards',
+];
 
 const TI_STRATEGY_COLORS: Record<string, string> = {
   leadership:   '#cc0000',
@@ -90,6 +102,14 @@ export class TwilightImperiumMode implements GameMode {
         }
         break;
 
+      case 'status':
+      case 'status2':
+        if (hwid !== state.hubHwid) return;
+        if (isGuidedPhaseActive() && !advanceGuidedPhase()) {
+          this.advancePhase();
+        }
+        break;
+
       case 'agenda_reveal':
         if (hwid === state.activeBoxId) this.advanceAgendaPhase();
         break;
@@ -154,6 +174,7 @@ export class TwilightImperiumMode implements GameMode {
     if (hwid !== state.hubHwid) return;
     switch (state.ti.phase) {
       case 'status':
+        clearGuidedPhase();
         if (state.ti.mecatolControlled) {
           this.startAgendaPhase();
         } else {
@@ -161,6 +182,7 @@ export class TwilightImperiumMode implements GameMode {
         }
         break;
       case 'status2':
+        clearGuidedPhase();
         this.endRound();
         break;
       case 'agenda_reveal':
@@ -226,6 +248,7 @@ export class TwilightImperiumMode implements GameMode {
   advancePhase(): void {
     switch (state.ti.phase) {
       case 'status':
+        clearGuidedPhase();
         if (state.ti.mecatolControlled) {
           this.startAgendaPhase();
         } else {
@@ -233,6 +256,7 @@ export class TwilightImperiumMode implements GameMode {
         }
         break;
       case 'status2':
+        clearGuidedPhase();
         this.endRound();
         break;
       case 'agenda_reveal':
@@ -272,6 +296,9 @@ export class TwilightImperiumMode implements GameMode {
     if (['agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'].includes(phase)) {
       statusLines.push(`Agenda ${(state.ti.agendaCount ?? 0) + 1} of 2`);
     }
+    if (isGuidedPhaseActive()) {
+      statusLines.push(`Step ${guidedPhaseProgress()}: ${currentGuidedStep()}`);
+    }
 
     const advanceable = ['status', 'status2', 'agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'];
     if (advanceable.includes(phase)) {
@@ -281,6 +308,24 @@ export class TwilightImperiumMode implements GameMode {
         fn: () => { snapshotForUndo(); this.advancePhase(); render(); persistState(); },
       });
     }
+    actionDefs.push({
+      html: `<div class="gc-secondary-row">
+        <span>Speaker:</span>
+        <select id="gc-speaker">
+          ${state.boxOrder.map(hwid =>
+            `<option value="${hwid}"${state.ti.speakerHwid === hwid ? ' selected' : ''}>${getDisplayName(hwid)}</option>`
+          ).join('')}
+        </select>
+      </div>`,
+      id: 'gc-speaker',
+      event: 'change',
+      fn: (e: Event) => {
+        const hwid = (e.target as HTMLSelectElement).value;
+        state.ti.speakerHwid = hwid;
+        log(`Speaker: ${getDisplayName(hwid)}`, 'system');
+        this.updateBadges();
+      },
+    });
     actionDefs.push({
       html: `<div class="gc-secondary-row">
         <span>Secondary:</span>
@@ -308,6 +353,19 @@ export class TwilightImperiumMode implements GameMode {
       fn: (e: Event) => {
         state.ti.mecatolControlled = (e.target as HTMLInputElement).checked;
         log(`Mecatol ${state.ti.mecatolControlled ? 'controlled' : 'not controlled'}`, 'system');
+      },
+    });
+    actionDefs.push({
+      html: `<label class="gc-check-row toggle-wrap">
+        <input type="checkbox" id="gc-guided-status"${state.ti.guidedStatusPhase ? ' checked' : ''}>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Guided status phase</span>
+      </label>`,
+      id: 'gc-guided-status',
+      event: 'change',
+      fn: (e: Event) => {
+        state.ti.guidedStatusPhase = (e.target as HTMLInputElement).checked;
+        log(`Guided status phase ${state.ti.guidedStatusPhase ? 'enabled' : 'disabled'}`, 'system');
       },
     });
   }
@@ -465,6 +523,7 @@ export class TwilightImperiumMode implements GameMode {
       case 'strategy': this.startActionPhase(); break;
       case 'action':   this.startStatusPhase(); break;
       case 'status':
+        clearGuidedPhase();
         if (state.ti.mecatolControlled) this.startAgendaPhase();
         else this.endRound();
         break;
@@ -766,7 +825,12 @@ export class TwilightImperiumMode implements GameMode {
     state.boxOrder.forEach(hwid => {
       state.boxes[hwid].status = isPostAgenda ? 'status2' : 'status';
     });
-    log('Status phase — long press hub to continue', 'system');
+    if (state.ti.guidedStatusPhase) {
+      startGuidedPhase(TI_STATUS_STEPS);
+      log('Status phase — hub end turn to advance steps, long press to skip', 'system');
+    } else {
+      log('Status phase — long press hub to continue', 'system');
+    }
     this.updateBadges();
   }
 

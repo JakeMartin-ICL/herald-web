@@ -41,9 +41,14 @@ src/
                    renderStats, renderScores, captureGameStats, snapshotPlayer, renderTimerInfo);
                    'log' graphSource for viewing historical GameLog data; 'Scores' option added
                    dynamically when source is 'log'
+  guided-phase.ts — Generic guided phase: startGuidedPhase(steps)/advanceGuidedPhase()/
+                   clearGuidedPhase(); state stored in state.guidedPhaseSteps/Index;
+                   display.ts reads currentGuidedStep() to override OLED name/status;
+                   TI uses it for 8-step status phase walkthrough (guidedStatusPhase toggle)
   display.ts     — OLED display sync (syncDisplay); sends { type: 'display', name, status,
                    round?, timerRunning?, timerSecs? } to each connected real box on every
-                   render(); extras sent based on per-box DisplayBoxSettings
+                   render(); if guided phase active, overrides name/status with current step;
+                   extras sent based on per-box DisplayBoxSettings
   countdown.ts      — Countdown timers: sendCountdown/cancelCountdown (send { type:'countdown',
                    durationMs, color } to box); popup for manual start (10s/30s/1m/custom);
                    syncLeds skips countdownActive boxes; auto-countdown in game.ts maybeAutoCountdown()

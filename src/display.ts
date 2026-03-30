@@ -1,6 +1,7 @@
 import { state } from './state';
 import { sendToBox } from './websockets';
 import { getDisplayName } from './boxes';
+import { currentGuidedStep, guidedPhaseProgress } from './guided-phase';
 import type { BoxStatus, DisplayBoxSettings } from './types';
 
 const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
@@ -22,9 +23,19 @@ const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
 };
 
 export function syncDisplay(): void {
+  const guidedStep = currentGuidedStep();
+  const guidedProgress = guidedPhaseProgress();
+
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
     if (!box || box.isVirtual || box.status === 'disconnected') return;
+
+    // Guided phase overrides name/status on all boxes
+    if (guidedStep !== null) {
+      sendToBox(hwid, { type: 'display', name: guidedStep, status: guidedProgress });
+      return;
+    }
+
     const name   = getDisplayName(hwid);
     const status = STATUS_LABELS[box.status] ?? '';
     const settings: DisplayBoxSettings = state.displaySettings[hwid] ?? { showRound: false, showTimer: false, message: '' };

@@ -132,6 +132,7 @@ export interface TiState {
   agendaTurnIndex: number;
   secondaryMode: 'fastest' | 'fast' | 'standard';
   mecatolControlled: boolean;
+  guidedStatusPhase: boolean;
   players: Record<string, TiPlayer>;
   secondary: TiSecondary | null;
   agendaCount: number;
@@ -203,6 +204,9 @@ export interface AppState {
   expansions: Record<string, Expansion[]>;
   /** game → enabled expansion IDs; absent key = all enabled */
   selectedExpansions: SelectedExpansions;
+  /** Guided phase: instruction steps and current position (cleared when not active) */
+  guidedPhaseSteps: string[];
+  guidedPhaseIndex: number;
 }
 
 // ---- Game log ----

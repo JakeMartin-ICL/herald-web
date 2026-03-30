@@ -74,8 +74,11 @@ export const state: AppState = {
     agendaTurnIndex: 0,
     secondaryMode: 'standard',
     mecatolControlled: false,
+    guidedStatusPhase: false,
     players: {},
     secondary: null,
     agendaCount: 0,
   },
+  guidedPhaseSteps: [],
+  guidedPhaseIndex: 0,
 };
