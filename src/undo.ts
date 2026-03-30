@@ -1,6 +1,7 @@
 import { extractPersistableState, restoreState } from './persist';
 import { log } from './logger';
 import { stopCurrentTimerInterval, needsTimerInterval, startCurrentTimerInterval } from './timers';
+import { currentGame } from './currentGame';
 
 const UNDO_MAX = 32;
 type Snapshot = ReturnType<typeof extractPersistableState>;
@@ -17,6 +18,7 @@ export function undo(): void {
   restoreState(snapshot, true);
   stopCurrentTimerInterval();
   if (needsTimerInterval()) startCurrentTimerInterval();
+  currentGame?.syncRfid?.();
   log('Undo', 'system');
 }
 

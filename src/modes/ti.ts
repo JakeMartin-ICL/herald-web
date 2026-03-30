@@ -509,6 +509,14 @@ export class TwilightImperiumMode implements GameMode {
     }
   }
 
+  syncRfid(): void {
+    disableAllRfid();
+    const phase = state.ti.phase;
+    if ((phase === 'strategy' || phase === 'action') && state.activeBoxId) {
+      enableRfid(state.activeBoxId);
+    }
+  }
+
   onFactionChanged(): void {
     this.updateBadges();
   }

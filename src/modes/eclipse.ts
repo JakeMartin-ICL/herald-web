@@ -203,6 +203,14 @@ export class EclipseMode implements GameMode {
     }
   }
 
+  syncRfid(): void {
+    if (!state.eclipse.tapToPass) return;
+    disableAllRfid();
+    if (state.eclipse.phase === 'action' && state.activeBoxId) {
+      enableRfid(state.activeBoxId);
+    }
+  }
+
   activatePlayer(hwid: string): void {
     if (state.eclipse.phase !== 'action') return;
     const prevHwid = state.activeBoxId !== hwid ? state.activeBoxId : null;

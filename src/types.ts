@@ -286,4 +286,6 @@ export interface GameMode {
   /** Immediately make hwid the active player, carrying on through turnOrder from their
    *  position. Called AFTER cancelCurrentTurn() has discarded the previous player's stats. */
   activatePlayer?(hwid: string): void;
+  /** Re-sync RFID enable/disable to match restored game state (called after undo). */
+  syncRfid?(): void;
 }
