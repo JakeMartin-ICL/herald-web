@@ -207,9 +207,13 @@ export class TwilightImperiumMode implements GameMode {
     }
 
     if (category === 'strategy') {
-      const label = TI_STRATEGY_LABELS[id] || id;
-      const color = TI_STRATEGY_COLORS[id] || '#ffffff';
-      const initiative = TI_STRATEGY_INITIATIVES[id] || 99;
+      const label = TI_STRATEGY_LABELS[id];
+      const color = TI_STRATEGY_COLORS[id];
+      const initiative = TI_STRATEGY_INITIATIVES[id];
+      if (!label || !color || initiative === undefined) {
+        log(`Unknown strategy card: ${id}`, 'error');
+        return;
+      }
 
       if (state.ti.phase === 'strategy') {
         if (hwid !== state.activeBoxId) return;
