@@ -1,18 +1,14 @@
 import { loadGameLogIndex, loadGameLog, deleteGameLog } from './gamelog';
 import { syncWithGist, deleteGameFromGist } from './gist';
 import { loadGitHubConfig } from './github-config';
+import { MODE_NAMES } from './modes/index';
 import type { GameLogIndexEntry } from './types';
 
 let _modeFilter = '';
 let _unlocked = false;
 
-const MODE_LABELS: Record<string, string> = {
-  clockwise: 'Clockwise', clockwise_pass: 'Clockwise w/ Passing',
-  eclipse: 'Eclipse', ti: 'Twilight Imperium',
-};
-
 function modeLabel(mode: string): string {
-  return MODE_LABELS[mode] ?? mode;
+  return MODE_NAMES[mode] ?? mode;
 }
 
 export async function openHistoryBrowser(): Promise<void> {

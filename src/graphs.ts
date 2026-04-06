@@ -2,6 +2,7 @@ import { state } from './state';
 import { formatDuration, getCurrentRound, timerSettings } from './timers';
 import { getDisplayName } from './boxes';
 import { getFactionForBox } from './modes/eclipse';
+import { MODE_NAMES } from './modes/index';
 import type { GameLog, Faction, ScoreBreakdown } from './types';
 
 const SORT_MODES  = ['table', 'name', 'faction', 'highest'] as const;
@@ -293,10 +294,6 @@ function findFactionById(factionId: string | null): Faction | null {
   return null;
 }
 
-const MODE_NAMES: Record<string, string> = {
-  clockwise: 'Clockwise', clockwise_pass: 'Clockwise with Passing',
-  eclipse: 'Eclipse', ti: 'Twilight Imperium',
-};
 
 export function openGraphOverlayWithLog(log: GameLog): void {
   const players: PlayerSnapshot[] = Object.keys(log.players).map(hwid => {

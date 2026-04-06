@@ -4,6 +4,7 @@ import { sendSilent } from './websockets';
 import { syncLeds } from './leds';
 import { render } from './render';
 import { updateSetupUI } from './boxes';
+import { MODE_NAMES } from './modes/index';
 
 // ---- State extraction ----
 
@@ -53,6 +54,13 @@ export function extractPersistableState() {
       upkeepReady:   [...state.eclipse.upkeepReady],
     },
     ti,
+    kemet: {
+      phase:            state.kemet.phase,
+      turnOrder:        [...state.kemet.turnOrder],
+      turnCounts:       { ...state.kemet.turnCounts },
+      turnsPerRound:    state.kemet.turnsPerRound,
+      guidedNightPhase: state.kemet.guidedNightPhase,
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -251,6 +259,20 @@ export function restoreState(persisted: any, silent = false): void {
     state.ti = ti;
   }
 
+  if (persisted.kemet) {
+    const remappedCounts: Record<string, number> = {};
+    for (const [ph, count] of Object.entries(persisted.kemet.turnCounts ?? {})) {
+      remappedCounts[remap(ph)] = count as number;
+    }
+    state.kemet = {
+      phase:            persisted.kemet.phase ?? null,
+      turnOrder:        ((persisted.kemet.turnOrder ?? []) as string[]).map(remap),
+      turnCounts:       remappedCounts,
+      turnsPerRound:    persisted.kemet.turnsPerRound ?? 5,
+      guidedNightPhase: persisted.kemet.guidedNightPhase ?? false,
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -286,12 +308,6 @@ export function restoreState(persisted: any, silent = false): void {
 
 let _pendingResumeState: unknown = null;
 
-const _resumeModeNames: Record<string, string> = {
-  clockwise: 'Clockwise',
-  clockwise_pass: 'Clockwise with Passing',
-  eclipse: 'Eclipse',
-  ti: 'Twilight Imperium',
-};
 
 export function offerResume(persistedState: unknown): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -299,14 +315,14 @@ export function offerResume(persistedState: unknown): void {
   if (!ps?.gameActive) return;
   _pendingResumeState = persistedState;
 
-  const modeName = _resumeModeNames[ps.gameMode] ?? ps.gameMode;
+  const modeName = MODE_NAMES[ps.gameMode] ?? ps.gameMode;
   const playerCount = ps.boxOrder.length;
   (document.getElementById('resume-mode-label') as HTMLElement).textContent =
     `Game in progress: ${modeName} · ${playerCount} players`;
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 

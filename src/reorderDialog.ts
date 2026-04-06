@@ -10,15 +10,18 @@ import { render } from './render';
 
 let pendingOrder: string[] = [];
 let dragSrcIdx: number | null = null;
+let onContinueCb: (() => void) | null = null;
 
-export function openReorderDialog(): void {
+export function openReorderDialog(onContinue?: () => void): void {
   if (!currentGame) return;
+  onContinueCb = onContinue ?? null;
   pendingOrder = [...currentGame.turnOrder];
   (document.getElementById('reorder-overlay') as HTMLElement).style.display = 'flex';
   renderReorderDialog();
 }
 
 export function closeReorderDialog(): void {
+  onContinueCb = null;
   (document.getElementById('reorder-overlay') as HTMLElement).style.display = 'none';
 }
 
@@ -97,7 +100,9 @@ function applyContinue(): void {
   syncDisplay();
   render();
   persistState();
+  const cb = onContinueCb;
   closeReorderDialog();
+  cb?.();
 }
 
 function applyActivate(hwid: string): void {

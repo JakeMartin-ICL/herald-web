@@ -5,18 +5,13 @@ import { log } from './logger';
 import { openScoresheet } from './scoresheet';
 import { currentGame } from './currentGame';
 import { getFactionForBox } from './modes/eclipse';
+import { MODE_NAMES } from './modes/index';
 import type { GameLog, ScoreBreakdown } from './types';
 
 let _pendingLog: GameLog | null = null;
 let _finalize: (() => void) | null = null;
 let _breakdown: ScoreBreakdown | null = null;
 
-const MODE_DISPLAY: Record<string, string> = {
-  clockwise: 'Clockwise',
-  clockwise_pass: 'Clockwise with Passing',
-  eclipse: 'Eclipse',
-  ti: 'Twilight Imperium',
-};
 
 export function openScoreEntryDialog(finalizeEndGame: () => void): void {
   if (_pendingLog) return;
@@ -30,12 +25,12 @@ export function openScoreEntryDialog(finalizeEndGame: () => void): void {
   // Game label + datalist
   const labelInput = document.getElementById('score-game-input') as HTMLInputElement;
   const datalist = document.getElementById('score-game-datalist') as HTMLDataListElement;
-  const defaultLabel = MODE_DISPLAY[_pendingLog.game_mode] ?? _pendingLog.game_mode;
+  const defaultLabel = MODE_NAMES[_pendingLog.game_mode] ?? _pendingLog.game_mode;
   labelInput.value = defaultLabel;
   const seen = new Set<string>([defaultLabel]);
   const options: string[] = [defaultLabel];
   for (const entry of loadGameLogIndex()) {
-    const label = MODE_DISPLAY[entry.game_mode] ?? entry.game_mode;
+    const label = MODE_NAMES[entry.game_mode] ?? entry.game_mode;
     if (!seen.has(label)) { seen.add(label); options.push(label); }
   }
   datalist.innerHTML = options.map(o => `<option value="${o}">`).join('');

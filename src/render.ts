@@ -12,6 +12,7 @@ import { getRelevantTagsForBox } from './tags';
 import { renderTimerInfo, openGraphOverlay, captureGameStats } from './graphs';
 import { currentGame } from './currentGame';
 import { getFactionForBox } from './modes/eclipse';
+import { MODE_NAMES } from './modes/index';
 import { disableAllRfid } from './websockets';
 import { clearPersistedState } from './persist';
 import { canUndo, undo, clearUndoHistory } from './undo';
@@ -159,14 +160,8 @@ export function renderGameControls(): void {
   if (!state.gameActive) { panel.style.display = 'none'; return; }
   panel.style.display = '';
 
-  const modeNames: Record<string, string> = {
-    clockwise: 'Clockwise',
-    clockwise_pass: 'Clockwise with Passing',
-    eclipse: 'Eclipse',
-    ti: 'Twilight Imperium',
-  };
   (document.getElementById('gc-mode-name') as HTMLElement).textContent =
-    modeNames[state.gameMode] || state.gameMode;
+    MODE_NAMES[state.gameMode] ?? state.gameMode;
 
   const statusEl = document.getElementById('gc-status') as HTMLElement;
   const actionsEl = document.getElementById('gc-actions') as HTMLElement;

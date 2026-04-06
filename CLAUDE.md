@@ -110,6 +110,9 @@ src/
                    by other modules; simple vs advanced turn order is a setup-time setting
                    (state.eclipse.advancedOrder), not a separate game mode
     ti.ts        — TwilightImperiumMode class (all phases: strategy, action, status, agenda)
+    kemet.ts     — KemetMode class; action phase (5 turns each, sequential) → night phase
+                   (guided or manual) → reorder dialog → next round; auto-opens reorder
+                   dialog at game start and after each night phase
 ```
 
 ## Module Architecture

@@ -138,6 +138,14 @@ export interface TiState {
   agendaCount: number;
 }
 
+export interface KemetState {
+  phase: 'action' | 'night' | null;
+  turnOrder: string[];
+  turnCounts: Record<string, number>; // hwid → turns taken this action phase
+  turnsPerRound: number;              // default 5
+  guidedNightPhase: boolean;
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -194,6 +202,7 @@ export interface AppState {
   currentPhaseStart: { name: string; startTime: number } | null;
   eclipse: EclipseState;
   ti: TiState;
+  kemet: KemetState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;

@@ -1,4 +1,4 @@
-import type { AppState, SelectedExpansions } from './types';
+import type { AppState, SelectedExpansions, KemetState } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -81,4 +81,15 @@ export const state: AppState = {
   },
   guidedPhaseSteps: [],
   guidedPhaseIndex: 0,
+
+  kemet: (() => {
+    const defaults: KemetState = {
+      phase: null,
+      turnOrder: [],
+      turnCounts: {},
+      turnsPerRound: 5,
+      guidedNightPhase: false,
+    };
+    return defaults;
+  })(),
 };
