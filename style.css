@@ -1759,6 +1759,7 @@ input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
   cursor: grab;
   padding: 0 0.2rem;
   flex-shrink: 0;
+  touch-action: none;
 }
 
 .ro-name {

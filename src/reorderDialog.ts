@@ -86,6 +86,46 @@ function renderReorderDialog(): void {
     });
   });
 
+  // Touch drag support for mobile (HTML5 drag-and-drop doesn't fire on touch)
+  el.querySelectorAll<HTMLElement>('.ro-handle').forEach(handle => {
+    handle.addEventListener('touchstart', (e) => {
+      const row = handle.closest<HTMLElement>('.ro-row');
+      if (!row) return;
+      dragSrcIdx = Number(row.dataset.idx);
+      row.classList.add('ro-dragging');
+      e.preventDefault();
+    }, { passive: false });
+
+    handle.addEventListener('touchmove', (e) => {
+      if (dragSrcIdx === null) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      el.querySelectorAll('.ro-row').forEach(r => r.classList.remove('ro-drag-over'));
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetRow = target?.closest<HTMLElement>('.ro-row');
+      if (targetRow && Number(targetRow.dataset.idx) !== dragSrcIdx) {
+        targetRow.classList.add('ro-drag-over');
+      }
+    }, { passive: false });
+
+    handle.addEventListener('touchend', (e) => {
+      if (dragSrcIdx === null) return;
+      const touch = e.changedTouches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetRow = target?.closest<HTMLElement>('.ro-row');
+      el.querySelectorAll('.ro-row').forEach(r => r.classList.remove('ro-dragging', 'ro-drag-over'));
+      if (targetRow) {
+        const targetIdx = Number(targetRow.dataset.idx);
+        if (dragSrcIdx !== targetIdx) {
+          const [item] = pendingOrder.splice(dragSrcIdx, 1);
+          pendingOrder.splice(targetIdx, 0, item);
+          renderReorderDialog();
+        }
+      }
+      dragSrcIdx = null;
+    });
+  });
+
   // Activate buttons
   el.querySelectorAll<HTMLButtonElement>('.ro-activate-btn').forEach(btn => {
     btn.addEventListener('click', () => applyActivate(btn.dataset.hwid!));
