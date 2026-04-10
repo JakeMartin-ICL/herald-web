@@ -13,5 +13,8 @@
   ],
   "eclipse": [
     { "display": "*", "id": "eclipse:faction:*" }
+  ],
+  "arcs": [
+    { "display": "Initiative", "id": "arcs:initiative" }
   ]
 }

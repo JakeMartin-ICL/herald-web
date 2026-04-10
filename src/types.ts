@@ -155,6 +155,18 @@ export interface InisState {
   consecutivePasses: number;
 }
 
+export interface ArcsState {
+  phase: 'tap_leader' | 'action' | 'status' | null;
+  leaderHwid: string | null;
+  /** Set when a player taps the initiative token during their action-phase turn. Causes
+   *  the next tap_leader phase to be skipped — the cycle restarts with them as leader. */
+  initiativeSeized: boolean;
+  /** Base clockwise turn order, persists across cycles; passed/disconnected filtered out per-cycle. */
+  turnOrder: string[];
+  /** Players still to take a turn in the current cycle; shrinks as players act or pass. */
+  cycleRemaining: string[];
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -213,6 +225,7 @@ export interface AppState {
   ti: TiState;
   kemet: KemetState;
   inis: InisState;
+  arcs: ArcsState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;

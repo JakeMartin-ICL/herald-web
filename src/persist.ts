@@ -69,6 +69,13 @@ export function extractPersistableState() {
       turnOrder:         [...state.inis.turnOrder],
       consecutivePasses: state.inis.consecutivePasses,
     },
+    arcs: {
+      phase:            state.arcs.phase,
+      leaderHwid:       state.arcs.leaderHwid,
+      initiativeSeized: state.arcs.initiativeSeized,
+      turnOrder:        [...state.arcs.turnOrder],
+      cycleRemaining:   [...state.arcs.cycleRemaining],
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -292,6 +299,16 @@ export function restoreState(persisted: any, silent = false): void {
     };
   }
 
+  if (persisted.arcs) {
+    state.arcs = {
+      phase:            persisted.arcs.phase ?? null,
+      leaderHwid:       persisted.arcs.leaderHwid ? remap(persisted.arcs.leaderHwid) : null,
+      initiativeSeized: persisted.arcs.initiativeSeized ?? false,
+      turnOrder:        ((persisted.arcs.turnOrder ?? []) as string[]).map(remap),
+      cycleRemaining:   ((persisted.arcs.cycleRemaining ?? []) as string[]).map(remap),
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -341,7 +358,7 @@ export function offerResume(persistedState: unknown): void {
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 

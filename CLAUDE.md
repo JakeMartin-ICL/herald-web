@@ -118,6 +118,12 @@ src/
                    Phase (consecutive-pass tracking; round ends when all pass in sequence);
                    uses ASSEMBLY_GREEN led_alternate_pair, getBoxDisplay() for per-box OLED
                    overrides, buildTurnOrder() for CW/ACW from Brenn, updateBrennBadge()
+    arcs.ts      — ArcsMode class; tap_leader phase (all RFID enabled, wait for arcs:initiative
+                   tag tap) → action phase (clockwise from leader; pass = out permanently this
+                   round; cycle ends when cycleRemaining exhausted → tap_leader again) → when
+                   all passed: status phase (manual button) → round++ → tap_leader;
+                   leader tracked via leaderHwid + gold "Leader" badge; syncRfid/onResume
+                   re-enables RFID after undo/resume
 ```
 
 ## Module Architecture
