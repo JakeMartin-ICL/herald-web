@@ -2,6 +2,7 @@ import { state } from './state';
 import { sendToBox } from './websockets';
 import { getDisplayName } from './boxes';
 import { currentGuidedStep, guidedPhaseProgress } from './guided-phase';
+import { currentGame } from './currentGame';
 import type { BoxStatus, DisplayBoxSettings } from './types';
 
 const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
@@ -33,6 +34,13 @@ export function syncDisplay(): void {
     // Guided phase overrides name/status on all boxes
     if (guidedStep !== null) {
       sendToBox(hwid, { type: 'display', name: guidedStep, status: guidedProgress });
+      return;
+    }
+
+    // Mode-level per-box override (e.g. Inis assembly steps)
+    const boxDisplay = currentGame?.getBoxDisplay?.(hwid);
+    if (boxDisplay !== null && boxDisplay !== undefined) {
+      sendToBox(hwid, { type: 'display', name: '', status: '', ...boxDisplay });
       return;
     }
 

@@ -32,7 +32,7 @@ export type LedCommand =
   | { type: 'led_thirds'; c1: string; c2: string; c3: string }
   | { type: 'led_sectors'; sectors: { color: string; count: number }[] }
   | { type: 'led_anim_breathe'; color: string; rainbow: boolean; halfPeriodMs: number }
-  | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number; fadeMs: number }
+  | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number; fadeMs: number; reverse?: boolean }
   | { type: 'led_anim_choosing'; colors: string[]; activeMs: number; fadeMs: number }
   | { type: 'led_anim_upkeep' }
   | { type: 'led_anim_stop' }
@@ -146,6 +146,15 @@ export interface KemetState {
   guidedNightPhase: boolean;
 }
 
+export interface InisState {
+  phase: 'assembly' | 'season' | null;
+  assemblyStep: 'brenn' | 'victory' | 'advantage' | 'flock' | 'deal' | 'draft' | null;
+  brennHwid: string | null;
+  turnDirection: 'clockwise' | 'anticlockwise';
+  turnOrder: string[];
+  consecutivePasses: number;
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -203,6 +212,7 @@ export interface AppState {
   eclipse: EclipseState;
   ti: TiState;
   kemet: KemetState;
+  inis: InisState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;
@@ -297,4 +307,7 @@ export interface GameMode {
   activatePlayer?(hwid: string): void;
   /** Re-sync RFID enable/disable to match restored game state (called after undo). */
   syncRfid?(): void;
+  /** Per-box OLED display override. Return a partial display-message object (name, status,
+   *  arrow, layout, etc.) or null to use the default player-name/status display. */
+  getBoxDisplay?(hwid: string): Record<string, unknown> | null;
 }

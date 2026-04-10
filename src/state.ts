@@ -1,4 +1,4 @@
-import type { AppState, SelectedExpansions, KemetState } from './types';
+import type { AppState, SelectedExpansions, KemetState, InisState } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -89,6 +89,18 @@ export const state: AppState = {
       turnCounts: {},
       turnsPerRound: 5,
       guidedNightPhase: false,
+    };
+    return defaults;
+  })(),
+
+  inis: (() => {
+    const defaults: InisState = {
+      phase: null,
+      assemblyStep: null,
+      brennHwid: null,
+      turnDirection: 'clockwise',
+      turnOrder: [],
+      consecutivePasses: 0,
     };
     return defaults;
   })(),

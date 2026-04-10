@@ -61,6 +61,14 @@ export function extractPersistableState() {
       turnsPerRound:    state.kemet.turnsPerRound,
       guidedNightPhase: state.kemet.guidedNightPhase,
     },
+    inis: {
+      phase:             state.inis.phase,
+      assemblyStep:      state.inis.assemblyStep,
+      brennHwid:         state.inis.brennHwid,
+      turnDirection:     state.inis.turnDirection,
+      turnOrder:         [...state.inis.turnOrder],
+      consecutivePasses: state.inis.consecutivePasses,
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -273,6 +281,17 @@ export function restoreState(persisted: any, silent = false): void {
     };
   }
 
+  if (persisted.inis) {
+    state.inis = {
+      phase:             persisted.inis.phase ?? null,
+      assemblyStep:      persisted.inis.assemblyStep ?? null,
+      brennHwid:         persisted.inis.brennHwid ? remap(persisted.inis.brennHwid) : null,
+      turnDirection:     persisted.inis.turnDirection ?? 'clockwise',
+      turnOrder:         ((persisted.inis.turnOrder ?? []) as string[]).map(remap),
+      consecutivePasses: persisted.inis.consecutivePasses ?? 0,
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -322,7 +341,7 @@ export function offerResume(persistedState: unknown): void {
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 

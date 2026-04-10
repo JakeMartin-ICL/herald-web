@@ -113,6 +113,11 @@ src/
     kemet.ts     — KemetMode class; action phase (5 turns each, sequential) → night phase
                    (guided or manual) → reorder dialog → next round; auto-opens reorder
                    dialog at game start and after each night phase
+    inis.ts      — InisMode class; Assembly Phase (6 steps: brenn selection, victory check,
+                   advantage cards, Flock of Crows direction, deal cards, draft) → Season
+                   Phase (consecutive-pass tracking; round ends when all pass in sequence);
+                   uses ASSEMBLY_GREEN led_alternate_pair, getBoxDisplay() for per-box OLED
+                   overrides, buildTurnOrder() for CW/ACW from Brenn, updateBrennBadge()
 ```
 
 ## Module Architecture
