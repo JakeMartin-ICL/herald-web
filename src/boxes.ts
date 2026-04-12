@@ -241,10 +241,8 @@ export function updateSetupUI(): void {
 
   (document.getElementById('ti-speaker-row') as HTMLElement).style.display = isTi ? 'flex' : 'none';
   const factionsLoaded = !!state.factions;
-  (document.getElementById('ti-learn-tags-btn') as HTMLElement).style.display =
-    (isTi && factionsLoaded) ? 'block' : 'none';
-  (document.getElementById('eclipse-learn-faction-tags-btn') as HTMLElement).style.display =
-    (isEclipse && factionsLoaded) ? 'block' : 'none';
+  const hasTags = (state.allTags?.[mode]?.length ?? 0) > 0;
+  (document.getElementById('write-tags-btn') as HTMLElement).style.display = hasTags ? 'block' : 'none';
   const showFactions = ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
   (document.getElementById('set-factions-btn') as HTMLElement).style.display = showFactions;
   (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;

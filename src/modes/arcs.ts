@@ -5,12 +5,14 @@ import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
 import { syncDisplay } from '../display';
-import { syncLeds } from '../leds';
+import { syncLeds, resetActiveAnim } from '../leds';
 import { enableRfid, disableRfid, disableAllRfid, sendToBox } from '../websockets';
 import type { GameMode, Tag, ActionDef } from '../types';
 
 const CYCLE_END_FLASH_COLOR = '#0044ff';
 const CYCLE_END_FLASH_MS = 500;
+const INITIATIVE_FLASH_COLOR = '#ffd700';
+const INITIATIVE_FLASH_MS = 400;
 
 export class ArcsMode implements GameMode {
   readonly id = 'arcs';
@@ -61,6 +63,7 @@ export class ArcsMode implements GameMode {
       state.arcs.leaderHwid = hwid;
       this.updateLeaderBadge();
       log(`${getDisplayName(hwid)} claims initiative`, 'system');
+      this.flashInitiative(hwid);
       this.startActionCycle();
       return;
     }
@@ -72,6 +75,7 @@ export class ArcsMode implements GameMode {
       state.arcs.initiativeSeized = true;
       this.updateLeaderBadge();
       log(`${getDisplayName(hwid)} seizes initiative`, 'system');
+      this.flashInitiative(hwid);
       render();
       persistState();
     }
@@ -342,7 +346,16 @@ export class ArcsMode implements GameMode {
       sendToBox(hwid, { type: 'led_solid', color: CYCLE_END_FLASH_COLOR });
     });
     then();
-    setTimeout(syncLeds, CYCLE_END_FLASH_MS + 100);
+    setTimeout(() => { resetActiveAnim(); syncLeds(); }, CYCLE_END_FLASH_MS + 100);
+  }
+
+  private flashInitiative(hwid: string): void {
+    const box = state.boxes[hwid];
+    if (!box || box.isVirtual || box.status === 'disconnected') return;
+    resetActiveAnim();
+    box.ledOverrideUntil = Date.now() + INITIATIVE_FLASH_MS;
+    sendToBox(hwid, { type: 'led_solid', color: INITIATIVE_FLASH_COLOR });
+    setTimeout(() => { resetActiveAnim(); syncLeds(); }, INITIATIVE_FLASH_MS + 100);
   }
 
   // ---- Helpers ----

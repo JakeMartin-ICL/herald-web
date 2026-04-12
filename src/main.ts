@@ -44,8 +44,10 @@ on('set-factions-btn', 'click', () => startFactionScan());
 on('set-factions-debug-btn', 'click', () => startFactionScan());
 
 // Tag writing
-on('ti-learn-tags-btn', 'click', () => startTagWriting(buildTagQueue('ti'), 'Write TI Tags'));
-on('eclipse-learn-faction-tags-btn', 'click', () => startTagWriting(buildTagQueue('eclipse'), 'Write Eclipse Tags'));
+on('write-tags-btn', 'click', () => {
+  const mode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  startTagWriting(buildTagQueue(mode), 'Write Tags');
+});
 on('simulate-tag-tap-btn', 'click', () => simulateTagTap());
 on('cancel-tag-writing-btn', 'click', () => cancelTagWriting());
 
