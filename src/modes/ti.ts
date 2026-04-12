@@ -40,6 +40,17 @@ const TI_STRATEGY_INITIATIVES: Record<string, number> = {
   trade: 5, warfare: 6, technology: 7, imperial: 8,
 };
 
+const TI_SECONDARY_HINTS: Record<string, string> = {
+  leadership:   'Influence->cmds (3:1)',
+  diplomacy:    '1Cmd->Unexhaust 2 pl.',
+  politics:     '1Cmd->2 action cards',
+  construction: '1Cmd->1 structure',
+  trade:        '1Cmd->Replenish comms',
+  warfare:      '1Cmd->PROD home sys',
+  technology:   '1Cmd+4res->1 research',
+  imperial:     '1Cmd->1 secret obj',
+};
+
 const TI_STRATEGY_LABELS: Record<string, string> = {
   leadership: 'Leadership', diplomacy: 'Diplomacy', politics: 'Politics',
   construction: 'Construction', trade: 'Trade', warfare: 'Warfare',
@@ -294,6 +305,17 @@ export class TwilightImperiumMode implements GameMode {
     return [];
   }
 
+  getBoxDisplay(hwid: string): Record<string, unknown> | null {
+    if (!state.ti.secondaryHints) return null;
+    if (state.ti.phase !== 'action') return null;
+    if (state.boxes[hwid]?.status !== 'secondary') return null;
+    const cardId = state.ti.secondary?.cardId;
+    if (!cardId) return null;
+    const hint = TI_SECONDARY_HINTS[cardId];
+    if (!hint) return null;
+    return { name: getDisplayName(hwid), status: hint };
+  }
+
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {
     const phase = state.ti.phase ?? '';
     if (state.ti.speakerHwid) statusLines.push(`Speaker: ${getDisplayName(state.ti.speakerHwid)}`);
@@ -370,6 +392,19 @@ export class TwilightImperiumMode implements GameMode {
       fn: (e: Event) => {
         state.ti.guidedStatusPhase = (e.target as HTMLInputElement).checked;
         log(`Guided status phase ${state.ti.guidedStatusPhase ? 'enabled' : 'disabled'}`, 'system');
+      },
+    });
+    actionDefs.push({
+      html: `<label class="gc-check-row toggle-wrap">
+        <input type="checkbox" id="gc-secondary-hints"${state.ti.secondaryHints ? ' checked' : ''}>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Secondary action hints</span>
+      </label>`,
+      id: 'gc-secondary-hints',
+      event: 'change',
+      fn: (e: Event) => {
+        state.ti.secondaryHints = (e.target as HTMLInputElement).checked;
+        log(`Secondary hints ${state.ti.secondaryHints ? 'enabled' : 'disabled'}`, 'system');
       },
     });
   }

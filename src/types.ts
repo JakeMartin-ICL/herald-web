@@ -133,6 +133,7 @@ export interface TiState {
   secondaryMode: 'fastest' | 'fast' | 'standard';
   mecatolControlled: boolean;
   guidedStatusPhase: boolean;
+  secondaryHints: boolean;
   players: Record<string, TiPlayer>;
   secondary: TiSecondary | null;
   agendaCount: number;

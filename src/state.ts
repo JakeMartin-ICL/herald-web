@@ -75,6 +75,7 @@ export const state: AppState = {
     secondaryMode: 'standard',
     mecatolControlled: false,
     guidedStatusPhase: false,
+    secondaryHints: false,
     players: {},
     secondary: null,
     agendaCount: 0,
