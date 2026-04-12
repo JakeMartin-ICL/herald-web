@@ -837,9 +837,12 @@ export class TwilightImperiumMode implements GameMode {
     state.boxOrder.forEach(hwid => {
       state.boxes[hwid].status = isPostAgenda ? 'status2' : 'status';
     });
-    if (state.ti.guidedStatusPhase) {
+    if (state.ti.guidedStatusPhase && !isPostAgenda) {
       startGuidedPhase(TI_STATUS_STEPS);
       log('Status phase — hub end turn to advance steps, long press to skip', 'system');
+    } else if (state.ti.guidedStatusPhase && isPostAgenda) {
+      startGuidedPhase(['Ready cards']);
+      log('Status phase (post-agenda) — hub end turn to advance, long press to skip', 'system');
     } else {
       log('Status phase — long press hub to continue', 'system');
     }
