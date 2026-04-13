@@ -243,7 +243,8 @@ export function updateSetupUI(): void {
   const factionsLoaded = !!state.factions;
   const hasTags = (state.allTags?.[mode]?.length ?? 0) > 0;
   (document.getElementById('write-tags-btn') as HTMLElement).style.display = hasTags ? 'block' : 'none';
-  const showFactions = ((isTi || isEclipse) && factionsLoaded) ? 'block' : 'none';
+  const isCoc = mode === 'coc';
+  const showFactions = ((isTi || isEclipse || isCoc) && factionsLoaded) ? 'block' : 'none';
   (document.getElementById('set-factions-btn') as HTMLElement).style.display = showFactions;
   (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;
 

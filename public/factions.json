@@ -31,6 +31,23 @@
     {"id":"scholarate",        "name":"Deepwrought Scholarate",     "nickname":"Scholarte",  "color":"#336688","expansion":"thundersedge"},
     {"id":"obsidian",          "name":"The Obsidian",               "nickname":"Obsidian",   "color":"#556677","expansion":"thundersedge"}
   ],
+  "coc": [
+    {"id":"aztecs",    "name":"Aztecs",    "color":"#d4a017","expansion":"base"},
+    {"id":"babylonia", "name":"Babylonia", "color":"#1b3a6b","expansion":"base"},
+    {"id":"carthage",  "name":"Carthage",  "color":"#7b3fa0","expansion":"base"},
+    {"id":"celts",     "name":"Celts",     "color":"#2a8a7a","expansion":"base"},
+    {"id":"china",     "name":"China",     "color":"#cc2222","expansion":"base"},
+    {"id":"egypt",     "name":"Egypt",     "color":"#c8a84a","expansion":"base"},
+    {"id":"greece",    "name":"Greece",    "color":"#d0d0d0","expansion":"base"},
+    {"id":"huns",      "name":"Huns",      "color":"#880011","expansion":"base"},
+    {"id":"india",     "name":"India",     "color":"#3a8a3a","expansion":"base"},
+    {"id":"japan",     "name":"Japan",     "color":"#b31b1b","expansion":"base"},
+    {"id":"maya",      "name":"Maya",      "color":"#c8960a","expansion":"base"},
+    {"id":"persia",    "name":"Persia",    "color":"#cc4400","expansion":"base"},
+    {"id":"phoenicia", "name":"Phoenicia", "color":"#ddd8c0","expansion":"base"},
+    {"id":"rome",      "name":"Rome",      "color":"#5a2080","expansion":"base"},
+    {"id":"vikings",   "name":"Vikings",   "color":"#e8c84a","expansion":"base"}
+  ],
   "eclipse": [
     {"id":"eridani",   "name":"Eridani Empire",       "nickname":"Eridani",   "color":"#cc2222","expansion":"base"},
     {"id":"hydran",    "name":"Hydran Progress",       "nickname":"Hydran",    "color":"#4a90d9","expansion":"base"},

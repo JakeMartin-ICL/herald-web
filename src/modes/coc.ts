@@ -101,8 +101,8 @@ export class ClashOfCulturesMode implements GameMode {
     this.startActionPhase();
   }
 
-  getRelevantTags(hwid: string): Tag[] {
-    if (state.coc.phase === 'first_player' && !state.boxes[hwid]?.isVirtual) {
+  getRelevantTags(_hwid: string): Tag[] {
+    if (state.coc.phase === 'first_player') {
       return [{ display: 'First Player', id: 'coc:token:first_player' }];
     }
     return [];

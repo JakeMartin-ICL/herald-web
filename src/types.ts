@@ -192,6 +192,7 @@ export interface Expansion {
 export interface Factions {
   twilight_imperium: Faction[];
   eclipse: Faction[];
+  coc: Faction[];
 }
 
 export type AllTags = Record<string, Tag[]>;

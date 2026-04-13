@@ -76,6 +76,13 @@ export function extractPersistableState() {
       turnOrder:        [...state.arcs.turnOrder],
       cycleRemaining:   [...state.arcs.cycleRemaining],
     },
+    coc: {
+      phase:             state.coc.phase,
+      turnOrder:         [...state.coc.turnOrder],
+      turnCounts:        { ...state.coc.turnCounts },
+      advancedOrder:     state.coc.advancedOrder,
+      disableObjectives: state.coc.disableObjectives,
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -309,6 +316,20 @@ export function restoreState(persisted: any, silent = false): void {
     };
   }
 
+  if (persisted.coc) {
+    const remappedCounts: Record<string, number> = {};
+    for (const [ph, count] of Object.entries(persisted.coc.turnCounts ?? {})) {
+      remappedCounts[remap(ph)] = count as number;
+    }
+    state.coc = {
+      phase:             persisted.coc.phase ?? null,
+      turnOrder:         ((persisted.coc.turnOrder ?? []) as string[]).map(remap),
+      turnCounts:        remappedCounts,
+      advancedOrder:     persisted.coc.advancedOrder ?? false,
+      disableObjectives: persisted.coc.disableObjectives ?? false,
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -358,7 +379,7 @@ export function offerResume(persistedState: unknown): void {
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.coc?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 
