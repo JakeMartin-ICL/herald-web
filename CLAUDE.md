@@ -124,6 +124,14 @@ src/
                    all passed: status phase (manual button) → round++ → tap_leader;
                    leader tracked via leaderHwid + gold "Leader" badge; syncRfid/onResume
                    re-enables RFID after undo/resume
+    coc.ts       — ClashOfCulturesMode class; first_player phase (simple: all RFID enabled,
+                   wait for coc:token:first_player tap → clockwise from scanner; advanced:
+                   reorder dialog) → action phase (3 turns each, sequential like Kemet) →
+                   status phase (always guided: Complete objectives*, Free advance, Draw 1
+                   Action card, Draw 1 Objective card*, Raze size 1 city?, Change government
+                   type? — *omitted when disableObjectives enabled) → first_player again;
+                   hub end turn advances guided steps, long press skips; advancedOrder +
+                   disableObjectives toggles in renderControls
 ```
 
 ## Module Architecture

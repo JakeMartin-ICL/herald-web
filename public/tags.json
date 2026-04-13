@@ -16,5 +16,8 @@
   ],
   "arcs": [
     { "display": "Initiative", "id": "arcs:initiative" }
+  ],
+  "coc": [
+    { "display": "First Player", "id": "coc:token:first_player" }
   ]
 }

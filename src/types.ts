@@ -168,6 +168,14 @@ export interface ArcsState {
   cycleRemaining: string[];
 }
 
+export interface CocState {
+  phase: 'action' | 'status' | 'first_player' | null;
+  turnOrder: string[];
+  turnCounts: Record<string, number>;
+  advancedOrder: boolean;
+  disableObjectives: boolean;
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -227,6 +235,7 @@ export interface AppState {
   kemet: KemetState;
   inis: InisState;
   arcs: ArcsState;
+  coc: CocState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;

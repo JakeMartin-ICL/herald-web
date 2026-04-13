@@ -1,4 +1,4 @@
-import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState } from './types';
+import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState, CocState } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -113,6 +113,17 @@ export const state: AppState = {
       initiativeSeized: false,
       turnOrder: [],
       cycleRemaining: [],
+    };
+    return defaults;
+  })(),
+
+  coc: (() => {
+    const defaults: CocState = {
+      phase: null,
+      turnOrder: [],
+      turnCounts: {},
+      advancedOrder: false,
+      disableObjectives: false,
     };
     return defaults;
   })(),
