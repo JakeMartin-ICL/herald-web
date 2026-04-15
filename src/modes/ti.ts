@@ -40,14 +40,14 @@ const TI_STRATEGY_INITIATIVES: Record<string, number> = {
 };
 
 const TI_SECONDARY_HINTS: Record<string, string> = {
-  leadership: 'Influence->cmds (3:1)',
-  diplomacy: '1Cmd->Unexhaust 2 pl.',
-  politics: '1Cmd->2 action cards',
-  construction: '1Cmd->1 structure',
-  trade: '1Cmd->Replenish comms',
-  warfare: '1Cmd->PROD home sys',
-  technology: '1Cmd+4res->1 research',
-  imperial: '1Cmd->1 secret obj',
+  leadership:   'X Influence->CTs 3:1',
+  diplomacy:    '1CT->Ready 2 planets',
+  politics:     '1CT->2 action cards',
+  construction: '1CT->1 structure',
+  trade:        '1CT->Fill commods',
+  warfare:      '1CT->PROD home sys',
+  technology:   '1CT+4res->1 research',
+  imperial:     '1CT->1 secret obj',
 };
 
 const TI_STRATEGY_LABELS: Record<string, string> = {
