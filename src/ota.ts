@@ -68,7 +68,6 @@ export function startOtaUpdate(hwid: string): void {
   const box = state.boxes[hwid];
   if (!box) return;
   box.otaUpdating = true;
-  box.otaProgress = 0;
   box.otaError = null;
   send({ type: 'ota_update', hwid, url: state.latestFirmware.binUrl, version: state.latestFirmware.version });
   renderOtaDialog();
@@ -80,7 +79,6 @@ export function startOtaUpdateAll(): void {
     const box = state.boxes[hwid];
     if (box && isVersionOutOfDate(box.version) && !box.otaUpdating) {
       box.otaUpdating = true;
-      box.otaProgress = 0;
       box.otaError = null;
       send({ type: 'ota_update', hwid, url: state.latestFirmware!.binUrl, version: state.latestFirmware!.version });
     }
@@ -114,10 +112,7 @@ export function renderOtaDialog(): void {
     const canUpdate = fw?.binUrl && outOfDate && !box.otaUpdating;
     const canIdentify = box.status !== 'disconnected' && !box.isVirtual;
     const identifying = _identifyingHwid === hwid;
-    const progressHtml = box.otaUpdating || box.otaProgress !== null ? `
-      <div class="ota-progress-wrap">
-        <div class="ota-progress-bar" style="width:${box.otaProgress ?? 0}%"></div>
-      </div>` : '';
+    const progressHtml = box.otaUpdating ? `<div class="ota-progress-wrap"><div class="ota-progress-bar ota-progress-indeterminate"></div></div>` : '';
     const errorHtml = box.otaError ? `<div class="ota-error">${box.otaError}</div>` : '';
     return `<div class="ota-row">
       <span class="ota-name">${getDisplayName(hwid)}${isHub ? ' <span class="ota-hub">(Hub)</span>' : ''}</span>

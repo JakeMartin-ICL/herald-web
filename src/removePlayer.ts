@@ -1,5 +1,5 @@
 import { state } from './state';
-import { getDisplayName } from './boxes';
+import { getDisplayName, removeBox } from './boxes';
 import { currentGame } from './currentGame';
 import { snapshotForUndo } from './undo';
 import { syncLeds } from './leds';
@@ -21,11 +21,6 @@ function renderRemovePlayerDialog(): void {
   const el = document.getElementById('remove-player-content');
   if (!el) return;
 
-  if (!state.gameActive) {
-    el.innerHTML = '<div style="color:#888">No game in progress</div>';
-    return;
-  }
-
   const players = state.boxOrder.filter(hwid => {
     const box = state.boxes[hwid];
     return box && !box.isVirtual && box.status !== 'disconnected';
@@ -45,7 +40,12 @@ function renderRemovePlayerDialog(): void {
 
   el.querySelectorAll<HTMLButtonElement>('.rp-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      removePlayer(btn.dataset.hwid!);
+      if (state.gameActive) {
+        removePlayer(btn.dataset.hwid!);
+      } else {
+        removeBox(btn.dataset.hwid!);
+        render();
+      }
       renderRemovePlayerDialog();
     });
   });

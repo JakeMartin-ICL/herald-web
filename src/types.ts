@@ -48,7 +48,6 @@ export interface Box {
   ledOverrideUntil?: number | null;
   badges?: Badge[];
   version?: string | null;
-  otaProgress?: number | null;
   otaUpdating?: boolean;
   otaError?: string | null;
   turnStartTime?: number | null;

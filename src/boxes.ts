@@ -75,7 +75,6 @@ export function addBox(hwid: string, isVirtual: boolean): void {
   if (state.boxes[hwid]) {
     state.boxes[hwid].status = 'idle';
     state.boxes[hwid].otaUpdating = false;
-    state.boxes[hwid].otaProgress = null;
     log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
     if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
     if (state.gameActive) syncLedsForBox(hwid);

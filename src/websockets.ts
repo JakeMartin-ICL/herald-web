@@ -137,11 +137,14 @@ export function handleMessage(msg: any): void {
         }
       }
       break;
-    case 'connected':
+    case 'connected': {
+      const wasOtaUpdating = state.boxes[msg.hwid as string]?.otaUpdating;
       addBox(msg.hwid as string, false);
       if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = (msg.version as string) || 'unknown';
       sendBrightnessToBox(msg.hwid as string);
+      if (wasOtaUpdating) renderOtaDialog();
       break;
+    }
     case 'disconnected':
       handleBoxDisconnect(msg.hwid as string);
       break;
@@ -161,17 +164,9 @@ export function handleMessage(msg: any): void {
     case 'rfid_write_result':
       handleRfidWriteResult(msg);
       return;
-    case 'ota_progress':
-      if (state.boxes[msg.hwid]) {
-        state.boxes[msg.hwid].otaProgress = msg.percent as number;
-        state.boxes[msg.hwid].otaUpdating = true;
-      }
-      renderOtaDialog();
-      return;
     case 'ota_complete':
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].version = msg.version as string;
-        state.boxes[msg.hwid].otaProgress = 100;
         state.boxes[msg.hwid].otaUpdating = false;
         state.boxes[msg.hwid].otaError = null;
       }
@@ -182,7 +177,6 @@ export function handleMessage(msg: any): void {
       if (state.boxes[msg.hwid]) {
         state.boxes[msg.hwid].otaError = msg.message as string;
         state.boxes[msg.hwid].otaUpdating = false;
-        state.boxes[msg.hwid].otaProgress = null;
       }
       log(`${getDisplayName(msg.hwid as string)} OTA failed: ${msg.message as string}`, 'error');
       renderOtaDialog();
