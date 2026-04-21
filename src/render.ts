@@ -10,13 +10,14 @@ import { log } from './logger';
 import { getDisplayName, updateSetupUI, setBoxName, setAutoName } from './boxes';
 import { getRelevantTagsForBox } from './tags';
 import { renderTimerInfo, openGraphOverlay, captureGameStats } from './graphs';
-import { currentGame } from './currentGame';
+import { currentGame, setCurrentGame } from './currentGame';
 import { getFactionForBox } from './boxes';
 import { MODE_NAMES } from './modes/index';
 import { disableAllRfid } from './websockets';
 import { clearPersistedState } from './persist';
 import { canUndo, undo, clearUndoHistory } from './undo';
 import { isVersionOutOfDate } from './firmware';
+import { clearGuidedPhase } from './guided-phase';
 import type { ActionDef } from './types';
 
 // ---- Battery percentage ----
@@ -25,18 +26,18 @@ import type { ActionDef } from './types';
 // Points are [voltage, percentage] in descending voltage order.
 const BATTERY_CURVE: [number, number][] = [
   [4.20, 100],
-  [4.10,  91],
-  [4.00,  81],
-  [3.90,  70],
-  [3.80,  58],
-  [3.70,  47],
-  [3.60,  36],
-  [3.50,  25],
-  [3.40,  15],
-  [3.30,   8],
-  [3.20,   3],
-  [3.00,   1],
-  [2.80,   0],
+  [4.10, 91],
+  [4.00, 81],
+  [3.90, 70],
+  [3.80, 58],
+  [3.70, 47],
+  [3.60, 36],
+  [3.50, 25],
+  [3.40, 15],
+  [3.30, 8],
+  [3.20, 3],
+  [3.00, 1],
+  [2.80, 0],
 ];
 
 function voltageToPercent(v: number): number {
@@ -277,11 +278,11 @@ export function cancelEndGame(): void {
 
 export function endGame(): void {
   cancelEndGame();
-  void import('./score-entry').then(({ openScoreEntryDialog }) => openScoreEntryDialog(finalizeEndGame));
+  void import('./score-entry').then(({ openScoreEntryDialog }) => openScoreEntryDialog(finaliseEndGame));
 }
 
 /** Actual game teardown — called by score-entry.ts after the user confirms/skips scores. */
-export function finalizeEndGame(): void {
+export function finaliseEndGame(): void {
   disableAllRfid();
   state.gameActive = false;
   state.activeBoxId = null;
@@ -295,11 +296,8 @@ export function finalizeEndGame(): void {
   });
   state.round = 0;
   state.totalRounds = null;
-  state.eclipse = {
-    phase: null, passOrder: [], turnOrder: [], firstPlayerId: null,
-    tapToPass: state.eclipse.tapToPass, advancedOrder: state.eclipse.advancedOrder, upkeepReady: [],
-  };
-  state.ti = { ...state.ti, phase: null, speakerHwid: null, turnOrder: [], players: {}, secondary: null, agendaCount: 0 };
+  clearGuidedPhase();
+  setCurrentGame(null);
   state.paused = false;
   state.pauseStartTime = null;
   endPhase();
@@ -568,7 +566,7 @@ export function renderBoxes(): void {
 
     card.addEventListener('click', (e) => {
       if ((e.target as HTMLElement) === card ||
-          (e.target as HTMLElement).classList.contains('box-status')) {
+        (e.target as HTMLElement).classList.contains('box-status')) {
         toggleSim(hwid);
       }
     });

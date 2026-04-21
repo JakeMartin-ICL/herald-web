@@ -83,23 +83,23 @@ export function ledSectors(n: number, sectors: { color: string; count: number }[
 
 export function ledCommandToArray(cmd: LedCommand): string[] {
   switch (cmd.type) {
-    case 'led_off':            return ledOff(LED_COUNT);
-    case 'led_solid':          return ledSolid(LED_COUNT, cmd.color);
-    case 'led_alternate':      return ledAlternate(LED_COUNT, cmd.color);
+    case 'led_off': return ledOff(LED_COUNT);
+    case 'led_solid': return ledSolid(LED_COUNT, cmd.color);
+    case 'led_alternate': return ledAlternate(LED_COUNT, cmd.color);
     case 'led_alternate_pair': return ledAlternatePair(LED_COUNT, cmd.a, cmd.b);
-    case 'led_half':           return ledHalf(LED_COUNT, cmd.color, cmd.first);
-    case 'led_rainbow':        return ledRainbow(LED_COUNT);
-    case 'led_thirds':         return ledThirds(LED_COUNT, cmd.c1, cmd.c2, cmd.c3);
-    case 'led_sectors':        return ledSectors(LED_COUNT, cmd.sectors);
-    case 'led_raw':            return cmd.leds;
+    case 'led_half': return ledHalf(LED_COUNT, cmd.color, cmd.first);
+    case 'led_rainbow': return ledRainbow(LED_COUNT);
+    case 'led_thirds': return ledThirds(LED_COUNT, cmd.c1, cmd.c2, cmd.c3);
+    case 'led_sectors': return ledSectors(LED_COUNT, cmd.sectors);
+    case 'led_raw': return cmd.leds;
     // Animations: show a representative static frame
-    case 'led_anim_breathe':   return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
-    case 'led_anim_spinner':   return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
-    case 'led_anim_choosing':  return ledSectors(LED_COUNT,
+    case 'led_anim_breathe': return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
+    case 'led_anim_spinner': return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
+    case 'led_anim_choosing': return ledSectors(LED_COUNT,
       cmd.colors.map(color => ({ color, count: Math.floor(LED_COUNT / cmd.colors.length) })));
-    case 'led_anim_upkeep':    return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
-    case 'led_anim_stop':      return ledOff(LED_COUNT);
-    case 'led_brightness':     return ledOff(LED_COUNT); // send-only command, not a display state
+    case 'led_anim_upkeep': return ledThirds(LED_COUNT, '#d4a017', '#e64da0', '#cc7700');
+    case 'led_anim_stop': return ledOff(LED_COUNT);
+    case 'led_brightness': return ledOff(LED_COUNT); // send-only command, not a display state
   }
 }
 
@@ -148,7 +148,7 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-export function normalizeColor(color: string): string {
+export function normaliseColor(color: string): string {
   if (color.startsWith('#')) return color;
   const m = /hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/.exec(color);
   if (m) return hslToHex(Number(m[1]), Number(m[2]), Number(m[3]));

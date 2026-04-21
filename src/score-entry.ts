@@ -9,14 +9,14 @@ import { MODE_NAMES } from './modes/index';
 import type { GameLog, ScoreBreakdown } from './types';
 
 let _pendingLog: GameLog | null = null;
-let _finalize: (() => void) | null = null;
+let _finalise: (() => void) | null = null;
 let _breakdown: ScoreBreakdown | null = null;
 
 
-export function openScoreEntryDialog(finalizeEndGame: () => void): void {
+export function openScoreEntryDialog(finaliseEndGame: () => void): void {
   if (_pendingLog) return;
   _pendingLog = buildGameLog();
-  _finalize = finalizeEndGame;
+  _finalise = finaliseEndGame;
   _breakdown = null;
 
   const overlay = document.getElementById('score-entry-overlay') as HTMLElement;
@@ -49,7 +49,7 @@ export function openScoreEntryDialog(finalizeEndGame: () => void): void {
 
 export function cancelScoreEntry(): void {
   _pendingLog = null;
-  _finalize = null;
+  _finalise = null;
   _breakdown = null;
   (document.getElementById('score-entry-overlay') as HTMLElement).style.display = 'none';
 }
@@ -110,13 +110,13 @@ export function skipScoreEntry(): void {
 
 function finish(): void {
   const gameLog = _pendingLog;
-  const finalize = _finalize;
+  const finalise = _finalise;
   const breakdown = _breakdown;
   _pendingLog = null;
-  _finalize = null;
+  _finalise = null;
   _breakdown = null;
   (document.getElementById('score-entry-overlay') as HTMLElement).style.display = 'none';
-  finalize?.();
+  finalise?.();
   if (gameLog) {
     if (breakdown) gameLog.score_breakdown = breakdown;
     saveGameLog(gameLog);

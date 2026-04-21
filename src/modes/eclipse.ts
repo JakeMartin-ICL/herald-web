@@ -5,12 +5,12 @@ import { getDisplayName, getFactionForBox } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
-import { LED_COUNT, normalizeColor } from '../leds';
+import { LED_COUNT, normaliseColor } from '../leds';
 import { captureGameStats } from '../graphs';
 import type { GameMode, Tag, ActionDef, LedCommand } from '../types';
 
-const UPKEEP_GOLD  = '#d4a017';
-const UPKEEP_PINK  = '#e64da0';
+const UPKEEP_GOLD = '#d4a017';
+const UPKEEP_PINK = '#e64da0';
 const UPKEEP_BROWN = '#cc7700';
 
 export class EclipseMode implements GameMode {
@@ -23,9 +23,9 @@ export class EclipseMode implements GameMode {
       case 'passed':
         return isFirstInPassOrder ? { type: 'led_alternate', color: '#d4a017' } : { type: 'led_off' };
       case 'reacting': return { type: 'led_alternate', color: '#3a3aff' };
-      case 'combat':   return { type: 'led_solid', color: '#8a0000' };
-      case 'upkeep':   return { type: 'led_anim_upkeep' };
-      default:         return null;
+      case 'combat': return { type: 'led_solid', color: '#8a0000' };
+      case 'upkeep': return { type: 'led_anim_upkeep' };
+      default: return null;
     }
   }
 
@@ -198,7 +198,7 @@ export class EclipseMode implements GameMode {
           ...state.boxOrder.slice(firstIdx),
           ...state.boxOrder.slice(0, firstIdx),
         ].filter(id => state.boxes[id].status !== 'disconnected')
-         .map(id => getDisplayName(id));
+          .map(id => getDisplayName(id));
       }
       statusLines.push(`Next order: ${nextOrder.join(' → ')}`);
     }
@@ -267,8 +267,8 @@ export class EclipseMode implements GameMode {
   }
 
   onPlayerRemoved(hwid: string): void {
-    state.eclipse.passOrder    = state.eclipse.passOrder.filter(id => id !== hwid);
-    state.eclipse.upkeepReady  = state.eclipse.upkeepReady.filter(id => id !== hwid);
+    state.eclipse.passOrder = state.eclipse.passOrder.filter(id => id !== hwid);
+    state.eclipse.upkeepReady = state.eclipse.upkeepReady.filter(id => id !== hwid);
 
     if (state.eclipse.firstPlayerId === hwid) {
       state.eclipse.firstPlayerId = state.boxOrder.find(id => id !== hwid) ?? null;
@@ -524,7 +524,7 @@ export class EclipseMode implements GameMode {
       frameIndex = (frameIndex + 1) % this.upkeepAnimFrames.length;
       state.boxOrder.forEach(hwid => {
         const box = state.boxes[hwid];
-        if (box?.status === 'upkeep' && box.isVirtual) box.leds = { type: 'led_raw', leds: leds.map(normalizeColor) };
+        if (box?.status === 'upkeep' && box.isVirtual) box.leds = { type: 'led_raw', leds: leds.map(normaliseColor) };
       });
       render();
       this.upkeepAnimTimer = setTimeout(tick, duration);

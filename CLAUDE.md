@@ -57,7 +57,7 @@ src/
                    buttons; calls syncDisplay() after OLED changes, setBrightness() for LED changes
   render.ts      — Table rendering (renderBoxes, renderGameControls, renderTableLabel),
                    box cards, drag-to-reorder, name editing, sim toggle,
-                   endGame() (opens score-entry dialog), finalizeEndGame() (actual state reset,
+                   endGame() (opens score-entry dialog), finaliseEndGame() (actual state reset,
                    called by score-entry.ts after log is saved),
                    togglePause() (pauses timers + blanks LEDs; blocked input while paused),
                    setWakeLockHandlers(), isManuallyRenamed()
@@ -82,9 +82,9 @@ src/
   gist.ts        — GitHub Gist API: createGist(pat) → new gist ID; syncWithGist(config, onStatus?)
                    → fetches gist, uploads missing local games, downloads missing remote games,
                    patches _index.json atomically; all sync done in the browser
-  score-entry.ts — Score entry dialog: intercepts endGame() flow; openScoreEntryDialog(finalizeEndGame)
+  score-entry.ts — Score entry dialog: intercepts endGame() flow; openScoreEntryDialog(finaliseEndGame)
                    calls buildGameLog() while state is still intact, shows score inputs, then
-                   calls finalizeEndGame() + saveGameLog() + auto-sync on confirm/skip;
+                   calls finaliseEndGame() + saveGameLog() + auto-sync on confirm/skip;
                    cancelScoreEntry() dismisses without ending the game
   github-settings.ts — GitHub Sync dialog: PAT input, Gist ID field, Create/Save/Sync buttons;
                    saves to localStorage + sends github_config_set to hub via sendSilent
