@@ -8,7 +8,7 @@ import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
 import { renderExpansionUI } from './expansions';
 import { currentGame, setupGame } from './currentGame';
-import type { Badge, Faction } from './types';
+import type { Badge, Faction, SetupField, SetupSelectOption } from './types';
 
 // ---- Box names ----
 
@@ -59,6 +59,14 @@ export function getFactionForBox(hwid: string): Faction | null {
     if (found) return found;
   }
   return null;
+}
+
+export function buildPlayerSelectOptions(includeFactionNames = false): SetupSelectOption[] {
+  return state.boxOrder.map(hwid => {
+    const faction = includeFactionNames ? getFactionForBox(hwid) : null;
+    const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
+    return { value: hwid, label };
+  });
 }
 
 // ---- Box management ----
@@ -235,8 +243,7 @@ export function updateSetupUI(): void {
   (document.getElementById('prev-stats-btn') as HTMLElement).style.display =
     prevGameStats ? 'block' : 'none';
   updateResumeBtnState();
-
-  document.querySelectorAll<HTMLElement>('.mode-row').forEach(el => { el.style.display = 'none'; });
+  renderModeSetupFields(setupGame?.getSetupFields?.() ?? []);
 
   const hasTags = (state.allTags?.[mode]?.length ?? 0) > 0;
   (document.getElementById('write-tags-btn') as HTMLElement).style.display = hasTags ? 'block' : 'none';
@@ -246,7 +253,64 @@ export function updateSetupUI(): void {
   (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;
 
   renderExpansionUI(setupGame);
-  setupGame?.renderSetupUI?.();
+}
+
+function renderModeSetupFields(fields: SetupField[]): void {
+  const container = document.getElementById('mode-setup-fields') as HTMLElement | null;
+  if (!container) return;
+
+  const previousValues = new Map<string, string | boolean>();
+  container.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[id], select[id]').forEach(el => {
+    if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+      previousValues.set(el.id, el.checked);
+    } else {
+      previousValues.set(el.id, el.value);
+    }
+  });
+
+  container.innerHTML = fields.map(field => {
+    if (field.type === 'select') {
+      const optionsHtml = field.options.map(option =>
+        `<option value="${option.value}">${option.label}</option>`
+      ).join('');
+      const hintHtml = field.hint ? `<span class="hint">${field.hint}</span>` : '';
+      return `<div class="setup-row">
+        <label>${field.label}</label>
+        <select id="${field.id}">${optionsHtml}</select>
+        ${hintHtml}
+      </div>`;
+    }
+
+    const hintHtml = field.hint ? `<span class="hint">${field.hint}</span>` : '';
+    return `<div class="setup-row">
+      <label>${field.label}</label>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="${field.id}">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+      ${hintHtml}
+    </div>`;
+  }).join('');
+
+  fields.forEach(field => {
+    const el = container.querySelector(`#${field.id}`);
+    if (!el) return;
+
+    if (field.type === 'select') {
+      const select = el as HTMLSelectElement;
+      const selectedValue = previousValues.get(field.id);
+      const fallbackValue = field.value ?? field.options[0]?.value ?? '';
+      const nextValue = typeof selectedValue === 'string' ? selectedValue : fallbackValue;
+      if (field.options.some(option => option.value === nextValue)) {
+        select.value = nextValue;
+      }
+      return;
+    }
+
+    const input = el as HTMLInputElement;
+    const checkedValue = previousValues.get(field.id);
+    input.checked = typeof checkedValue === 'boolean' ? checkedValue : (field.checked ?? false);
+  });
 }
 
 export function setBoxBadges(hwid: string, badges: Badge[]): void {

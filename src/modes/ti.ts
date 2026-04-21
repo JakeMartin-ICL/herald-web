@@ -2,16 +2,14 @@ import { state } from '../state';
 import { log } from '../logger';
 import { disableAllRfid, enableRfid, sendToBox } from '../websockets';
 import { startGuidedPhase, advanceGuidedPhase, clearGuidedPhase, isGuidedPhaseActive, currentGuidedStep, guidedPhaseProgress } from '../guided-phase';
-import { getDisplayName } from '../boxes';
+import { getDisplayName, buildPlayerSelectOptions, getFactionForBox, setBoxBadges } from '../boxes';
 import { render, renderBoxes } from '../render';
-import { setBoxBadges } from '../boxes';
 import { startPhase } from '../timers';
 import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
 import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
-import { getFactionForBox } from '../boxes';
-import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand } from '../types';
+import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand, SetupField } from '../types';
 
 const TI_STATUS_STEPS = [
   'Score objectives',
@@ -80,14 +78,13 @@ export class TwilightImperiumMode implements GameMode {
     return `TI${phase ? ` — ${phase.replace(/_/g, ' ').toUpperCase()}` : ''}`;
   }
 
-  renderSetupUI(): void {
-    (document.getElementById('ti-speaker-row') as HTMLElement).style.display = 'flex';
-    const select = document.getElementById('ti-speaker') as HTMLSelectElement;
-    select.innerHTML = state.boxOrder.map(hwid => {
-      const faction = state.factions ? getFactionForBox(hwid) : null;
-      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
-      return `<option value="${hwid}">${label}</option>`;
-    }).join('');
+  getSetupFields(): SetupField[] {
+    return [{
+      type: 'select',
+      id: 'ti-speaker',
+      label: 'Speaker',
+      options: buildPlayerSelectOptions(true),
+    }];
   }
 
   get turnOrder(): string[] { return state.ti.turnOrder; }

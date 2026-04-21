@@ -1,6 +1,6 @@
 import { state } from '../state';
 import { log } from '../logger';
-import { getDisplayName, setBoxBadges } from '../boxes';
+import { getDisplayName, buildPlayerSelectOptions, setBoxBadges } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
@@ -157,8 +157,8 @@ export class InisMode implements GameMode {
         html: `<div class="gc-secondary-row">
           <span>Brenn:</span>
           <select id="gc-brenn">
-            ${state.boxOrder.map(hwid =>
-              `<option value="${hwid}"${state.inis.brennHwid === hwid ? ' selected' : ''}>${getDisplayName(hwid)}</option>`
+            ${buildPlayerSelectOptions().map(option =>
+              `<option value="${option.value}"${state.inis.brennHwid === option.value ? ' selected' : ''}>${option.label}</option>`
             ).join('')}
           </select>
         </div>`,

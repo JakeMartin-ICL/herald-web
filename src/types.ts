@@ -303,13 +303,35 @@ export interface GitHubConfig {
   entered_at: number;          // Unix seconds, set client-side at save time
 }
 
+export interface SetupSelectOption {
+  value: string;
+  label: string;
+}
+
+export type SetupField =
+  | {
+    type: 'select';
+    id: string;
+    label: string;
+    options: SetupSelectOption[];
+    value?: string;
+    hint?: string;
+  }
+  | {
+    type: 'checkbox';
+    id: string;
+    label: string;
+    checked?: boolean;
+    hint?: string;
+  };
+
 // ---- GameMode interface ----
 
 export interface GameMode {
   readonly id: string;
   getTableLabel?(): string;
   getLedForStatus?(status: string, box: Box | null, hwid: string | null): LedCommand | null;
-  renderSetupUI?(): void;
+  getSetupFields?(): SetupField[];
   /** Current phase turn order; the reorder dialog reads and writes this. */
   turnOrder: string[];
   /** Optional ordered list of score categories for the end-of-game scoresheet. */

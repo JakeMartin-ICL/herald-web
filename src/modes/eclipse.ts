@@ -1,13 +1,13 @@
 import { state } from '../state';
 import { log } from '../logger';
 import { disableAllRfid, disableRfid, enableRfid, sendToBox } from '../websockets';
-import { getDisplayName, getFactionForBox } from '../boxes';
+import { getDisplayName, buildPlayerSelectOptions } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
 import { LED_COUNT, normaliseColor } from '../leds';
 import { captureGameStats } from '../graphs';
-import type { GameMode, Tag, ActionDef, LedCommand } from '../types';
+import type { GameMode, Tag, ActionDef, LedCommand, SetupField } from '../types';
 
 const UPKEEP_GOLD = '#d4a017';
 const UPKEEP_PINK = '#e64da0';
@@ -33,16 +33,29 @@ export class EclipseMode implements GameMode {
     return state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE';
   }
 
-  renderSetupUI(): void {
-    (document.getElementById('first-player-row') as HTMLElement).style.display = 'flex';
-    (document.getElementById('eclipse-mode-row') as HTMLElement).style.display = 'flex';
-    (document.getElementById('eclipse-order-row') as HTMLElement).style.display = 'flex';
-    const select = document.getElementById('first-player') as HTMLSelectElement;
-    select.innerHTML = state.boxOrder.map(hwid => {
-      const faction = state.factions ? getFactionForBox(hwid) : null;
-      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
-      return `<option value="${hwid}">${label}</option>`;
-    }).join('');
+  getSetupFields(): SetupField[] {
+    return [
+      {
+        type: 'select',
+        id: 'first-player',
+        label: 'First Player',
+        options: buildPlayerSelectOptions(true),
+      },
+      {
+        type: 'checkbox',
+        id: 'eclipse-reaction-cards',
+        label: 'Reaction Cards',
+        checked: state.eclipse.tapToPass,
+        hint: 'Enforce passing via RFID tap',
+      },
+      {
+        type: 'checkbox',
+        id: 'eclipse-advanced-order',
+        label: 'Turn Order',
+        checked: state.eclipse.advancedOrder,
+        hint: 'Advanced (next round order = pass order)',
+      },
+    ];
   }
 
   readonly scoreBreakdownCategories: readonly string[] = [

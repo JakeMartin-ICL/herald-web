@@ -68,7 +68,13 @@ Useful mental model:
 
 - Update the mode class in `src/modes/*.ts`
 - Update shared types in `src/types.ts` if the contract or mode state changes
-- If you add a new mode, wire it into `src/modes/index.ts` and the setup select in `index.html`
+- If you add a new mode, the only shared files that should usually need edits are:
+- `src/types.ts`: add the mode-specific state interface if needed, extend shared unions/mappings like `Factions` if needed, and only change `GameMode` if the user has agreed
+- `src/state.ts`: add the default initial state for the new mode's state bucket
+- `src/persist.ts`: include the new mode in extract/restore logic so undo and resume round-trip correctly
+- `src/modes/index.ts`: register the mode class and human-readable mode name
+- `index.html`: add the mode to the setup select
+- If you find yourself needing more shared-file changes than that, pause and check whether game-specific logic is leaking out of the mode file unnecessarily
 
 ## Practical Guardrails
 
