@@ -1,6 +1,8 @@
 import { state } from './state';
 import { sendToBox } from './websockets';
-import type { LedCommand } from './types';
+import { currentGame } from './currentGame';
+import { log } from './logger';
+import type { Box, LedCommand } from './types';
 
 // ---- Brightness helpers ----
 // Brightness is stored as a raw FastLED value: 1–255 (integer).
@@ -103,31 +105,22 @@ export function ledCommandToArray(cmd: LedCommand): string[] {
 
 // ---- Status → LedCommand ----
 
-export function ledStateForStatus(status: string, box: { strategyColor?: string | null; choosingLeds?: LedCommand | null } | null = null, hwid: string | null = null): LedCommand {
+export function ledStateForStatus(status: string, box: Box | null = null, hwid: string | null = null): LedCommand {
+  const gameLed = currentGame?.getLedForStatus?.(status, box, hwid);
+  if (gameLed !== null && gameLed !== undefined) return gameLed;
+
   switch (status) {
-    case 'active':       return state.activePlayerStyle.rainbow ? { type: 'led_rainbow' } : { type: 'led_solid', color: activePlayerColor() };
-    case 'can-react':
-      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0])
-        return { type: 'led_alternate', color: '#d4a017' };
-      return { type: 'led_off' };
-    case 'reacting':     return { type: 'led_alternate', color: '#3a3aff' };
+    case 'active':
+      return state.activePlayerStyle.rainbow ? { type: 'led_rainbow' } : { type: 'led_solid', color: activePlayerColor() };
     case 'passed':
-      if (hwid && state.gameMode === 'eclipse' && hwid === state.eclipse.passOrder[0])
-        return { type: 'led_alternate', color: '#d4a017' };
       return { type: 'led_off' };
-    case 'combat':       return { type: 'led_solid', color: '#8a0000' };
-    case 'upkeep':       return { type: 'led_anim_upkeep' };
-    case 'choosing':     return box?.choosingLeds ?? { type: 'led_rainbow' };
-    case 'strategy':     return { type: 'led_solid', color: box?.strategyColor ?? '#ffffff' };
-    case 'secondary':    return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
     case 'status':
-    case 'status2':      return { type: 'led_solid', color: '#8a0000' };
-    case 'agenda_speaker':        return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
-    case 'when_agenda_revealed':  return { type: 'led_half', color: '#ff6600', first: false };
-    case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
-    case 'agenda_vote':           return { type: 'led_solid', color: '#0000ff' };
+      return { type: 'led_solid', color: '#8a0000' };
     case 'idle':
-    default:             return state.gameActive ? { type: 'led_off' } : { type: 'led_rainbow' };
+      return state.gameActive ? { type: 'led_off' } : { type: 'led_rainbow' };
+    default:
+      if (state.gameActive) log(`Unhandled LED status "${status}" in mode "${state.gameMode}"`, 'error');
+      return { type: 'led_off' };
   }
 }
 

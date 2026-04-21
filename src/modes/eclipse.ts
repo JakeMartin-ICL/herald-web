@@ -7,7 +7,7 @@ import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
 import { LED_COUNT, normalizeColor } from '../leds';
 import { captureGameStats } from '../graphs';
-import type { GameMode, Tag, ActionDef } from '../types';
+import type { GameMode, Tag, ActionDef, LedCommand } from '../types';
 
 const UPKEEP_GOLD  = '#d4a017';
 const UPKEEP_PINK  = '#e64da0';
@@ -15,6 +15,19 @@ const UPKEEP_BROWN = '#cc7700';
 
 export class EclipseMode implements GameMode {
   readonly id = 'eclipse';
+
+  getLedForStatus(status: string, _box: null, hwid: string | null): LedCommand | null {
+    const isFirstInPassOrder = hwid !== null && hwid === state.eclipse.passOrder[0];
+    switch (status) {
+      case 'can-react':
+      case 'passed':
+        return isFirstInPassOrder ? { type: 'led_alternate', color: '#d4a017' } : { type: 'led_off' };
+      case 'reacting': return { type: 'led_alternate', color: '#3a3aff' };
+      case 'combat':   return { type: 'led_solid', color: '#8a0000' };
+      case 'upkeep':   return { type: 'led_anim_upkeep' };
+      default:         return null;
+    }
+  }
 
   getTableLabel(): string {
     return state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE';

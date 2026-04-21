@@ -11,7 +11,7 @@ import { snapshotForUndo } from '../undo';
 import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
 import { getFactionForBox } from '../boxes';
-import type { GameMode, Tag, ActionDef, StrategyCard } from '../types';
+import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand } from '../types';
 
 const TI_STATUS_STEPS = [
   'Score objectives',
@@ -59,6 +59,21 @@ const TI_STRATEGY_LABELS: Record<string, string> = {
 
 export class TwilightImperiumMode implements GameMode {
   readonly id = 'ti';
+
+  getLedForStatus(status: string, box: Box | null, _hwid: string | null): LedCommand | null {
+    switch (status) {
+      case 'strategy':              return { type: 'led_solid', color: box?.strategyColor ?? '#ffffff' };
+      case 'secondary':             return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
+      case 'status2':               return { type: 'led_solid', color: '#8a0000' };
+      case 'choosing':              return box?.choosingLeds ?? { type: 'led_rainbow' };
+      case 'agenda_speaker':        return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
+      case 'agenda_reveal':         return { type: 'led_off' };
+      case 'when_agenda_revealed':  return { type: 'led_half', color: '#ff6600', first: false };
+      case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
+      case 'agenda_vote':           return { type: 'led_solid', color: '#0000ff' };
+      default:                      return null;
+    }
+  }
 
   getTableLabel(): string {
     const phase = state.ti.phase ?? '';

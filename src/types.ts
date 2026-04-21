@@ -308,6 +308,7 @@ export interface GitHubConfig {
 export interface GameMode {
   readonly id: string;
   getTableLabel?(): string;
+  getLedForStatus?(status: string, box: Box | null, hwid: string | null): LedCommand | null;
   /** Current phase turn order; the reorder dialog reads and writes this. */
   turnOrder: string[];
   /** Optional ordered list of score categories for the end-of-game scoresheet. */
