@@ -517,11 +517,3 @@ export function eclipseRelevantTags(hwid: string): Tag[] {
   if (state.eclipse.phase === 'upkeep' && box.status === 'upkeep') return factionTag;
   return [];
 }
-
-// Faction display helper (used by rfid.ts)
-export function getFactionForBox(hwid: string) {
-  const box = state.boxes[hwid];
-  if (!box?.factionId || !state.factions) return null;
-  const gameKey = state.gameMode === 'ti' ? 'twilight_imperium' : 'eclipse';
-  return state.factions[gameKey as keyof typeof state.factions]?.find(f => f.id === box.factionId) ?? null;
-}

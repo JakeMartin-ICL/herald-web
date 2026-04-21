@@ -11,7 +11,7 @@ import { getDisplayName, updateSetupUI, setBoxName, setAutoName } from './boxes'
 import { getRelevantTagsForBox } from './tags';
 import { renderTimerInfo, openGraphOverlay, captureGameStats } from './graphs';
 import { currentGame } from './currentGame';
-import { getFactionForBox } from './modes/eclipse';
+import { getFactionForBox } from './boxes';
 import { MODE_NAMES } from './modes/index';
 import { disableAllRfid } from './websockets';
 import { clearPersistedState } from './persist';

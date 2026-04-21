@@ -10,7 +10,7 @@ import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
 import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
-import { getFactionForBox } from './eclipse';
+import { getFactionForBox } from '../boxes';
 import type { GameMode, Tag, ActionDef, StrategyCard } from '../types';
 
 const TI_STATUS_STEPS = [

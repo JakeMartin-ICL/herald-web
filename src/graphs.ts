@@ -1,7 +1,7 @@
 import { state } from './state';
 import { formatDuration, getCurrentRound, timerSettings } from './timers';
 import { getDisplayName } from './boxes';
-import { getFactionForBox } from './modes/eclipse';
+import { getFactionForBox } from './boxes';
 import { MODE_NAMES } from './modes/index';
 import type { GameLog, Faction, ScoreBreakdown } from './types';
 

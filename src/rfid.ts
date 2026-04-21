@@ -200,16 +200,12 @@ export function stopFactionScan(): void {
 
 function handleFactionScan(hwid: string, internalId: string): void {
   const parts = internalId.split(':');
-  const game = parts[0];
   const category = parts[1];
   const factionId = parts.slice(2).join(':');
 
   if (category !== 'faction') return;
 
-  const gameKey = game === 'ti' ? 'twilight_imperium' : 'eclipse';
-  if (!state.factions?.[gameKey as keyof typeof state.factions]) return;
-
-  const faction = state.factions[gameKey as keyof typeof state.factions].find(f => f.id === factionId);
+  const faction = Object.values(state.factions ?? {}).flat().find(f => f.id === factionId);
   if (!faction) return;
 
   state.boxes[hwid].factionId = factionId;

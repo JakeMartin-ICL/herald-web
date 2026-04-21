@@ -4,7 +4,7 @@ import { syncWithGist } from './gist';
 import { log } from './logger';
 import { openScoresheet } from './scoresheet';
 import { currentGame } from './currentGame';
-import { getFactionForBox } from './modes/eclipse';
+import { getFactionForBox } from './boxes';
 import { MODE_NAMES } from './modes/index';
 import type { GameLog, ScoreBreakdown } from './types';
 

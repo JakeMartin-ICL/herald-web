@@ -6,9 +6,8 @@ import { render, scheduleRender } from './render';
 import { substituteTimerTracking } from './timers';
 import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
-import { getFactionForBox } from './modes/eclipse';
 import { renderExpansionUI } from './expansions';
-import type { Badge } from './types';
+import type { Badge, Faction } from './types';
 
 // ---- Box names ----
 
@@ -46,6 +45,19 @@ export function getDisplayName(hwid: string): string {
     return `Sim ${n + 1}`;
   }
   return getBoxName(hwid) ?? defaultBoxName(hwid);
+}
+
+// ---- Faction lookup ----
+
+export function getFactionForBox(hwid: string): Faction | null {
+  const box = state.boxes[hwid];
+  const factions = state.factions;
+  if (!box?.factionId || !factions) return null;
+  for (const list of Object.values(factions)) {
+    const found = list.find((f: Faction) => f.id === box.factionId);
+    if (found) return found;
+  }
+  return null;
 }
 
 // ---- Box management ----
