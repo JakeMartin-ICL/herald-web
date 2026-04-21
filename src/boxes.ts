@@ -148,6 +148,11 @@ function offerSubstitution(newHwid: string): void {
   }).join('');
   const firstDisconnected = state.boxOrder.find(h => state.boxes[h]?.status === 'disconnected');
   if (firstDisconnected) select.value = firstDisconnected;
+  const disableNewPlayerMidGame = currentGame?.disableNewPlayerMidGame?.() ?? false;
+  const allowAddWithoutSubstitution = !disableNewPlayerMidGame;
+  const cancelBtn = document.getElementById('cancel-sub-btn') as HTMLButtonElement;
+  cancelBtn.disabled = !allowAddWithoutSubstitution;
+  cancelBtn.style.display = allowAddWithoutSubstitution ? '' : 'none';
   (document.getElementById('sub-overlay') as HTMLElement).style.display = 'flex';
   render();
 }
@@ -164,6 +169,7 @@ export function confirmSubstitution(): void {
 }
 
 export function cancelSubstitution(): void {
+  if (_pendingSubHwid && (currentGame?.disableNewPlayerMidGame?.() ?? false)) return;
   if (_pendingSubHwid && state.boxes[_pendingSubHwid]) {
     state.boxOrder.push(_pendingSubHwid);
     log(`${getDisplayName(_pendingSubHwid)} added to game (no substitution)`, 'system');
@@ -235,11 +241,13 @@ export function onGameModeChange(): void {
 export function updateSetupUI(): void {
   const count = Object.keys(state.boxes).length;
   const mode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  const startBtn = document.getElementById('start-btn') as HTMLButtonElement;
+  const startValidation = setupGame?.getStartValidation?.() ?? { valid: true };
 
   (document.getElementById('player-count') as HTMLElement).textContent =
     `${count} box${count !== 1 ? 'es' : ''} connected`;
-  (document.getElementById('start-btn') as HTMLButtonElement).disabled =
-    count < 2 || state.gameActive;
+  startBtn.disabled = count < 2 || state.gameActive || !startValidation.valid;
+  startBtn.title = startValidation.valid ? '' : (startValidation.reason ?? '');
   (document.getElementById('prev-stats-btn') as HTMLElement).style.display =
     prevGameStats ? 'block' : 'none';
   updateResumeBtnState();

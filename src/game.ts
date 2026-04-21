@@ -6,13 +6,26 @@ import { persistState } from './persist';
 import { snapshotForUndo, clearUndoHistory } from './undo';
 import { currentGame, setCurrentGame } from './currentGame';
 import { createGameMode } from './modes/index';
+import { updateSetupUI } from './boxes';
 
 // ---- Game start ----
 
 export function startGame(): void {
+  state.gameMode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  const mode = createGameMode(state.gameMode);
+  if (!mode) {
+    log(`Unknown game mode: ${state.gameMode}`, 'error');
+    return;
+  }
+  const startValidation = mode.getStartValidation?.();
+  if (startValidation && !startValidation.valid) {
+    log(startValidation.reason ?? `Cannot start ${state.gameMode}`, 'error');
+    updateSetupUI();
+    return;
+  }
+
   state.gameActive = true;
   (document.getElementById('setup-panel') as HTMLElement).style.display = 'none';
-  state.gameMode = (document.getElementById('game-mode') as HTMLSelectElement).value;
   state.boxOrder.forEach(hwid => {
     state.boxes[hwid].status = 'idle';
     state.boxes[hwid].badges = [];
@@ -30,12 +43,6 @@ export function startGame(): void {
     showBatteryTipIfNeeded();
   });
   log(`Game started: ${state.gameMode} with ${state.boxOrder.length} players`, 'system');
-
-  const mode = createGameMode(state.gameMode);
-  if (!mode) {
-    log(`Unknown game mode: ${state.gameMode}`, 'error');
-    return;
-  }
   setCurrentGame(mode);
   mode.start();
 

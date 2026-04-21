@@ -1,4 +1,4 @@
-import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState, CocState } from './types';
+import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState, CocState, TwilightStruggleState } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -124,6 +124,16 @@ export const state: AppState = {
       turnCounts: {},
       advancedOrder: false,
       disableObjectives: false,
+    };
+    return defaults;
+  })(),
+
+  ts: (() => {
+    const defaults: TwilightStruggleState = {
+      phase: null,
+      turnOrder: [],
+      headlineReady: [],
+      actionTurnsTaken: {},
     };
     return defaults;
   })(),

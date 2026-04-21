@@ -176,6 +176,13 @@ export interface CocState {
   disableObjectives: boolean;
 }
 
+export interface TwilightStruggleState {
+  phase: 'headline' | 'resolve_headlines' | 'action' | 'status' | null;
+  turnOrder: string[];
+  headlineReady: string[];
+  actionTurnsTaken: Record<string, number>;
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -191,6 +198,7 @@ export interface Expansion {
 
 export interface Factions {
   twilight_imperium: Faction[];
+  twilight_struggle: Faction[];
   eclipse: Faction[];
   coc: Faction[];
 }
@@ -237,6 +245,7 @@ export interface AppState {
   inis: InisState;
   arcs: ArcsState;
   coc: CocState;
+  ts: TwilightStruggleState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;
@@ -308,6 +317,11 @@ export interface SetupSelectOption {
   label: string;
 }
 
+export interface StartValidationResult {
+  valid: boolean;
+  reason?: string;
+}
+
 export type SetupField =
   | {
     type: 'select';
@@ -332,6 +346,8 @@ export interface GameMode {
   getTableLabel?(): string;
   getLedForStatus?(status: string, box: Box | null, hwid: string | null): LedCommand | null;
   getSetupFields?(): SetupField[];
+  getStartValidation?(): StartValidationResult;
+  disableNewPlayerMidGame?(): boolean;
   /** Current phase turn order; the reorder dialog reads and writes this. */
   turnOrder: string[];
   /** Optional ordered list of score categories for the end-of-game scoresheet. */

@@ -31,6 +31,10 @@
     {"id":"scholarate",        "name":"Deepwrought Scholarate",     "nickname":"Scholarte",  "color":"#336688","expansion":"thundersedge"},
     {"id":"obsidian",          "name":"The Obsidian",               "nickname":"Obsidian",   "color":"#556677","expansion":"thundersedge"}
   ],
+  "twilight_struggle": [
+    {"id":"ussr", "name":"USSR", "color":"#cc2222","expansion":"base"},
+    {"id":"us",   "name":"US",   "color":"#4a90d9","expansion":"base"}
+  ],
   "coc": [
     {"id":"aztecs",    "name":"Aztecs",    "color":"#d4a017","expansion":"base"},
     {"id":"babylonia", "name":"Babylonia", "color":"#1b3a6b","expansion":"base"},

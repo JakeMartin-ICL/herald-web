@@ -83,6 +83,12 @@ export function extractPersistableState() {
       advancedOrder:     state.coc.advancedOrder,
       disableObjectives: state.coc.disableObjectives,
     },
+    ts: {
+      phase:            state.ts.phase,
+      turnOrder:        [...state.ts.turnOrder],
+      headlineReady:    [...state.ts.headlineReady],
+      actionTurnsTaken: { ...state.ts.actionTurnsTaken },
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -330,6 +336,19 @@ export function restoreState(persisted: any, silent = false): void {
     };
   }
 
+  if (persisted.ts) {
+    const remappedTurns: Record<string, number> = {};
+    for (const [ph, count] of Object.entries(persisted.ts.actionTurnsTaken ?? {})) {
+      remappedTurns[remap(ph)] = count as number;
+    }
+    state.ts = {
+      phase:            persisted.ts.phase ?? null,
+      turnOrder:        ((persisted.ts.turnOrder ?? []) as string[]).map(remap),
+      headlineReady:    ((persisted.ts.headlineReady ?? []) as string[]).map(remap),
+      actionTurnsTaken: remappedTurns,
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -379,7 +398,7 @@ export function offerResume(persistedState: unknown): void {
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.coc?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.coc?.phase ?? ps.ts?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 

@@ -5,6 +5,7 @@ import { KemetMode } from './kemet';
 import { InisMode } from './inis';
 import { ArcsMode } from './arcs';
 import { ClashOfCulturesMode } from './coc';
+import { TwilightStruggleMode } from './ts';
 import type { GameMode } from '../types';
 
 export const MODE_NAMES: Record<string, string> = {
@@ -16,6 +17,7 @@ export const MODE_NAMES: Record<string, string> = {
   inis:           'Inis',
   arcs:           'Arcs',
   coc:            'Clash of Cultures',
+  twilight_struggle: 'Twilight Struggle',
 };
 
 export function createGameMode(id: string): GameMode | null {
@@ -28,6 +30,7 @@ export function createGameMode(id: string): GameMode | null {
     case 'inis':           return new InisMode();
     case 'arcs':           return new ArcsMode();
     case 'coc':            return new ClashOfCulturesMode();
+    case 'twilight_struggle': return new TwilightStruggleMode();
     default:               return null;
   }
 }
