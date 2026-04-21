@@ -65,8 +65,7 @@ export function filterTags(game: string, predicate: (t: Tag) => boolean): Tag[] 
 // Returns relevant RFID tags for a specific box. Empty list → hide the RFID button.
 export function getRelevantTagsForBox(hwid: string): Tag[] {
   if (state.factionScanActive) {
-    const game = ['ti', 'eclipse', 'coc'].includes(state.gameMode) ? state.gameMode : 'eclipse';
-    return filterTags(game, t => t.id.includes(':faction:'));
+    return filterTags(state.gameMode, t => t.id.includes(':faction:'));
   }
   if (!state.gameActive) return [];
   return currentGame?.getRelevantTags(hwid) ?? [];
