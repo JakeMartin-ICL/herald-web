@@ -237,8 +237,6 @@ export function onGameModeChange(): void {
 export function updateSetupUI(): void {
   const count = Object.keys(state.boxes).length;
   const mode = (document.getElementById('game-mode') as HTMLSelectElement).value;
-  const isEclipse = mode === 'eclipse';
-  const isTi = mode === 'ti';
 
   (document.getElementById('player-count') as HTMLElement).textContent =
     `${count} box${count !== 1 ? 'es' : ''} connected`;
@@ -248,38 +246,17 @@ export function updateSetupUI(): void {
     prevGameStats ? 'block' : 'none';
   updateResumeBtnState();
 
-  (document.getElementById('first-player-row') as HTMLElement).style.display = isEclipse ? 'flex' : 'none';
-  (document.getElementById('eclipse-mode-row') as HTMLElement).style.display = isEclipse ? 'flex' : 'none';
-  (document.getElementById('eclipse-order-row') as HTMLElement).style.display = isEclipse ? 'flex' : 'none';
+  document.querySelectorAll<HTMLElement>('.mode-row').forEach(el => { el.style.display = 'none'; });
 
-  (document.getElementById('ti-speaker-row') as HTMLElement).style.display = isTi ? 'flex' : 'none';
-  const factionsLoaded = !!state.factions;
   const hasTags = (state.allTags?.[mode]?.length ?? 0) > 0;
   (document.getElementById('write-tags-btn') as HTMLElement).style.display = hasTags ? 'block' : 'none';
-  const isCoc = mode === 'coc';
-  const showFactions = ((isTi || isEclipse || isCoc) && factionsLoaded) ? 'block' : 'none';
+  const hasFactionTags = (state.allTags?.[mode] ?? []).some(t => t.id.includes(':faction:'));
+  const showFactions = (hasFactionTags && !!state.factions) ? 'block' : 'none';
   (document.getElementById('set-factions-btn') as HTMLElement).style.display = showFactions;
   (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;
 
   renderExpansionUI(setupGame);
-
-  if (isEclipse) {
-    const select = document.getElementById('first-player') as HTMLSelectElement;
-    select.innerHTML = state.boxOrder.map(hwid => {
-      const faction = state.factions ? getFactionForBox(hwid) : null;
-      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
-      return `<option value="${hwid}">${label}</option>`;
-    }).join('');
-  }
-
-  if (isTi) {
-    const select = document.getElementById('ti-speaker') as HTMLSelectElement;
-    select.innerHTML = state.boxOrder.map(hwid => {
-      const faction = state.factions ? getFactionForBox(hwid) : null;
-      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
-      return `<option value="${hwid}">${label}</option>`;
-    }).join('');
-  }
+  setupGame?.renderSetupUI?.();
 }
 
 export function setBoxBadges(hwid: string, badges: Badge[]): void {

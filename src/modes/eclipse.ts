@@ -1,7 +1,7 @@
 import { state } from '../state';
 import { log } from '../logger';
 import { disableAllRfid, disableRfid, enableRfid, sendToBox } from '../websockets';
-import { getDisplayName } from '../boxes';
+import { getDisplayName, getFactionForBox } from '../boxes';
 import { render } from '../render';
 import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
@@ -31,6 +31,18 @@ export class EclipseMode implements GameMode {
 
   getTableLabel(): string {
     return state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE';
+  }
+
+  renderSetupUI(): void {
+    (document.getElementById('first-player-row') as HTMLElement).style.display = 'flex';
+    (document.getElementById('eclipse-mode-row') as HTMLElement).style.display = 'flex';
+    (document.getElementById('eclipse-order-row') as HTMLElement).style.display = 'flex';
+    const select = document.getElementById('first-player') as HTMLSelectElement;
+    select.innerHTML = state.boxOrder.map(hwid => {
+      const faction = state.factions ? getFactionForBox(hwid) : null;
+      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
+      return `<option value="${hwid}">${label}</option>`;
+    }).join('');
   }
 
   readonly scoreBreakdownCategories: readonly string[] = [

@@ -80,6 +80,16 @@ export class TwilightImperiumMode implements GameMode {
     return `TI${phase ? ` — ${phase.replace(/_/g, ' ').toUpperCase()}` : ''}`;
   }
 
+  renderSetupUI(): void {
+    (document.getElementById('ti-speaker-row') as HTMLElement).style.display = 'flex';
+    const select = document.getElementById('ti-speaker') as HTMLSelectElement;
+    select.innerHTML = state.boxOrder.map(hwid => {
+      const faction = state.factions ? getFactionForBox(hwid) : null;
+      const label = faction ? `${getDisplayName(hwid)} — ${faction.name}` : getDisplayName(hwid);
+      return `<option value="${hwid}">${label}</option>`;
+    }).join('');
+  }
+
   get turnOrder(): string[] { return state.ti.turnOrder; }
   set turnOrder(order: string[]) {
     // Keep the phase turn index pointing at the current active player in the new order
