@@ -9,6 +9,7 @@ import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
 import { LED_COUNT } from '../leds';
 import { filterTags } from '../tags';
+import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand, SetupField } from '../types';
 
 const TI_STATUS_STEPS = [
@@ -23,14 +24,14 @@ const TI_STATUS_STEPS = [
 ];
 
 const TI_STRATEGY_COLORS: Record<string, string> = {
-  leadership:   '#cc0000',
-  diplomacy:    '#ff8800',
-  politics:     '#dddd00',
+  leadership: '#cc0000',
+  diplomacy: '#ff8800',
+  politics: '#dddd00',
   construction: '#00aa00',
-  trade:        '#00aaaa',
-  warfare:      '#0055ff',
-  technology:   '#000066',
-  imperial:     '#660088',
+  trade: '#00aaaa',
+  warfare: '#0055ff',
+  technology: '#000066',
+  imperial: '#660088',
 };
 
 const TI_STRATEGY_INITIATIVES: Record<string, number> = {
@@ -39,14 +40,14 @@ const TI_STRATEGY_INITIATIVES: Record<string, number> = {
 };
 
 const TI_SECONDARY_HINTS: Record<string, string> = {
-  leadership:   'Influence->cmds (3:1)',
-  diplomacy:    '1Cmd->Unexhaust 2 pl.',
-  politics:     '1Cmd->2 action cards',
+  leadership: 'Influence->cmds (3:1)',
+  diplomacy: '1Cmd->Unexhaust 2 pl.',
+  politics: '1Cmd->2 action cards',
   construction: '1Cmd->1 structure',
-  trade:        '1Cmd->Replenish comms',
-  warfare:      '1Cmd->PROD home sys',
-  technology:   '1Cmd+4res->1 research',
-  imperial:     '1Cmd->1 secret obj',
+  trade: '1Cmd->Replenish comms',
+  warfare: '1Cmd->PROD home sys',
+  technology: '1Cmd+4res->1 research',
+  imperial: '1Cmd->1 secret obj',
 };
 
 const TI_STRATEGY_LABELS: Record<string, string> = {
@@ -60,16 +61,16 @@ export class TwilightImperiumMode implements GameMode {
 
   getLedForStatus(status: string, box: Box | null, _hwid: string | null): LedCommand | null {
     switch (status) {
-      case 'strategy':              return { type: 'led_solid', color: box?.strategyColor ?? '#ffffff' };
-      case 'secondary':             return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
-      case 'status2':               return { type: 'led_solid', color: '#8a0000' };
-      case 'choosing':              return box?.choosingLeds ?? { type: 'led_rainbow' };
-      case 'agenda_speaker':        return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
-      case 'agenda_reveal':         return { type: 'led_off' };
-      case 'when_agenda_revealed':  return { type: 'led_half', color: '#ff6600', first: false };
+      case 'strategy': return { type: 'led_solid', color: box?.strategyColor ?? '#ffffff' };
+      case 'secondary': return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
+      case 'status2': return { type: 'led_solid', color: '#8a0000' };
+      case 'choosing': return box?.choosingLeds ?? { type: 'led_rainbow' };
+      case 'agenda_speaker': return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
+      case 'agenda_reveal': return { type: 'led_off' };
+      case 'when_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: false };
       case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
-      case 'agenda_vote':           return { type: 'led_solid', color: '#0000ff' };
-      default:                      return null;
+      case 'agenda_vote': return { type: 'led_solid', color: '#0000ff' };
+      default: return null;
     }
   }
 
@@ -123,7 +124,7 @@ export class TwilightImperiumMode implements GameMode {
   onEndTurn(hwid: string): void {
     switch (state.ti.phase) {
       case 'strategy':
-        if (hwid === state.hubHwid) {
+        if (isHubOrSim(hwid)) {
           state.ti.strategyTurnIndex++;
           this.activateStrategyTurn();
         }
@@ -142,7 +143,7 @@ export class TwilightImperiumMode implements GameMode {
 
       case 'status':
       case 'status2':
-        if (hwid !== state.hubHwid) return;
+        if (!isHubOrSim(hwid)) return;
         if (isGuidedPhaseActive() && !advanceGuidedPhase()) {
           this.advancePhase();
         }
@@ -230,7 +231,7 @@ export class TwilightImperiumMode implements GameMode {
   }
 
   onLongPress(hwid: string): void {
-    if (hwid !== state.hubHwid) return;
+    if (!isHubOrSim(hwid)) return;
     switch (state.ti.phase) {
       case 'status':
         clearGuidedPhase();
@@ -387,8 +388,8 @@ export class TwilightImperiumMode implements GameMode {
         <span>Speaker:</span>
         <select id="gc-speaker">
           ${state.boxOrder.map(hwid =>
-            `<option value="${hwid}"${state.ti.speakerHwid === hwid ? ' selected' : ''}>${getDisplayName(hwid)}</option>`
-          ).join('')}
+        `<option value="${hwid}"${state.ti.speakerHwid === hwid ? ' selected' : ''}>${getDisplayName(hwid)}</option>`
+      ).join('')}
         </select>
       </div>`,
       id: 'gc-speaker',
@@ -616,17 +617,17 @@ export class TwilightImperiumMode implements GameMode {
     state.ti.secondary = null;
     switch (phase) {
       case 'strategy': this.startActionPhase(); break;
-      case 'action':   this.startStatusPhase(); break;
+      case 'action': this.startStatusPhase(); break;
       case 'status':
         clearGuidedPhase();
         if (state.ti.mecatolControlled) this.startAgendaPhase();
         else this.endRound();
         break;
-      case 'agenda_reveal':        this.startAgendaWhen(); break;
+      case 'agenda_reveal': this.startAgendaWhen(); break;
       case 'when_agenda_revealed': this.startAgendaAfter(); break;
-      case 'after_agenda_revealed':this.startAgendaVote(); break;
-      case 'agenda_vote':          this.startStatusPhase(true); break;
-      case 'status2':              this.endRound(); break;
+      case 'after_agenda_revealed': this.startAgendaVote(); break;
+      case 'agenda_vote': this.startStatusPhase(true); break;
+      case 'status2': this.endRound(); break;
       default: log('[DEBUG] Unknown TI phase', 'system');
     }
   }
@@ -832,8 +833,8 @@ export class TwilightImperiumMode implements GameMode {
       const idx = (activeIndex + i) % state.boxOrder.length;
       const hwid = state.boxOrder[idx];
       if (secondary.pendingHwids.includes(hwid) &&
-          !state.ti.players[hwid].confirmedSecondary &&
-          state.boxes[hwid].status !== 'disconnected') {
+        !state.ti.players[hwid].confirmedSecondary &&
+        state.boxes[hwid].status !== 'disconnected') {
         state.boxes[hwid].status = 'secondary';
         state.boxes[hwid].strategyColor = secondary.cardColor;
         log(`${getDisplayName(hwid)} secondary`, 'system');

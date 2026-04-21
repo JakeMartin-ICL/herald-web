@@ -7,6 +7,7 @@ import { startPhase, endPhase } from '../timers';
 import { persistState } from '../persist';
 import { LED_COUNT, normaliseColor } from '../leds';
 import { captureGameStats } from '../graphs';
+import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef, LedCommand, SetupField } from '../types';
 
 const UPKEEP_GOLD = '#d4a017';
@@ -130,7 +131,7 @@ export class EclipseMode implements GameMode {
   }
 
   onLongPress(hwid: string): void {
-    if (hwid !== state.hubHwid) return;
+    if (!isHubOrSim(hwid)) return;
     this.advancePhase();
   }
 

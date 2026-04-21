@@ -7,6 +7,7 @@ import { persistState } from '../persist';
 import { syncLeds } from '../leds';
 import { syncDisplay } from '../display';
 import { sendToBox } from '../websockets';
+import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef, LedCommand } from '../types';
 
 const ASSEMBLY_GREEN: LedCommand = { type: 'led_alternate_pair', a: '#007f00', b: '#000000' };
@@ -73,7 +74,7 @@ export class InisMode implements GameMode {
 
   onLongPress(hwid: string): void {
     // Long press hub in assembly skips to next step
-    if (hwid !== state.hubHwid) return;
+    if (!isHubOrSim(hwid)) return;
     if (state.inis.phase === 'assembly') {
       log('[DEBUG] Inis: skipping assembly step', 'system');
       this.advanceAssemblyStep();
@@ -158,8 +159,8 @@ export class InisMode implements GameMode {
           <span>Brenn:</span>
           <select id="gc-brenn">
             ${buildPlayerSelectOptions().map(option =>
-              `<option value="${option.value}"${state.inis.brennHwid === option.value ? ' selected' : ''}>${option.label}</option>`
-            ).join('')}
+          `<option value="${option.value}"${state.inis.brennHwid === option.value ? ' selected' : ''}>${option.label}</option>`
+        ).join('')}
           </select>
         </div>`,
         id: 'gc-brenn',
@@ -318,14 +319,14 @@ export class InisMode implements GameMode {
       case 'victory':
       case 'advantage':
       case 'deal':
-        if (hwid !== state.hubHwid) return;
+        if (!isHubOrSim(hwid)) return;
         this.advanceAssemblyStep();
         render();
         persistState();
         break;
 
       case 'flock':
-        if (hwid !== state.hubHwid) return;
+        if (!isHubOrSim(hwid)) return;
         state.inis.turnDirection = 'clockwise';
         log('Turn order: clockwise', 'system');
         this.advanceAssemblyStep();
@@ -334,7 +335,7 @@ export class InisMode implements GameMode {
         break;
 
       case 'draft':
-        if (hwid !== state.hubHwid) return;
+        if (!isHubOrSim(hwid)) return;
         this.startSeason();
         render();
         persistState();

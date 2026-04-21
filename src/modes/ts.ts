@@ -5,6 +5,7 @@ import { render, endGame } from '../render';
 import { startPhase } from '../timers';
 import { persistState } from '../persist';
 import { startGuidedPhase, advanceGuidedPhase, clearGuidedPhase, currentGuidedStep, guidedPhaseProgress, isGuidedPhaseActive } from '../guided-phase';
+import { isHubOrSim } from './helpers';
 import type { ActionDef, Box, GameMode, LedCommand, StartValidationResult, Tag } from '../types';
 
 const HEADLINE_SPINNER: LedCommand = {
@@ -337,6 +338,6 @@ export class TwilightStruggleMode implements GameMode {
   }
 
   private canAdvanceHubGatedPhase(hwid: string): boolean {
-    return hwid === state.hubHwid || !!state.boxes[hwid]?.isVirtual;
+    return isHubOrSim(hwid);
   }
 }

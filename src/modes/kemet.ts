@@ -8,6 +8,7 @@ import {
   startGuidedPhase, advanceGuidedPhase, clearGuidedPhase,
   isGuidedPhaseActive, guidedPhaseProgress,
 } from '../guided-phase';
+import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef } from '../types';
 
 const KEMET_NIGHT_STEPS = [
@@ -59,7 +60,7 @@ export class KemetMode implements GameMode {
       render();
       persistState();
     } else if (state.kemet.phase === 'night') {
-      if (hwid !== state.hubHwid) return;
+      if (!isHubOrSim(hwid)) return;
       if (isGuidedPhaseActive()) {
         if (!advanceGuidedPhase()) {
           render();
@@ -76,7 +77,7 @@ export class KemetMode implements GameMode {
   onPass(_hwid: string): void { /* no-op */ }
 
   onLongPress(hwid: string): void {
-    if (hwid !== state.hubHwid) return;
+    if (!isHubOrSim(hwid)) return;
     if (state.kemet.phase === 'night') {
       clearGuidedPhase();
       render();

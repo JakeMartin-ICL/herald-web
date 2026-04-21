@@ -10,6 +10,7 @@ import {
   isGuidedPhaseActive, guidedPhaseProgress,
 } from '../guided-phase';
 import { enableRfid, disableAllRfid } from '../websockets';
+import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef } from '../types';
 
 const TURNS_PER_ROUND = 3;
@@ -63,7 +64,7 @@ export class ClashOfCulturesMode implements GameMode {
       render();
       persistState();
     } else if (state.coc.phase === 'status') {
-      if (hwid !== state.hubHwid) return;
+      if (!isHubOrSim(hwid)) return;
       if (isGuidedPhaseActive()) {
         if (!advanceGuidedPhase()) {
           render();
@@ -80,7 +81,7 @@ export class ClashOfCulturesMode implements GameMode {
   onPass(_hwid: string): void { /* no-op */ }
 
   onLongPress(hwid: string): void {
-    if (hwid !== state.hubHwid) return;
+    if (!isHubOrSim(hwid)) return;
     if (state.coc.phase === 'status') {
       clearGuidedPhase();
       render();
