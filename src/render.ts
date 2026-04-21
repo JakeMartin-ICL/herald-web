@@ -101,14 +101,8 @@ export function renderTableLabel(): void {
     const roundStr = `Round ${state.round}${state.totalRounds ? ' / ' + state.totalRounds : ''}`;
     parts.push(`<div class="round-counter">${roundStr}</div>`);
   }
-  if (state.gameMode === 'ti') {
-    const phase = state.ti.phase ?? '';
-    parts.push(`<div class="game-mode-label">TI${phase ? ` — ${phase.replace(/_/g, ' ').toUpperCase()}` : ''}</div>`);
-  } else if (state.gameMode === 'eclipse') {
-    parts.push(`<div class="game-mode-label">${state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE'}</div>`);
-  } else {
-    parts.push(`<div class="game-mode-label">ROUND IN PROGRESS</div>`);
-  }
+  const tableLabel = currentGame?.getTableLabel?.() ?? 'ROUND IN PROGRESS';
+  parts.push(`<div class="game-mode-label">${tableLabel}</div>`);
   el.innerHTML = parts.join('');
 }
 

@@ -15,6 +15,11 @@ const UPKEEP_BROWN = '#cc7700';
 
 export class EclipseMode implements GameMode {
   readonly id = 'eclipse';
+
+  getTableLabel(): string {
+    return state.eclipse.phase ? state.eclipse.phase.toUpperCase() : 'ECLIPSE';
+  }
+
   readonly scoreBreakdownCategories: readonly string[] = [
     'Reputation', 'Ambassadors', 'Sectors', 'Monoliths',
     'Discoveries', 'Traitor', 'Tech', 'Species',

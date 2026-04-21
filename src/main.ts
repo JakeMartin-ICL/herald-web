@@ -12,6 +12,8 @@ import { closeDisplaySettingsDialog } from './display-settings';
 import { openRemovePlayerDialog, closeRemovePlayerDialog } from './removePlayer';
 import { closeReorderDialog, initReorderDialogButtons } from './reorderDialog';
 import { openExpansionDialog, closeExpansionDialog } from './expansions';
+import { setupGame, setSetupGame } from './currentGame';
+import { createGameMode } from './modes/index';
 import { openHwTestDialog, closeHwTestDialog } from './hwtest';
 import { openGitHubSettingsDialog, closeGitHubSettingsDialog } from './github-settings';
 import { closeHistoryBrowser, renderHistoryBrowser, toggleHistoryLock } from './history-browser';
@@ -30,7 +32,10 @@ function on(id: string, event: string, fn: EventListener): void {
 // ---- Wire event listeners ----
 
 on('connect-btn', 'click', () => toggleConnect());
-on('game-mode', 'change', () => onGameModeChange());
+on('game-mode', 'change', () => {
+  setSetupGame(createGameMode((document.getElementById('game-mode') as HTMLSelectElement).value));
+  onGameModeChange();
+});
 on('start-btn', 'click', () => startGame());
 on('resume-btn', 'click', () => confirmResume());
 on('discard-resume-btn', 'click', () => discardResume());
@@ -68,9 +73,7 @@ on('debug-close-btn', 'click', () => closeDebugDialog());
 
 // Expansion selection
 on('expansion-open-btn', 'click', () => {
-  const mode = (document.getElementById('game-mode') as HTMLSelectElement).value;
-  const game = mode === 'ti' ? 'ti' : 'eclipse';
-  openExpansionDialog(game);
+  if (setupGame) openExpansionDialog(setupGame.id);
 });
 on('expansion-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeExpansionDialog(); });
 on('expansion-close-btn', 'click', () => closeExpansionDialog());
@@ -157,4 +160,5 @@ on('battery-tip-dismiss-btn', 'click', () => dismissBatteryTip());
 
 loadActiveStyle();
 initActiveStyleDialog();
+setSetupGame(createGameMode((document.getElementById('game-mode') as HTMLSelectElement).value));
 init().catch(console.error);

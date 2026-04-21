@@ -1,6 +1,6 @@
 import { state } from './state';
 import { log } from './logger';
-import type { Expansion } from './types';
+import type { Expansion, GameMode } from './types';
 
 export async function loadExpansions(): Promise<void> {
   try {
@@ -58,15 +58,13 @@ function updateExpansionBtn(game: string): void {
 }
 
 /** Show/hide the expansion button row and update its label. */
-export function renderExpansionUI(mode: string): void {
+export function renderExpansionUI(gameMode: GameMode | null): void {
   const row = document.getElementById('expansion-row') as HTMLElement | null;
   if (!row) return;
 
-  const game = mode === 'ti' ? 'ti' : mode === 'eclipse' ? 'eclipse' : null;
-  const exps = game ? nonBaseExps(game) : null;
-
-  row.style.display = (game && exps && exps.length > 0) ? 'flex' : 'none';
-  if (game && exps && exps.length > 0) updateExpansionBtn(game);
+  const exps = gameMode ? nonBaseExps(gameMode.id) : [];
+  row.style.display = exps.length > 0 ? 'flex' : 'none';
+  if (exps.length > 0) updateExpansionBtn(gameMode!.id);
 }
 
 export function openExpansionDialog(game: string): void {

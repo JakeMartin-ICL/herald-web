@@ -60,6 +60,11 @@ const TI_STRATEGY_LABELS: Record<string, string> = {
 export class TwilightImperiumMode implements GameMode {
   readonly id = 'ti';
 
+  getTableLabel(): string {
+    const phase = state.ti.phase ?? '';
+    return `TI${phase ? ` — ${phase.replace(/_/g, ' ').toUpperCase()}` : ''}`;
+  }
+
   get turnOrder(): string[] { return state.ti.turnOrder; }
   set turnOrder(order: string[]) {
     // Keep the phase turn index pointing at the current active player in the new order

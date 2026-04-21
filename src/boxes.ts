@@ -7,6 +7,7 @@ import { substituteTimerTracking } from './timers';
 import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
 import { renderExpansionUI } from './expansions';
+import { setupGame } from './currentGame';
 import type { Badge, Faction } from './types';
 
 // ---- Box names ----
@@ -260,7 +261,7 @@ export function updateSetupUI(): void {
   (document.getElementById('set-factions-btn') as HTMLElement).style.display = showFactions;
   (document.getElementById('set-factions-debug-btn') as HTMLElement).style.display = showFactions;
 
-  renderExpansionUI(mode);
+  renderExpansionUI(setupGame);
 
   if (isEclipse) {
     const select = document.getElementById('first-player') as HTMLSelectElement;
