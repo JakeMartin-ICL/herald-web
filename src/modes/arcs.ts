@@ -55,6 +55,13 @@ export class ArcsMode implements GameMode {
 
   onLongPress(_hwid: string): void { /* no-op */ }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    const replaceBoxId = (boxId: string) => (boxId === oldHwid ? newHwid : boxId);
+    state.arcs.turnOrder = state.arcs.turnOrder.map(replaceBoxId);
+    state.arcs.cycleRemaining = state.arcs.cycleRemaining.map(replaceBoxId);
+    if (state.arcs.leaderHwid === oldHwid) state.arcs.leaderHwid = newHwid;
+  }
+
   onRfid(hwid: string, game: string, category: string, _id: string): void {
     if (game !== 'arcs' || category !== 'initiative') return;
 

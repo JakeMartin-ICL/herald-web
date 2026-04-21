@@ -39,6 +39,10 @@ abstract class ClockwiseBase implements GameMode {
 
   onLongPress(_hwid: string): void { /* no-op */ }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    this.turnOrder = this.turnOrder.map(boxId => (boxId === oldHwid ? newHwid : boxId));
+  }
+
   getRelevantTags(_hwid: string): Tag[] { return []; }
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {

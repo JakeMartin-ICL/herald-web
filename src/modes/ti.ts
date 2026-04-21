@@ -211,6 +211,27 @@ export class TwilightImperiumMode implements GameMode {
     }
   }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    const replaceBoxId = (boxId: string) => (boxId === oldHwid ? newHwid : boxId);
+
+    state.ti.turnOrder = state.ti.turnOrder.map(replaceBoxId);
+    state.ti.agendaTurnOrder = state.ti.agendaTurnOrder.map(replaceBoxId);
+    if (state.ti.speakerHwid === oldHwid) state.ti.speakerHwid = newHwid;
+
+    if (state.ti.players[oldHwid]) {
+      state.ti.players[newHwid] = {
+        ...state.ti.players[oldHwid],
+        hwid: newHwid,
+      };
+      delete state.ti.players[oldHwid];
+    }
+
+    if (state.ti.secondary) {
+      if (state.ti.secondary.activeHwid === oldHwid) state.ti.secondary.activeHwid = newHwid;
+      state.ti.secondary.pendingHwids = state.ti.secondary.pendingHwids.map(replaceBoxId);
+    }
+  }
+
   onLongPress(hwid: string): void {
     if (hwid !== state.hubHwid) return;
     switch (state.ti.phase) {

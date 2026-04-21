@@ -7,7 +7,7 @@ import { substituteTimerTracking } from './timers';
 import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
 import { renderExpansionUI } from './expansions';
-import { setupGame } from './currentGame';
+import { currentGame, setupGame } from './currentGame';
 import type { Badge, Faction } from './types';
 
 // ---- Box names ----
@@ -167,61 +167,51 @@ export function cancelSubstitution(): void {
 }
 
 function substituteBox(oldHwid: string, newHwid: string): void {
-  const oldBox = state.boxes[oldHwid];
-  const newBox = state.boxes[newHwid];
-  if (!oldBox || !newBox) return;
+  const replacedBox = state.boxes[oldHwid];
+  const replacementBox = state.boxes[newHwid];
+  if (!replacedBox || !replacementBox) return;
 
-  const oldName = getDisplayName(oldHwid);
+  const replacedBoxName = getDisplayName(oldHwid);
 
-  const transferProps = [
+  // Carry over the gameplay-facing state from the missing box to the newly
+  // connected one. Transport-specific fields like firmware/update state stay
+  // with the physical replacement box.
+  const boxFieldsToTransfer = [
     'status', 'badges', 'factionId', 'leds', 'ledOverrideUntil',
     'turnStartTime', 'totalTurnTime', 'turnHistory',
     'strategyColor', 'choosingLeds',
   ] as const;
-  transferProps.forEach(prop => {
-    if (oldBox[prop] !== undefined) {
+  boxFieldsToTransfer.forEach(fieldName => {
+    if (replacedBox[fieldName] !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (newBox as any)[prop] = (oldBox as any)[prop];
+      (replacementBox as any)[fieldName] = (replacedBox as any)[fieldName];
     }
   });
 
-  if (newBox.isVirtual) {
-    virtualBoxNames[newHwid] = oldName;
+  if (replacementBox.isVirtual) {
+    virtualBoxNames[newHwid] = replacedBoxName;
   } else {
-    setBoxName(newHwid, oldName);
+    setBoxName(newHwid, replacedBoxName);
   }
 
-  const idx = state.boxOrder.indexOf(oldHwid);
-  if (idx !== -1) state.boxOrder[idx] = newHwid;
-
-  const rep = (id: string) => (id === oldHwid ? newHwid : id);
-  const repArr = (arr: string[]) => arr.map(rep);
+  const replacedSeatIndex = state.boxOrder.indexOf(oldHwid);
+  if (replacedSeatIndex !== -1) state.boxOrder[replacedSeatIndex] = newHwid;
 
   if (state.activeBoxId === oldHwid) state.activeBoxId = newHwid;
-  state.eclipse.passOrder = repArr(state.eclipse.passOrder);
-  state.eclipse.turnOrder = repArr(state.eclipse.turnOrder);
-  if (state.eclipse.firstPlayerId === oldHwid) state.eclipse.firstPlayerId = newHwid;
-  state.ti.turnOrder = repArr(state.ti.turnOrder);
-  if (state.ti.speakerHwid === oldHwid) state.ti.speakerHwid = newHwid;
-  if (state.ti.players?.[oldHwid]) {
-    state.ti.players[newHwid] = state.ti.players[oldHwid];
-    delete state.ti.players[oldHwid];
-  }
-  if (state.ti.secondary) {
-    if (state.ti.secondary.activeHwid === oldHwid) state.ti.secondary.activeHwid = newHwid;
-    state.ti.secondary.pendingHwids = repArr(state.ti.secondary.pendingHwids ?? []);
-  }
+  // Generic state lives here; each mode is responsible for rewriting any IDs it
+  // keeps in its own state shape.
+  currentGame?.onBoxSubstituted?.(oldHwid, newHwid);
   substituteTimerTracking(oldHwid, newHwid);
 
-  const wasHub = (oldHwid === state.hubHwid);
-  if (wasHub) {
+  const replacedHubBox = oldHwid === state.hubHwid;
+  if (replacedHubBox) {
     state.hubHwid = newHwid;
     log('⚠️ Hub box substituted. If the hub hardware is being replaced, reconnect to the new hub address and power-cycle the other boxes.', 'error');
   }
 
   delete state.boxes[oldHwid];
-  if (oldBox.isVirtual) delete virtualBoxNames[oldHwid];
-  log(`${oldName} substituted — now on ${getDisplayName(newHwid)}`, 'system');
+  if (replacedBox.isVirtual) delete virtualBoxNames[oldHwid];
+  log(`${replacedBoxName} substituted — now on ${getDisplayName(newHwid)}`, 'system');
   syncLeds();
   updateSetupUI();
   render();

@@ -82,6 +82,11 @@ export class InisMode implements GameMode {
     }
   }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    state.inis.turnOrder = state.inis.turnOrder.map(boxId => (boxId === oldHwid ? newHwid : boxId));
+    if (state.inis.brennHwid === oldHwid) state.inis.brennHwid = newHwid;
+  }
+
   getRelevantTags(_hwid: string): Tag[] { return []; }
 
   getBoxDisplay(hwid: string): Record<string, unknown> | null {

@@ -325,6 +325,10 @@ export interface GameMode {
   debugSkip?(): void;
   onFactionChanged?(): void;
   onResume?(): void;
+  /** Rewrite any mode-owned references after a disconnected box is replaced by a
+   *  newly connected one during an active game. Generic box state and boxOrder
+   *  updates are handled outside the mode. */
+  onBoxSubstituted?(oldHwid: string, newHwid: string): void;
   /** Called just before the player is removed from boxOrder. box.status is already
    *  'disconnected'. Implementations should advance any in-progress turn and clean
    *  up game-specific order arrays. */

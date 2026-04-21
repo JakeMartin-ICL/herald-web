@@ -121,6 +121,14 @@ export class EclipseMode implements GameMode {
     this.advancePhase();
   }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    const replaceBoxId = (boxId: string) => (boxId === oldHwid ? newHwid : boxId);
+    state.eclipse.passOrder = state.eclipse.passOrder.map(replaceBoxId);
+    state.eclipse.turnOrder = state.eclipse.turnOrder.map(replaceBoxId);
+    state.eclipse.upkeepReady = state.eclipse.upkeepReady.map(replaceBoxId);
+    if (state.eclipse.firstPlayerId === oldHwid) state.eclipse.firstPlayerId = newHwid;
+  }
+
   advancePhase(): void {
     switch (state.eclipse.phase) {
       case 'combat': this.startUpkeep(); break;

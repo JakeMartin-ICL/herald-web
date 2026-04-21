@@ -85,6 +85,14 @@ export class KemetMode implements GameMode {
     }
   }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    state.kemet.turnOrder = state.kemet.turnOrder.map(boxId => (boxId === oldHwid ? newHwid : boxId));
+    if (oldHwid in state.kemet.turnCounts) {
+      state.kemet.turnCounts[newHwid] = state.kemet.turnCounts[oldHwid];
+      delete state.kemet.turnCounts[oldHwid];
+    }
+  }
+
   getRelevantTags(_hwid: string): Tag[] { return []; }
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {

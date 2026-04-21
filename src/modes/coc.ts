@@ -89,6 +89,14 @@ export class ClashOfCulturesMode implements GameMode {
     }
   }
 
+  onBoxSubstituted(oldHwid: string, newHwid: string): void {
+    state.coc.turnOrder = state.coc.turnOrder.map(boxId => (boxId === oldHwid ? newHwid : boxId));
+    if (oldHwid in state.coc.turnCounts) {
+      state.coc.turnCounts[newHwid] = state.coc.turnCounts[oldHwid];
+      delete state.coc.turnCounts[oldHwid];
+    }
+  }
+
   onRfid(hwid: string, game: string, category: string, id: string): void {
     if (game !== 'coc' || category !== 'token' || id !== 'first_player') return;
     if (state.coc.phase !== 'first_player') return;
