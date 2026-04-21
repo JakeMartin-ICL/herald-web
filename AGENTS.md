@@ -57,7 +57,9 @@ Useful mental model:
 ## Project Conventions
 
 - Prefer updating the real type in `src/types.ts` over documenting a duplicate shape.
-- Keep mode-specific logic inside the relevant file under `src/modes/` unless it truly belongs in shared infrastructure.
+- Keep game-specific logic inside the relevant file under `src/modes/` unless it truly belongs in shared infrastructure.
+- Avoid hardcoded game-mode branching in shared modules. Prefer mode methods over `switch`/`if` trees on mode IDs.
+- If keeping game-specific logic inside a mode requires expanding the generic `GameMode` contract in `src/types.ts`, stop and run that change by the user before proceeding.
 - Avoid introducing new circular imports. The existing `currentGame.ts` pattern is there for a reason.
 - Virtual boxes are first-class for testing. Be careful not to accidentally send hardware-only messages to them.
 - This repo leans on direct DOM access rather than a framework. Match existing patterns unless there is a clear reason to refactor.
@@ -66,8 +68,7 @@ Useful mental model:
 
 - Update the mode class in `src/modes/*.ts`
 - Update shared types in `src/types.ts` if the contract or mode state changes
-- Check whether setup UI, RFID relevance, display overrides, persistence, undo, and player removal logic also need updates
-- If you add a new mode, wire it into `src/modes/index.ts`, the setup select in `index.html`, and any mode-name mappings
+- If you add a new mode, wire it into `src/modes/index.ts` and the setup select in `index.html`
 
 ## Practical Guardrails
 
