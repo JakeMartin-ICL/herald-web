@@ -534,7 +534,14 @@ export function renderBoxes(): void {
         editingNameHwid = hwid;
         render();
         const input = document.getElementById(`name-input-${escapedHwid}`) as HTMLInputElement | null;
-        if (input) { input.focus(); input.select(); }
+        if (input) {
+          input.focus();
+          if (navigator.maxTouchPoints > 0) {
+            input.value = '';
+          } else {
+            input.select();
+          }
+        }
       });
     }
 
@@ -613,7 +620,8 @@ export function renderBoxes(): void {
         }
       });
 
-      card.addEventListener('touchstart', () => {
+      card.addEventListener('touchstart', (e) => {
+        if (!(e.target as HTMLElement).closest('.drag-handle')) return;
         dragSourceHwid = hwid;
         card.classList.add('dragging');
       }, { passive: true });
