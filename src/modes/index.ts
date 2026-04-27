@@ -6,6 +6,7 @@ import { InisMode } from './inis';
 import { ArcsMode } from './arcs';
 import { ClashOfCulturesMode } from './coc';
 import { TwilightStruggleMode } from './ts';
+import { DuneImperiumMode } from './duneImperium';
 import type { GameMode } from '../types';
 
 export const MODE_NAMES: Record<string, string> = {
@@ -18,6 +19,7 @@ export const MODE_NAMES: Record<string, string> = {
   arcs:           'Arcs',
   coc:            'Clash of Cultures',
   twilight_struggle: 'Twilight Struggle',
+  dune_imperium:  'Dune: Imperium',
 };
 
 export function createGameMode(id: string): GameMode | null {
@@ -31,6 +33,7 @@ export function createGameMode(id: string): GameMode | null {
     case 'arcs':           return new ArcsMode();
     case 'coc':            return new ClashOfCulturesMode();
     case 'twilight_struggle': return new TwilightStruggleMode();
+    case 'dune_imperium':  return new DuneImperiumMode();
     default:               return null;
   }
 }

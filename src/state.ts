@@ -1,4 +1,4 @@
-import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState, CocState, TwilightStruggleState } from './types';
+import type { AppState, SelectedExpansions, KemetState, InisState, ArcsState, CocState, TwilightStruggleState, DuneImperiumState } from './types';
 
 export const VIRTUAL_BOX_ID_OFFSET = 'virtual-';
 export const RECONNECT_INTERVAL_MS = 5000;
@@ -134,6 +134,15 @@ export const state: AppState = {
       turnOrder: [],
       headlineReady: [],
       actionTurnsTaken: {},
+    };
+    return defaults;
+  })(),
+
+  duneImperium: (() => {
+    const defaults: DuneImperiumState = {
+      phase: null,
+      turnOrder: [],
+      firstPlayerId: null,
     };
     return defaults;
   })(),

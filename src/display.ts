@@ -11,6 +11,8 @@ const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
   reacting:               'Reacting',
   passed:                 'Passed',
   combat:                 'Combat',
+  makers:                 'Makers',
+  recall:                 'Recall',
   upkeep:                 'Upkeep',
   choosing:               'Choosing',
   strategy:               'Strategy',

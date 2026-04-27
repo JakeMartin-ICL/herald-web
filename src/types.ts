@@ -2,7 +2,7 @@
 
 export type BoxStatus =
   | 'idle' | 'active' | 'can-react' | 'reacting' | 'passed'
-  | 'combat' | 'upkeep' | 'disconnected' | 'choosing'
+  | 'combat' | 'makers' | 'recall' | 'upkeep' | 'disconnected' | 'choosing'
   | 'status' | 'status2'
   | 'strategy' | 'secondary'
   | 'agenda_speaker' | 'agenda_reveal' | 'when_agenda_revealed' | 'after_agenda_revealed' | 'agenda_vote';
@@ -182,6 +182,12 @@ export interface TwilightStruggleState {
   actionTurnsTaken: Record<string, number>;
 }
 
+export interface DuneImperiumState {
+  phase: 'action' | 'combat' | 'makers' | 'recall' | null;
+  turnOrder: string[];
+  firstPlayerId: string | null;
+}
+
 export interface Faction {
   id: string;
   name: string;
@@ -245,6 +251,7 @@ export interface AppState {
   arcs: ArcsState;
   coc: CocState;
   ts: TwilightStruggleState;
+  duneImperium: DuneImperiumState;
   showBatteryVoltage: boolean;
   activePlayerStyle: ActivePlayerStyle;
   displaySettings: Record<string, DisplayBoxSettings>;

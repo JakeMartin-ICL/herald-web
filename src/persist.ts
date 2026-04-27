@@ -89,6 +89,11 @@ export function extractPersistableState() {
       headlineReady:    [...state.ts.headlineReady],
       actionTurnsTaken: { ...state.ts.actionTurnsTaken },
     },
+    duneImperium: {
+      phase:         state.duneImperium.phase,
+      turnOrder:     [...state.duneImperium.turnOrder],
+      firstPlayerId: state.duneImperium.firstPlayerId,
+    },
     factions:  state.factions,
     boxNames:  JSON.parse(JSON.stringify(state.boxNames)) as typeof state.boxNames,
   };
@@ -349,6 +354,14 @@ export function restoreState(persisted: any, silent = false): void {
     };
   }
 
+  if (persisted.duneImperium) {
+    state.duneImperium = {
+      phase:         persisted.duneImperium.phase ?? null,
+      turnOrder:     ((persisted.duneImperium.turnOrder ?? []) as string[]).map(remap),
+      firstPlayerId: persisted.duneImperium.firstPlayerId ? remap(persisted.duneImperium.firstPlayerId) : null,
+    };
+  }
+
   _pendingPersistedBoxes = {};
   for (const [ph, persBox] of Object.entries(persisted.boxes ?? {})) {
     const ch = assignment[ph];
@@ -398,7 +411,7 @@ export function offerResume(persistedState: unknown): void {
 
   let detail = '';
   if (ps.round) detail += `Round ${ps.round}`;
-  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.coc?.phase ?? ps.ts?.phase ?? ps.currentPhaseStart?.name;
+  const phase = ps.eclipse?.phase ?? ps.ti?.phase ?? ps.kemet?.phase ?? ps.inis?.phase ?? ps.arcs?.phase ?? ps.coc?.phase ?? ps.ts?.phase ?? ps.duneImperium?.phase ?? ps.currentPhaseStart?.name;
   if (phase) detail += `${detail ? ' · ' : ''}${(phase as string).charAt(0).toUpperCase() + (phase as string).slice(1)} Phase`;
   (document.getElementById('resume-detail-label') as HTMLElement).textContent = detail;
 
