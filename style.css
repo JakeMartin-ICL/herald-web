@@ -763,12 +763,14 @@ input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
 
 .drag-handle {
   position: absolute;
-  top: 3px;
-  left: 4px;
+  top: 0;
+  left: 0;
+  padding: 8px;
   font-size: 0.933em;
   color: #446;
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .box-card.dragging  { opacity: 0.4; border-style: dashed; }

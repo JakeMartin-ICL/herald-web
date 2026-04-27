@@ -579,74 +579,49 @@ export function renderBoxes(): void {
     });
 
     if (canDrag) {
-      card.draggable = true;
+      const handle = card.querySelector<HTMLElement>('.drag-handle');
+      if (handle) {
+        handle.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          dragSourceHwid = hwid;
+          card.classList.add('dragging');
+          card.setPointerCapture(e.pointerId);
+        });
+      }
 
-      card.addEventListener('dragstart', (e) => {
-        dragSourceHwid = hwid;
-        card.classList.add('dragging');
-        e.dataTransfer!.effectAllowed = 'move';
-      });
-
-      card.addEventListener('dragend', () => {
-        dragSourceHwid = null;
-        document.querySelectorAll('.box-card.dragging, .box-card.drag-over')
-          .forEach(el => el.classList.remove('dragging', 'drag-over'));
-      });
-
-      card.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer!.dropEffect = 'move';
-        if (dragOverHwid !== hwid) {
-          document.querySelectorAll('.box-card.drag-over')
-            .forEach(el => el.classList.remove('drag-over'));
-          dragOverHwid = hwid;
-          card.classList.add('drag-over');
-        }
-      });
-
-      card.addEventListener('dragleave', () => {
-        card.classList.remove('drag-over');
-        if (dragOverHwid === hwid) dragOverHwid = null;
-      });
-
-      card.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (dragSourceHwid && dragSourceHwid !== hwid) {
-          swapBoxOrder(dragSourceHwid, hwid);
-          dragSourceHwid = null;
-          dragOverHwid = null;
-          updateSetupUI();
-          render();
-        }
-      });
-
-      card.addEventListener('touchstart', (e) => {
-        if (!(e.target as HTMLElement).closest('.drag-handle')) return;
-        dragSourceHwid = hwid;
-        card.classList.add('dragging');
-      }, { passive: true });
-
-      card.addEventListener('touchmove', (e) => {
-        const touch = e.touches[0];
-        const el = document.elementFromPoint(touch.clientX, touch.clientY);
-        const targetCard = el && (el as HTMLElement).closest('.box-card') as HTMLElement | null;
+      card.addEventListener('pointermove', (e) => {
+        if (dragSourceHwid !== hwid) return;
+        // Release capture briefly so elementFromPoint can see through us
+        card.releasePointerCapture(e.pointerId);
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        card.setPointerCapture(e.pointerId);
+        const targetCard = (el as HTMLElement | null)?.closest('.box-card') as HTMLElement | null;
         const targetHwid = targetCard?.dataset.hwid;
         if (targetHwid && targetHwid !== dragOverHwid) {
-          document.querySelectorAll('.box-card.drag-over')
-            .forEach(c => c.classList.remove('drag-over'));
+          document.querySelectorAll('.box-card.drag-over').forEach(c => c.classList.remove('drag-over'));
           dragOverHwid = targetHwid;
-          if (targetHwid !== dragSourceHwid) targetCard!.classList.add('drag-over');
+          if (targetHwid !== hwid) targetCard!.classList.add('drag-over');
         }
-      }, { passive: true });
+      });
 
-      card.addEventListener('touchend', () => {
+      const endDrag = () => {
+        if (dragSourceHwid !== hwid) return;
         document.querySelectorAll('.box-card.dragging, .box-card.drag-over')
           .forEach(el => el.classList.remove('dragging', 'drag-over'));
-        if (dragSourceHwid && dragOverHwid && dragSourceHwid !== dragOverHwid) {
-          swapBoxOrder(dragSourceHwid, dragOverHwid);
+        if (dragOverHwid && dragOverHwid !== hwid) {
+          swapBoxOrder(hwid, dragOverHwid);
           updateSetupUI();
           render();
         }
+        dragSourceHwid = null;
+        dragOverHwid = null;
+      };
+
+      card.addEventListener('pointerup', endDrag);
+      card.addEventListener('pointercancel', () => {
+        if (dragSourceHwid !== hwid) return;
+        document.querySelectorAll('.box-card.dragging, .box-card.drag-over')
+          .forEach(el => el.classList.remove('dragging', 'drag-over'));
         dragSourceHwid = null;
         dragOverHwid = null;
       });
