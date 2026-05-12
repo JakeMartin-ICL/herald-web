@@ -454,6 +454,8 @@ function toggleSim(hwid: string): void {
 // ---- Render boxes ----
 
 export function renderBoxes(): void {
+  if (editingNameHwid !== null) return;
+
   const container = document.getElementById('box-positions') as HTMLElement;
   container.innerHTML = '';
 
