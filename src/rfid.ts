@@ -282,6 +282,9 @@ export function toggleRfidPrompt(hwid: string): void {
 }
 
 export function startFactionScan(): void {
+  if (!state.gameActive) {
+    state.gameMode = (document.getElementById('game-mode') as HTMLSelectElement).value;
+  }
   state.factionScanActive = true;
   disableAllRfid();
   state.boxOrder.forEach(hwid => {

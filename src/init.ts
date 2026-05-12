@@ -121,7 +121,7 @@ export async function init(): Promise<void> {
   localStorage.removeItem('herald-box-names');
   setWakeLockHandlers(() => { void releaseWakeLock(); }, null);
   await loadFactions();
-  void loadTags();
+  void loadTags().then(() => updateSetupUI());
   void loadExpansions().then(() => updateSetupUI());
   void fetchLatestFirmware();
   render();
