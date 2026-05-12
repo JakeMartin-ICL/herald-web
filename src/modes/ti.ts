@@ -15,6 +15,7 @@ import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand, SetupFiel
 const TI_SPEAKER_FLASH_MS = 500;
 const TI_SPEAKER_FLASH_WHITE = '#ffffff';
 const TI_SPEAKER_FLASH_RED = '#ff0000';
+const TI_AGENDA_SPEAKER_BLUE = '#4444ff';
 
 const TI_STATUS_STEPS = [
   'Score objectives',
@@ -69,7 +70,7 @@ export class TwilightImperiumMode implements GameMode {
       case 'secondary': return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
       case 'status2': return { type: 'led_solid', color: '#8a0000' };
       case 'choosing': return box?.choosingLeds ?? { type: 'led_rainbow' };
-      case 'agenda_speaker': return { type: 'led_alternate_pair', a: '#4444ff', b: '#ffffff' };
+      case 'agenda_speaker': return { type: 'led_sectors', sectors: this.oneWhiteThreeColorSectors(TI_AGENDA_SPEAKER_BLUE) };
       case 'agenda_reveal': return { type: 'led_off' };
       case 'when_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: false };
       case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
@@ -1088,16 +1089,16 @@ export class TwilightImperiumMode implements GameMode {
     if (!box || box.isVirtual || box.status === 'disconnected') return;
     resetActiveAnim();
     box.ledOverrideUntil = Date.now() + TI_SPEAKER_FLASH_MS;
-    sendToBox(hwid, { type: 'led_sectors', sectors: this.speakerTokenSectors() });
+    sendToBox(hwid, { type: 'led_sectors', sectors: this.oneWhiteThreeColorSectors(TI_SPEAKER_FLASH_RED) });
     setTimeout(() => { resetActiveAnim(); syncLeds(); }, TI_SPEAKER_FLASH_MS + 100);
   }
 
-  private speakerTokenSectors(): { color: string; count: number }[] {
+  private oneWhiteThreeColorSectors(color: string): { color: string; count: number }[] {
     const sectors: { color: string; count: number }[] = [];
     for (let i = 0; i < LED_COUNT; i += 4) {
       sectors.push(
         { color: TI_SPEAKER_FLASH_WHITE, count: 1 },
-        { color: TI_SPEAKER_FLASH_RED, count: Math.min(3, LED_COUNT - i - 1) },
+        { color, count: Math.min(3, LED_COUNT - i - 1) },
       );
     }
     return sectors.filter(sector => sector.count > 0);
