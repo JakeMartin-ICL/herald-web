@@ -15,9 +15,9 @@ export interface CanvasDisplay extends Record<string, unknown> {
   e: CanvasElement[];
 }
 
-type InlinePart =
+export type InlinePart =
   | { type: 'text'; text: string; size?: number }
-  | { type: 'ct'; size?: number };
+  | { type: 'triangle'; size?: number };
 
 function px(n: number): number {
   return Math.round(n);
@@ -50,6 +50,28 @@ export function centeredTextFit(y: number, maxSize: number, value: string): Canv
   return centeredText(y, size, value);
 }
 
+export function wrapText(value: string, maxWidth: number, size = 1, maxLines = 2): string[] {
+  const words = sanitizeCanvasText(value).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  words.forEach(word => {
+    const next = current ? `${current} ${word}` : word;
+    if (textWidth(next, size) <= maxWidth || !current) {
+      current = next;
+      return;
+    }
+    lines.push(current);
+    current = word;
+  });
+  if (current) lines.push(current);
+
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  kept[maxLines - 1] = lines.slice(maxLines - 1).join(' ');
+  return kept;
+}
+
 export function line(x1: number, y1: number, x2: number, y2: number): CanvasElement {
   return ['l', px(x1), px(y1), px(x2), px(y2)];
 }
@@ -79,8 +101,8 @@ export function inlineText(value: string, size = 1): InlinePart {
   return { type: 'text', text: value, size };
 }
 
-export function commandToken(size = 1): InlinePart {
-  return { type: 'ct', size };
+export function triangleSymbol(size = 1): InlinePart {
+  return { type: 'triangle', size };
 }
 
 function partSize(part: InlinePart): { w: number; h: number } {
@@ -89,14 +111,19 @@ function partSize(part: InlinePart): { w: number; h: number } {
   return { w: 10 * size, h: 9 * size };
 }
 
-function commandTokenElements(x: number, y: number, size: number): CanvasElement[] {
+function triangleSymbolElements(x: number, y: number, size: number): CanvasElement[] {
   const w = 10 * size;
-  const h = 9 * size;
-  return [triangle(x, y + h, x + w, y + h, x + w / 2, y, 0)];
+  const h = 10 * size;
+  return [triangle(x, y + h, x + w, y + h, x + w / 2, y + 1, 0)];
 }
 
-export function inlineRow(y: number, parts: InlinePart[], align: 'left' | 'center' | 'right' = 'center', x = CANVAS_WIDTH / 2): CanvasElement[] {
-  const gap = 3;
+export function inlineRow(
+  y: number,
+  parts: InlinePart[],
+  align: 'left' | 'center' | 'right' = 'center',
+  x = CANVAS_WIDTH / 2,
+  gap = 3,
+): CanvasElement[] {
   const sizes = parts.map(partSize);
   const width = sizes.reduce((sum, size) => sum + size.w, 0) + Math.max(0, parts.length - 1) * gap;
   const height = sizes.reduce((max, size) => Math.max(max, size.h), 0);
@@ -110,7 +137,7 @@ export function inlineRow(y: number, parts: InlinePart[], align: 'left' | 'cente
     if (part.type === 'text') {
       elements.push(text(cursor, partY, size, part.text));
     } else {
-      elements.push(...commandTokenElements(cursor, partY, size));
+      elements.push(...triangleSymbolElements(cursor, partY, size));
     }
     cursor += dims.w + gap;
   });
