@@ -783,10 +783,10 @@ export class TwilightImperiumMode implements GameMode {
     if (hwid !== state.activeBoxId) return;
     if (state.ti.phase !== 'action') return;
     if (card.used) {
-      state.boxes[hwid].status = 'active';
-      state.ti.secondary = null;
-      log(`${getDisplayName(hwid)} cancels ${card.label} use`, 'system');
-      this.updateBadges();
+      const secondary = state.ti.secondary;
+      if (!(secondary?.activeHwid === hwid && secondary.cardId === card.id)) {
+        log(`${getDisplayName(hwid)} already used ${card.label}`, 'error');
+      }
       return;
     }
 
