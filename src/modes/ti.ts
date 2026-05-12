@@ -7,10 +7,14 @@ import { render, renderBoxes } from '../render';
 import { startPhase } from '../timers';
 import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
-import { LED_COUNT } from '../leds';
+import { LED_COUNT, resetActiveAnim, syncLeds } from '../leds';
 import { filterTags } from '../tags';
 import { isHubOrSim } from './helpers';
 import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand, SetupField } from '../types';
+
+const TI_SPEAKER_FLASH_MS = 500;
+const TI_SPEAKER_FLASH_WHITE = '#ffffff';
+const TI_SPEAKER_FLASH_RED = '#ff0000';
 
 const TI_STATUS_STEPS = [
   'Score objectives',
@@ -261,6 +265,7 @@ export class TwilightImperiumMode implements GameMode {
       if (hwid === state.activeBoxId) {
         state.ti.speakerHwid = hwid;
         log(`${getDisplayName(hwid)} takes the speaker token`, 'system');
+        this.flashSpeakerToken(hwid);
         this.updateBadges();
       }
       return;
@@ -1076,5 +1081,25 @@ export class TwilightImperiumMode implements GameMode {
       });
       setBoxBadges(hwid, badges);
     });
+  }
+
+  private flashSpeakerToken(hwid: string): void {
+    const box = state.boxes[hwid];
+    if (!box || box.isVirtual || box.status === 'disconnected') return;
+    resetActiveAnim();
+    box.ledOverrideUntil = Date.now() + TI_SPEAKER_FLASH_MS;
+    sendToBox(hwid, { type: 'led_sectors', sectors: this.speakerTokenSectors() });
+    setTimeout(() => { resetActiveAnim(); syncLeds(); }, TI_SPEAKER_FLASH_MS + 100);
+  }
+
+  private speakerTokenSectors(): { color: string; count: number }[] {
+    const sectors: { color: string; count: number }[] = [];
+    for (let i = 0; i < LED_COUNT; i += 4) {
+      sectors.push(
+        { color: TI_SPEAKER_FLASH_WHITE, count: 1 },
+        { color: TI_SPEAKER_FLASH_RED, count: Math.min(3, LED_COUNT - i - 1) },
+      );
+    }
+    return sectors.filter(sector => sector.count > 0);
   }
 }
