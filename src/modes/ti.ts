@@ -1011,14 +1011,21 @@ export class TwilightImperiumMode implements GameMode {
     state.ti.phase = 'agenda_vote';
     const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid ?? '');
     const leftIndex = (speakerIndex + 1) % state.boxOrder.length;
-    state.ti.agendaTurnOrder = [
+    const normalVoteOrder = [
       ...state.boxOrder.slice(leftIndex),
       ...state.boxOrder.slice(0, leftIndex),
     ];
+    state.ti.agendaTurnOrder = this.withArgentVotingFirst(normalVoteOrder);
     state.ti.agendaTurnIndex = 0;
     if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
     this.activateAgendaTurn('agenda_vote');
     log('Agenda — voting', 'system');
+  }
+
+  private withArgentVotingFirst(order: string[]): string[] {
+    const argentHwid = order.find(hwid => getFactionForBox(hwid)?.id === 'argent');
+    if (!argentHwid) return order;
+    return [argentHwid, ...order.filter(hwid => hwid !== argentHwid)];
   }
 
   private activateAgendaTurn(phase: string): void {
