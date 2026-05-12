@@ -1452,7 +1452,7 @@ input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
   border: 2px solid #c9a84c;
   border-radius: 8px;
   padding: 1.5rem;
-  max-width: 300px;
+  max-width: 520px;
   width: 90%;
   text-align: center;
 }
@@ -1472,7 +1472,90 @@ input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
   font-size: 0.85rem;
   color: #70c070;
   min-height: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+#tag-writing-read-result {
+  min-height: 1.2rem;
+  margin-bottom: 0.75rem;
+  color: #c9a84c;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+#tag-writing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 42vh;
+  overflow-y: auto;
   margin-bottom: 1rem;
+  padding-right: 0.2rem;
+}
+
+.tag-writing-item {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.3rem;
+  padding: 0.45rem 0.65rem;
+  background: #11183a;
+  border: 1px solid #334;
+  border-radius: 4px;
+  color: #e0e0e0;
+  text-align: left;
+}
+
+.tag-writing-item:hover:not(:disabled) {
+  border-color: #c9a84c;
+  background: #1c2554;
+}
+
+.tag-writing-item.done {
+  background: #102a22;
+  border-color: #24523f;
+  color: #9bd9b5;
+}
+
+.tag-writing-item.current {
+  border-color: #c9a84c;
+  background: #24315e;
+  box-shadow: inset 3px 0 0 #c9a84c;
+}
+
+.tag-writing-item-index {
+  color: #888;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.tag-writing-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-writing-nav,
+.tag-writing-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tag-writing-nav {
+  margin-bottom: 0.5rem;
+}
+
+.tag-writing-nav button,
+.tag-writing-actions button {
+  flex: 1;
+}
+
+#tag-writing-test-btn.active {
+  background: #1a4a2a;
+  border-color: #70c070;
 }
 
 /* ---- RFID dialog ---- */

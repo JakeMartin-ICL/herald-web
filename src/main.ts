@@ -4,7 +4,7 @@ import { onGameModeChange, addVirtualBox, confirmSubstitution, cancelSubstitutio
 import { startGame, toggleDebug, debugSkipPhase } from './game';
 import { confirmResume, discardResume } from './persist';
 import { openGraphOverlay, closeGraphOverlay, cycleGraphSort, onGraphTypeChange, toggleGraphExpand, openLogScoresheet } from './graphs';
-import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, simulateTagTap, startTagWriting, buildTagQueue } from './rfid';
+import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, simulateTagTap, startTagWriting, buildTagQueue, previousTagWritingItem, nextTagWritingItem, toggleTagWritingTestMode } from './rfid';
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
 import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
 import { initActiveStyleDialog, loadActiveStyle } from './activeStyle';
@@ -54,6 +54,9 @@ on('write-tags-btn', 'click', () => {
   startTagWriting(buildTagQueue(mode), 'Write Tags');
 });
 on('simulate-tag-tap-btn', 'click', () => simulateTagTap());
+on('tag-writing-back-btn', 'click', () => previousTagWritingItem());
+on('tag-writing-next-btn', 'click', () => nextTagWritingItem());
+on('tag-writing-test-btn', 'click', () => toggleTagWritingTestMode());
 on('cancel-tag-writing-btn', 'click', () => cancelTagWriting());
 
 // RFID dialog

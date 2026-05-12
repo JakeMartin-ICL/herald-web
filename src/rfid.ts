@@ -44,6 +44,7 @@ export function closeRfidDialog(): void {
 // ---- Tag Writing ----
 
 interface TagQueueItem {
+  label: string;
   prompt: string;
   internalId: string;
 }
@@ -52,18 +53,29 @@ let tagWritingQueue: TagQueueItem[] = [];
 let tagWritingIndex = 0;
 let tagWritingActive = false;
 let tagWritingPending = false;
+let tagWritingArmed = false;
+let tagWritingTestMode = false;
+let tagWritingCompleted = new Set<number>();
+let tagWritingDelayTimer: ReturnType<typeof setTimeout> | null = null;
+const TAG_WRITE_DELAY_MS = 3000;
 
 export function buildTagQueue(game: string): TagQueueItem[] {
   return filterTags(game, () => true).map(t => ({
+    label: t.display,
     prompt: `Tap ${t.display} on the hub box`,
     internalId: t.id,
   }));
 }
 
 export function startTagWriting(queue: TagQueueItem[], title?: string): void {
+  clearTagWritingDelay();
   tagWritingQueue = queue;
   tagWritingIndex = 0;
   tagWritingActive = true;
+  tagWritingPending = false;
+  tagWritingArmed = true;
+  tagWritingTestMode = false;
+  tagWritingCompleted = new Set<number>();
   (document.getElementById('tag-writing-title') as HTMLElement).textContent = title ?? 'Write Tags';
   (document.getElementById('tag-writing-overlay') as HTMLElement).style.display = 'flex';
   showNextTagPrompt();
@@ -71,32 +83,47 @@ export function startTagWriting(queue: TagQueueItem[], title?: string): void {
 }
 
 function showNextTagPrompt(): void {
+  clearTagWritingDelay();
   if (tagWritingIndex >= tagWritingQueue.length) {
     finishTagWriting();
     return;
   }
+  tagWritingArmed = true;
   const item = tagWritingQueue[tagWritingIndex];
   (document.getElementById('tag-writing-prompt') as HTMLElement).textContent = item.prompt;
   (document.getElementById('tag-writing-status') as HTMLElement).textContent =
-    `${tagWritingIndex} of ${tagWritingQueue.length} written`;
+    `${tagWritingIndex + 1} of ${tagWritingQueue.length}`;
+  const readResult = document.getElementById('tag-writing-read-result') as HTMLElement | null;
+  if (readResult && !tagWritingTestMode) readResult.textContent = '';
+  renderTagWritingControls();
+  renderTagWritingList();
+  if (state.hubHwid) enableRfid(state.hubHwid);
 }
 
 function handleTagWriting(_internalId: string): void {
-  if (!tagWritingActive || tagWritingPending) return;
+  if (!tagWritingActive || tagWritingPending || tagWritingTestMode || !tagWritingArmed) return;
   tagWritingPending = true;
-  (document.getElementById('tag-writing-status') as HTMLElement).textContent = 'Writing…';
+  tagWritingArmed = false;
+  (document.getElementById('tag-writing-status') as HTMLElement).textContent = 'Writing...';
+  renderTagWritingControls();
   sendRfidWrite(tagWritingQueue[tagWritingIndex].internalId);
 }
 
 export function handleRfidWriteResult(msg: { success: boolean; error?: string }): void {
   tagWritingPending = false;
   if (msg.success) {
-    (document.getElementById('tag-writing-status') as HTMLElement).textContent = '✓ Written';
+    (document.getElementById('tag-writing-status') as HTMLElement).textContent = 'Written. Remove tag...';
+    tagWritingCompleted.add(tagWritingIndex);
     tagWritingIndex++;
-    setTimeout(showNextTagPrompt, 800);
+    tagWritingDelayTimer = setTimeout(showNextTagPrompt, TAG_WRITE_DELAY_MS);
+    renderTagWritingControls();
+    renderTagWritingList();
+    if (state.hubHwid) disableRfid(state.hubHwid);
   } else {
+    tagWritingArmed = true;
     (document.getElementById('tag-writing-status') as HTMLElement).textContent =
-      `✗ Failed: ${msg.error ?? 'Unknown error'}`;
+      `Failed: ${msg.error ?? 'Unknown error'}`;
+    renderTagWritingControls();
   }
 }
 
@@ -106,27 +133,119 @@ function sendRfidWrite(internalId: string): void {
 }
 
 function finishTagWriting(): void {
+  clearTagWritingDelay();
   if (state.hubHwid) disableRfid(state.hubHwid);
   tagWritingActive = false;
+  tagWritingPending = false;
+  tagWritingArmed = false;
+  tagWritingTestMode = false;
   (document.getElementById('tag-writing-overlay') as HTMLElement).style.display = 'none';
   log('Tag writing complete', 'system');
   updateSetupUI();
 }
 
 export function cancelTagWriting(): void {
+  clearTagWritingDelay();
   if (state.hubHwid) disableRfid(state.hubHwid);
   tagWritingActive = false;
   tagWritingPending = false;
+  tagWritingArmed = false;
+  tagWritingTestMode = false;
+  tagWritingCompleted = new Set<number>();
   tagWritingIndex = 0;
   tagWritingQueue = [];
   (document.getElementById('tag-writing-overlay') as HTMLElement).style.display = 'none';
+}
+
+export function previousTagWritingItem(): void {
+  jumpToTagWritingIndex(tagWritingIndex - 1);
+}
+
+export function nextTagWritingItem(): void {
+  jumpToTagWritingIndex(tagWritingIndex + 1);
+}
+
+export function toggleTagWritingTestMode(): void {
+  if (!tagWritingActive || tagWritingPending) return;
+  clearTagWritingDelay();
+  tagWritingTestMode = !tagWritingTestMode;
+  tagWritingArmed = !tagWritingTestMode;
+  const readResult = document.getElementById('tag-writing-read-result') as HTMLElement | null;
+  if (readResult) readResult.textContent = tagWritingTestMode ? 'Tap any tag to read its ID.' : '';
+  if (tagWritingTestMode) {
+    if (state.hubHwid) enableRfid(state.hubHwid);
+  } else {
+    showNextTagPrompt();
+  }
+  renderTagWritingControls();
+}
+
+function jumpToTagWritingIndex(index: number): void {
+  if (!tagWritingActive || tagWritingPending) return;
+  if (index < 0 || index >= tagWritingQueue.length) return;
+  tagWritingIndex = index;
+  tagWritingTestMode = false;
+  showNextTagPrompt();
+}
+
+function clearTagWritingDelay(): void {
+  if (!tagWritingDelayTimer) return;
+  clearTimeout(tagWritingDelayTimer);
+  tagWritingDelayTimer = null;
+}
+
+function renderTagWritingControls(): void {
+  const backBtn = document.getElementById('tag-writing-back-btn') as HTMLButtonElement | null;
+  const nextBtn = document.getElementById('tag-writing-next-btn') as HTMLButtonElement | null;
+  const testBtn = document.getElementById('tag-writing-test-btn') as HTMLButtonElement | null;
+  const simulateBtn = document.getElementById('simulate-tag-tap-btn') as HTMLButtonElement | null;
+
+  if (backBtn) backBtn.disabled = tagWritingPending || tagWritingIndex <= 0;
+  if (nextBtn) nextBtn.disabled = tagWritingPending || tagWritingIndex >= tagWritingQueue.length - 1;
+  if (testBtn) {
+    testBtn.disabled = tagWritingPending;
+    testBtn.textContent = tagWritingTestMode ? 'Resume Writing' : 'Test Read';
+    testBtn.classList.toggle('active', tagWritingTestMode);
+  }
+  if (simulateBtn) simulateBtn.disabled = tagWritingPending || (!tagWritingTestMode && !tagWritingArmed);
+}
+
+function renderTagWritingList(): void {
+  const list = document.getElementById('tag-writing-list') as HTMLElement | null;
+  if (!list) return;
+
+  list.innerHTML = '';
+  tagWritingQueue.forEach((item, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-writing-item';
+    if (tagWritingCompleted.has(index)) btn.classList.add('done');
+    if (index === tagWritingIndex) btn.classList.add('current');
+    btn.disabled = tagWritingPending;
+    btn.dataset.index = String(index);
+    const indexEl = document.createElement('span');
+    indexEl.className = 'tag-writing-item-index';
+    indexEl.textContent = String(index + 1);
+    const labelEl = document.createElement('span');
+    labelEl.className = 'tag-writing-item-label';
+    labelEl.textContent = item.label;
+    btn.append(indexEl, labelEl);
+    btn.addEventListener('click', () => jumpToTagWritingIndex(index));
+    list.appendChild(btn);
+  });
 }
 
 // ---- RFID dispatch ----
 
 export function handleRfid(hwid: string, internalId: string): void {
   if (tagWritingActive) {
-    if (hwid === state.hubHwid) handleTagWriting(internalId);
+    if (hwid === state.hubHwid) {
+      if (tagWritingTestMode) {
+        const readResult = document.getElementById('tag-writing-read-result') as HTMLElement | null;
+        if (readResult) readResult.textContent = `Read: ${internalId}`;
+      } else {
+        handleTagWriting(internalId);
+      }
+    }
     return;
   }
 
@@ -233,7 +352,17 @@ export function simulateTagTap(): void {
   if (!tagWritingActive) return;
   const item = tagWritingQueue[tagWritingIndex];
   if (!item) return;
+  if (tagWritingTestMode) {
+    const readResult = document.getElementById('tag-writing-read-result') as HTMLElement | null;
+    if (readResult) readResult.textContent = `Read: ${item.internalId}`;
+    return;
+  }
+  if (tagWritingPending || !tagWritingArmed) return;
   (document.getElementById('tag-writing-status') as HTMLElement).textContent = 'Written (simulated)';
+  tagWritingCompleted.add(tagWritingIndex);
   tagWritingIndex++;
-  setTimeout(showNextTagPrompt, 800);
+  tagWritingArmed = false;
+  tagWritingDelayTimer = setTimeout(showNextTagPrompt, TAG_WRITE_DELAY_MS);
+  renderTagWritingControls();
+  renderTagWritingList();
 }
