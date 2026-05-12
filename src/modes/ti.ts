@@ -10,6 +10,7 @@ import { snapshotForUndo } from '../undo';
 import { LED_COUNT, resetActiveAnim, syncLeds } from '../leds';
 import { filterTags } from '../tags';
 import { isHubOrSim } from './helpers';
+import { buildTiSecondaryDisplay } from '../ti-secondary-display';
 import type { GameMode, Tag, ActionDef, StrategyCard, Box, LedCommand, SetupField } from '../types';
 
 const TI_SPEAKER_FLASH_MS = 500;
@@ -42,17 +43,6 @@ const TI_STRATEGY_COLORS: Record<string, string> = {
 const TI_STRATEGY_INITIATIVES: Record<string, number> = {
   leadership: 1, diplomacy: 2, politics: 3, construction: 4,
   trade: 5, warfare: 6, technology: 7, imperial: 8,
-};
-
-const TI_SECONDARY_HINTS: Record<string, string> = {
-  leadership:   'X Influence->CTs 3:1',
-  diplomacy:    '1CT->Ready 2 planets',
-  politics:     '1CT->2 action cards',
-  construction: '1CT->1 structure',
-  trade:        '1CT->Fill commods',
-  warfare:      '1CT->PROD home sys',
-  technology:   '1CT+4res->1 research',
-  imperial:     '1CT->1 secret obj',
 };
 
 const TI_STRATEGY_LABELS: Record<string, string> = {
@@ -366,9 +356,7 @@ export class TwilightImperiumMode implements GameMode {
     if (state.boxes[hwid]?.status !== 'secondary') return null;
     const cardId = state.ti.secondary?.cardId;
     if (!cardId) return null;
-    const hint = TI_SECONDARY_HINTS[cardId];
-    if (!hint) return null;
-    return { name: getDisplayName(hwid), status: hint };
+    return buildTiSecondaryDisplay(cardId);
   }
 
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {

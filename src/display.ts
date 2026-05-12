@@ -3,6 +3,8 @@ import { sendToBox } from './websockets';
 import { getDisplayName } from './boxes';
 import { currentGuidedStep, guidedPhaseProgress } from './guided-phase';
 import { currentGame } from './currentGame';
+import { CANVAS_MAX_BYTES, CANVAS_WARN_BYTES, displayMessageBytes } from './display-canvas';
+import { log } from './logger';
 import type { BoxStatus, DisplayBoxSettings } from './types';
 
 const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
@@ -25,6 +27,31 @@ const STATUS_LABELS: Partial<Record<BoxStatus, string>> = {
   agenda_vote:            'Voting',
 };
 
+const oversizedCanvasWarnings = new Set<string>();
+
+function sendDisplayToBox(hwid: string, msg: Record<string, unknown>): void {
+  if (msg.m === 'c') {
+    const bytes = displayMessageBytes(msg, hwid);
+    if (bytes > CANVAS_MAX_BYTES) {
+      const key = `${hwid}:${bytes}:${JSON.stringify(msg)}`;
+      if (!oversizedCanvasWarnings.has(key)) {
+        oversizedCanvasWarnings.add(key);
+        log(`Canvas display for ${getDisplayName(hwid)} is ${bytes} bytes; ESP-NOW limit is ${CANVAS_MAX_BYTES}`, 'error');
+      }
+      return;
+    }
+    if (bytes > CANVAS_WARN_BYTES) {
+      const key = `${hwid}:${bytes}`;
+      if (!oversizedCanvasWarnings.has(key)) {
+        oversizedCanvasWarnings.add(key);
+        log(`Canvas display for ${getDisplayName(hwid)} is near ESP-NOW limit (${bytes}/${CANVAS_MAX_BYTES} bytes)`, 'system');
+      }
+    }
+  }
+
+  sendToBox(hwid, msg);
+}
+
 export function syncDisplay(): void {
   const guidedStep = currentGuidedStep();
   const guidedProgress = guidedPhaseProgress();
@@ -35,14 +62,14 @@ export function syncDisplay(): void {
 
     // Guided phase overrides name/status on all boxes
     if (guidedStep !== null) {
-      sendToBox(hwid, { type: 'display', name: guidedStep, status: guidedProgress });
+      sendDisplayToBox(hwid, { type: 'display', name: guidedStep, status: guidedProgress });
       return;
     }
 
     // Mode-level per-box override (e.g. Inis assembly steps)
     const boxDisplay = currentGame?.getBoxDisplay?.(hwid);
     if (boxDisplay !== null && boxDisplay !== undefined) {
-      sendToBox(hwid, { type: 'display', name: '', status: '', ...boxDisplay });
+      sendDisplayToBox(hwid, { type: 'display', name: '', status: '', ...boxDisplay });
       return;
     }
 
@@ -64,6 +91,6 @@ export function syncDisplay(): void {
       msg.message = settings.message.slice(0, 21);
     }
 
-    sendToBox(hwid, msg);
+    sendDisplayToBox(hwid, msg);
   });
 }

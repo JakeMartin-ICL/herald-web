@@ -6,7 +6,7 @@ import { confirmResume, discardResume } from './persist';
 import { openGraphOverlay, closeGraphOverlay, cycleGraphSort, onGraphTypeChange, toggleGraphExpand, openLogScoresheet } from './graphs';
 import { startFactionScan, stopFactionScan, closeRfidDialog, cancelTagWriting, simulateTagTap, startTagWriting, buildTagQueue, previousTagWritingItem, nextTagWritingItem, toggleTagWritingTestMode } from './rfid';
 import { openOtaDialog, closeOtaDialog, forceCloseOtaDialog } from './ota';
-import { openDebugDialog, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
+import { openDebugDialog, openDisplayLab, closeDebugDialog, openWifiDialog, closeWifiDialog, saveWifiCredentials } from './settings';
 import { initActiveStyleDialog, loadActiveStyle } from './activeStyle';
 import { closeDisplaySettingsDialog } from './display-settings';
 import { openRemovePlayerDialog, closeRemovePlayerDialog } from './removePlayer';
@@ -71,6 +71,7 @@ on('ota-force-close-btn', 'click', () => forceCloseOtaDialog());
 
 // Debug dialog
 on('debug-open-btn', 'click', () => openDebugDialog());
+on('display-lab-open-btn', 'click', () => openDisplayLab());
 on('debug-log-overlay', 'click', (e) => { if (e.target === e.currentTarget) closeDebugDialog(); });
 on('debug-close-btn', 'click', () => closeDebugDialog());
 

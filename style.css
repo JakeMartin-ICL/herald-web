@@ -1440,6 +1440,75 @@ input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
   cursor: pointer;
 }
 
+.display-lab {
+  margin-top: 1rem;
+  border-top: 1px solid #1a2a3e;
+  padding-top: 0.75rem;
+}
+
+.display-lab summary {
+  color: #c9a84c;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.display-lab-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin: 0.75rem 0;
+}
+
+.display-lab-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #aaa;
+  font-size: 0.75rem;
+}
+
+.display-lab-controls select {
+  width: 100%;
+}
+
+#display-lab-preview {
+  display: flex;
+  justify-content: center;
+  background: #080812;
+  border: 1px solid #26324d;
+  padding: 0.75rem;
+}
+
+.canvas-preview {
+  image-rendering: pixelated;
+  max-width: 100%;
+  height: auto;
+}
+
+.display-lab-bytes {
+  margin-top: 0.5rem;
+  color: #888;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.75rem;
+}
+
+.display-lab-warn { color: #c9a84c; }
+.display-lab-error { color: #e07070; }
+.display-lab-invalid { color: #e07070; }
+
+#display-lab-json {
+  width: 100%;
+  min-height: 4.5rem;
+  margin-top: 0.5rem;
+  resize: vertical;
+  background: #090a1f;
+  color: #aaa;
+  border: 1px solid #26324d;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.72rem;
+}
+
 
 /* ---- Tag learning overlay ---- */
 

@@ -1,16 +1,28 @@
 import { state } from './state';
 import { send } from './websockets';
 import { getDisplayName } from './boxes';
+import { CANVAS_MAX_BYTES, CANVAS_WARN_BYTES, displayMessageBytes, renderCanvasSvg } from './display-canvas';
+import { buildTiSecondaryDisplay, TI_SECONDARY_PROMPTS } from './ti-secondary-display';
 
 // ---- Debug logging dialog ----
 
+let _openDisplayLab = false;
+
 export function openDebugDialog(): void {
+  _openDisplayLab = false;
+  (document.getElementById('debug-log-overlay') as HTMLElement).style.display = 'flex';
+  renderDebugDialog();
+}
+
+export function openDisplayLab(): void {
+  _openDisplayLab = true;
   (document.getElementById('debug-log-overlay') as HTMLElement).style.display = 'flex';
   renderDebugDialog();
 }
 
 export function closeDebugDialog(): void {
   (document.getElementById('debug-log-overlay') as HTMLElement).style.display = 'none';
+  _openDisplayLab = false;
 }
 
 function toggleBoxDebug(hwid: string, enabled: boolean): void {
@@ -37,10 +49,82 @@ function renderDebugDialog(): void {
       </label>
     </div>`;
   }).join('');
-  el.innerHTML = rows || '<div style="color:#888">No boxes connected</div>';
+  const display = buildTiSecondaryDisplay('trade');
+  const bytes = display ? displayMessageBytes(display, state.boxOrder[0] ?? '') : 0;
+  const byteClass = bytes > CANVAS_WARN_BYTES ? ' display-lab-warn' : '';
+
+  el.innerHTML = `
+    ${rows || '<div style="color:#888">No boxes connected</div>'}
+    <details class="display-lab"${_openDisplayLab ? ' open' : ''}>
+      <summary>Display Lab</summary>
+      <div class="display-lab-controls">
+        <label>
+          <span>Prompt</span>
+          <select id="display-lab-prompt">
+            ${Object.keys(TI_SECONDARY_PROMPTS).map(id => `<option value="${id}"${id === 'trade' ? ' selected' : ''}>TI ${TI_SECONDARY_PROMPTS[id].title}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span>Box</span>
+          <select id="display-lab-box">
+            ${state.boxOrder.map(hwid => `<option value="${hwid}">${getDisplayName(hwid)}</option>`).join('')}
+          </select>
+        </label>
+        <button id="display-lab-send"${state.boxOrder.length ? '' : ' disabled'}>Send Preview</button>
+      </div>
+      <div id="display-lab-preview">${display ? renderCanvasSvg(display, 2) : ''}</div>
+      <div id="display-lab-bytes" class="display-lab-bytes${byteClass}">${bytes}/${CANVAS_MAX_BYTES} bytes</div>
+      <textarea id="display-lab-json">${display ? JSON.stringify(display) : ''}</textarea>
+    </details>`;
 
   el.querySelectorAll<HTMLInputElement>('.debug-toggle-cb').forEach(cb => {
     cb.addEventListener('change', () => toggleBoxDebug(cb.dataset.hwid!, cb.checked));
+  });
+
+  const promptSelect = el.querySelector<HTMLSelectElement>('#display-lab-prompt');
+  const boxSelect = el.querySelector<HTMLSelectElement>('#display-lab-box');
+  const preview = el.querySelector<HTMLElement>('#display-lab-preview');
+  const byteEl = el.querySelector<HTMLElement>('#display-lab-bytes');
+  const jsonEl = el.querySelector<HTMLTextAreaElement>('#display-lab-json');
+  let currentDisplay = display;
+
+  const setLabDisplay = (current: typeof display): void => {
+    const hwid = boxSelect?.value ?? state.boxOrder[0] ?? '';
+    if (!current) return;
+    currentDisplay = current;
+    const size = displayMessageBytes(current, hwid);
+    if (preview) preview.innerHTML = renderCanvasSvg(current, 2);
+    if (byteEl) {
+      byteEl.textContent = `${size}/${CANVAS_MAX_BYTES} bytes`;
+      byteEl.classList.toggle('display-lab-warn', size > CANVAS_WARN_BYTES);
+      byteEl.classList.toggle('display-lab-error', size > CANVAS_MAX_BYTES);
+      byteEl.classList.remove('display-lab-invalid');
+    }
+  };
+
+  const updateLab = () => {
+    const current = buildTiSecondaryDisplay(promptSelect?.value ?? 'trade');
+    if (jsonEl && current) jsonEl.value = JSON.stringify(current);
+    setLabDisplay(current);
+  };
+
+  promptSelect?.addEventListener('change', updateLab);
+  boxSelect?.addEventListener('change', () => setLabDisplay(currentDisplay));
+  jsonEl?.addEventListener('input', () => {
+    try {
+      const parsed = JSON.parse(jsonEl.value) as typeof display;
+      if (parsed?.m !== 'c' || !Array.isArray(parsed.e)) throw new Error('Not a canvas display');
+      setLabDisplay(parsed);
+    } catch {
+      byteEl?.classList.add('display-lab-invalid');
+      if (byteEl) byteEl.textContent = 'Invalid JSON';
+    }
+  });
+  el.querySelector<HTMLButtonElement>('#display-lab-send')?.addEventListener('click', () => {
+    const hwid = boxSelect?.value;
+    const current = currentDisplay;
+    if (!hwid || !current) return;
+    send({ type: 'display', hwid, ...current });
   });
 }
 
