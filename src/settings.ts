@@ -2,6 +2,7 @@ import { state } from './state';
 import { send } from './websockets';
 import { getDisplayName } from './boxes';
 import { CANVAS_MAX_BYTES, CANVAS_WARN_BYTES, displayMessageBytes, renderCanvasSvg } from './display-canvas';
+import { buildInisBrennDisplay, buildInisDraftArrowDisplay, buildInisFlockHubDisplay } from './inis-display';
 import { buildTiSecondaryDisplay, TI_SECONDARY_PROMPTS } from './ti-secondary-display';
 
 // ---- Debug logging dialog ----
@@ -31,6 +32,17 @@ function toggleBoxDebug(hwid: string, enabled: boolean): void {
   send({ type: enabled ? 'debug_on' : 'debug_off', hwid });
 }
 
+const DISPLAY_LAB_PROMPTS: Record<string, { label: string; build: () => ReturnType<typeof buildTiSecondaryDisplay> }> = {
+  ...Object.fromEntries(Object.keys(TI_SECONDARY_PROMPTS).map(id => [
+    `ti:${id}`,
+    { label: `TI ${TI_SECONDARY_PROMPTS[id].title}`, build: () => buildTiSecondaryDisplay(id) },
+  ])),
+  'inis:brenn': { label: 'Inis Brenn', build: () => buildInisBrennDisplay() },
+  'inis:flock-hub': { label: 'Inis Flock Hub', build: () => buildInisFlockHubDisplay() },
+  'inis:draft-left': { label: 'Inis Draft Left', build: () => buildInisDraftArrowDisplay(true) },
+  'inis:draft-right': { label: 'Inis Draft Right', build: () => buildInisDraftArrowDisplay(false) },
+};
+
 function renderDebugDialog(): void {
   const el = document.getElementById('debug-log-content');
   if (!el) return;
@@ -49,7 +61,8 @@ function renderDebugDialog(): void {
       </label>
     </div>`;
   }).join('');
-  const display = buildTiSecondaryDisplay('trade');
+  const defaultPrompt = 'ti:trade';
+  const display = DISPLAY_LAB_PROMPTS[defaultPrompt].build();
   const bytes = display ? displayMessageBytes(display, state.boxOrder[0] ?? '') : 0;
   const byteClass = bytes > CANVAS_WARN_BYTES ? ' display-lab-warn' : '';
 
@@ -61,7 +74,7 @@ function renderDebugDialog(): void {
         <label>
           <span>Prompt</span>
           <select id="display-lab-prompt">
-            ${Object.keys(TI_SECONDARY_PROMPTS).map(id => `<option value="${id}"${id === 'trade' ? ' selected' : ''}>TI ${TI_SECONDARY_PROMPTS[id].title}</option>`).join('')}
+            ${Object.entries(DISPLAY_LAB_PROMPTS).map(([id, prompt]) => `<option value="${id}"${id === defaultPrompt ? ' selected' : ''}>${prompt.label}</option>`).join('')}
           </select>
         </label>
         <label>
@@ -103,7 +116,7 @@ function renderDebugDialog(): void {
   };
 
   const updateLab = () => {
-    const current = buildTiSecondaryDisplay(promptSelect?.value ?? 'trade');
+    const current = DISPLAY_LAB_PROMPTS[promptSelect?.value ?? defaultPrompt]?.build() ?? null;
     if (jsonEl && current) jsonEl.value = JSON.stringify(current);
     setLabDisplay(current);
   };

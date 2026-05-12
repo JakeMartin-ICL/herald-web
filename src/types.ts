@@ -383,6 +383,6 @@ export interface GameMode {
   /** Re-sync RFID enable/disable to match restored game state (called after undo). */
   syncRfid?(): void;
   /** Per-box OLED display override. Return a partial display-message object (name, status,
-   *  arrow, layout, etc.) or null to use the default player-name/status display. */
+   *  canvas mode, etc.) or null to use the default player-name/status display. */
   getBoxDisplay?(hwid: string): Record<string, unknown> | null;
 }

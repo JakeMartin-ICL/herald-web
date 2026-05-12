@@ -8,6 +8,7 @@ import { syncLeds } from '../leds';
 import { syncDisplay } from '../display';
 import { sendToBox } from '../websockets';
 import { isHubOrSim } from './helpers';
+import { buildInisBrennDisplay, buildInisDraftArrowDisplay, buildInisFlockHubDisplay } from '../inis-display';
 import type { GameMode, Tag, ActionDef, LedCommand } from '../types';
 
 const ASSEMBLY_GREEN: LedCommand = { type: 'led_alternate_pair', a: '#007f00', b: '#000000' };
@@ -95,7 +96,7 @@ export class InisMode implements GameMode {
 
     switch (state.inis.assemblyStep) {
       case 'brenn':
-        return { name: "Press if you're Brenn", status: '', arrow: 'up' };
+        return buildInisBrennDisplay();
 
       case 'victory':
         return { name: 'Check for victory', status: '' };
@@ -105,7 +106,7 @@ export class InisMode implements GameMode {
 
       case 'flock':
         if (hwid === state.hubHwid) {
-          return { layout: 'inis_hub' };
+          return buildInisFlockHubDisplay();
         }
         if (hwid === state.inis.brennHwid) {
           return { name: 'Flip Flock of Crows', status: '' };
@@ -116,8 +117,7 @@ export class InisMode implements GameMode {
         return { name: 'Deal 4 cards each', status: '' };
 
       case 'draft': {
-        const arrow = state.inis.turnDirection === 'clockwise' ? 'left' : 'right';
-        return { name: '', status: '', arrow };
+        return buildInisDraftArrowDisplay(state.inis.turnDirection === 'clockwise');
       }
 
       default:
