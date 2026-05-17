@@ -454,10 +454,21 @@ function toggleSim(hwid: string): void {
 // ---- Render boxes ----
 
 export function renderBoxes(): void {
-  if (editingNameHwid !== null) return;
-
   const container = document.getElementById('box-positions') as HTMLElement;
-  container.innerHTML = '';
+
+  const editingInput = editingNameHwid
+    ? document.getElementById(`name-input-${CSS.escape(editingNameHwid)}`) as HTMLInputElement | null
+    : null;
+  const editingCard = editingInput?.closest('.box-card') as HTMLElement | null;
+  const preserveEditingCard = !!editingInput && !!editingCard && document.activeElement === editingInput;
+
+  if (preserveEditingCard) {
+    Array.from(container.children).forEach(child => {
+      if (child !== editingCard) child.remove();
+    });
+  } else {
+    container.innerHTML = '';
+  }
 
   const ids = state.boxOrder;
   if (ids.length === 0) return;
@@ -469,13 +480,31 @@ export function renderBoxes(): void {
     const box = state.boxes[hwid];
     const pos = positions[index];
     const leds = ledCommandToArray(box.leds ?? ledStateForStatus(box.status, box, hwid));
+    const faction = getFactionForBox(hwid);
+
+    if (preserveEditingCard && editingNameHwid === hwid && editingCard) {
+      editingCard.className = `box-card ${box.status}`;
+      editingCard.style.left = `${pos.x}%`;
+      editingCard.style.top = `${pos.y}%`;
+      editingCard.dataset.hwid = hwid;
+      if (faction) {
+        editingCard.style.setProperty('--faction-color', faction.color);
+        editingCard.classList.add('has-faction');
+      } else {
+        editingCard.style.removeProperty('--faction-color');
+      }
+      const statusEl = editingCard.querySelector<HTMLElement>('.box-status');
+      if (statusEl) statusEl.textContent = box.status;
+      const before = container.children[index] ?? null;
+      if (before !== editingCard) container.insertBefore(editingCard, before);
+      return;
+    }
 
     const card = document.createElement('div');
     card.className = `box-card ${box.status}`;
     card.style.left = `${pos.x}%`;
     card.style.top = `${pos.y}%`;
     card.dataset.hwid = hwid;
-    const faction = getFactionForBox(hwid);
     if (faction) {
       card.style.setProperty('--faction-color', faction.color);
       card.classList.add('has-faction');
@@ -629,7 +658,12 @@ export function renderBoxes(): void {
       });
     }
 
-    container.appendChild(card);
+    if (preserveEditingCard) {
+      const before = container.children[index] ?? null;
+      container.insertBefore(card, before);
+    } else {
+      container.appendChild(card);
+    }
   });
 }
 
