@@ -69,7 +69,10 @@ export function syncDisplay(): void {
     // Mode-level per-box override (e.g. Inis assembly steps)
     const boxDisplay = currentGame?.getBoxDisplay?.(hwid);
     if (boxDisplay !== null && boxDisplay !== undefined) {
-      sendDisplayToBox(hwid, { type: 'display', name: '', status: '', ...boxDisplay });
+      const msg = boxDisplay.m === 'c'
+        ? { type: 'display', ...boxDisplay }
+        : { type: 'display', name: '', status: '', ...boxDisplay };
+      sendDisplayToBox(hwid, msg);
       return;
     }
 
