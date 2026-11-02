@@ -157,14 +157,47 @@ export function normaliseColor(color: string): string {
 
 // ---- syncLeds ----
 
+function activeAnimationCommand(): LedCommand {
+  const s = state.activePlayerStyle;
+  if (s.mode === 'breathe') {
+    return { type: 'led_anim_breathe', color: activePlayerColor(), rainbow: s.rainbow, halfPeriodMs: Math.round(4000 - s.speed * 3000) };
+  }
+  const stepMs = Math.round(120 - s.speed * 100);
+  return { type: 'led_anim_spinner', color: activePlayerColor(), rainbow: s.rainbow, stepMs, fadeMs: Math.min(25, stepMs) };
+}
+
+// A reconnect may follow a reboot: replay on-device effects even when the normal
+// render path thinks they are already running. Do not change gameplay state.
 export function syncLedsForBox(hwid: string): void {
   if (state.factionScanActive) return;
   const box = state.boxes[hwid];
   if (!box || box.isVirtual || box.status === 'disconnected') return;
   const now = Date.now();
   if (state.paused) { sendToBox(hwid, { type: 'led_off' }); return; }
-  if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
-  if (box.status === 'upkeep' || box.status === 'choosing' || box.countdownActive) return;
+  box.ledOverrideUntil = null;
+  if (box.countdownActive && box.countdownEndMs && box.countdownEndMs > now) {
+    sendToBox(hwid, { type: 'countdown', durationMs: box.countdownEndMs - now,
+      color: activePlayerColor(), rainbow: state.activePlayerStyle.rainbow });
+    return;
+  }
+  if (box.countdownActive) {
+    box.countdownActive = false;
+    box.countdownEndMs = undefined;
+  }
+  if (box.status === 'upkeep') {
+    sendToBox(hwid, { type: 'led_anim_upkeep' });
+    return;
+  }
+  if (box.status === 'choosing' && box.choosingLeds?.type === 'led_sectors') {
+    sendToBox(hwid, { type: 'led_anim_choosing',
+      colors: box.choosingLeds.sectors.map(sector => sector.color), activeMs: 600, fadeMs: 100 });
+    return;
+  }
+  if (box.status === 'active' && state.activePlayerStyle.mode !== 'solid') {
+    sendToBox(hwid, activeAnimationCommand());
+    activeAnimBox = hwid;
+    return;
+  }
   const cmd = box.leds ?? ledStateForStatus(box.status, box, hwid);
   sendToBox(hwid, cmd);
 }
@@ -183,11 +216,7 @@ export function syncLeds(): void {
 
     if (box.status === 'active' && !box.isVirtual && state.activePlayerStyle.mode !== 'solid') {
       if (hwid !== activeAnimBox) {
-        const s = state.activePlayerStyle;
-        const cmd: LedCommand = s.mode === 'breathe'
-          ? { type: 'led_anim_breathe', color: activePlayerColor(), rainbow: s.rainbow, halfPeriodMs: Math.round(4000 - s.speed * 3000) }
-          : (() => { const stepMs = Math.round(120 - s.speed * 100); return { type: 'led_anim_spinner' as const, color: activePlayerColor(), rainbow: s.rainbow, stepMs, fadeMs: Math.min(25, stepMs) }; })();
-        sendToBox(hwid, cmd);
+        sendToBox(hwid, activeAnimationCommand());
         activeAnimBox = hwid;
       }
       return;

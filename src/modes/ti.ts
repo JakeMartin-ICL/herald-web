@@ -2,9 +2,9 @@ import { state } from '../state';
 import { log } from '../logger';
 import { disableAllRfid, enableRfid, sendToBox } from '../websockets';
 import { startGuidedPhase, advanceGuidedPhase, clearGuidedPhase, isGuidedPhaseActive, currentGuidedStep, guidedPhaseProgress } from '../guided-phase';
-import { getDisplayName, buildPlayerSelectOptions, getFactionForBox, setBoxBadges } from '../boxes';
-import { render, renderBoxes } from '../render';
-import { startPhase } from '../timers';
+import { getDisplayName, buildPlayerSelectOptions, getFactionForBox, setBoxBadges, setAutoName } from '../boxes';
+import { render, renderBoxes, isManuallyRenamed } from '../render';
+import { startPhase, updateTurnTimers } from '../timers';
 import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
 import { LED_COUNT, resetActiveAnim, syncLeds } from '../leds';
@@ -17,6 +17,10 @@ const TI_SPEAKER_FLASH_MS = 500;
 const TI_SPEAKER_FLASH_WHITE = '#ffffff';
 const TI_SPEAKER_FLASH_RED = '#ff0000';
 const TI_AGENDA_SPEAKER_BLUE = '#4444ff';
+const TI_AGENDA_PHASES = [
+  'agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote',
+  'agenda_argent', 'agenda_ballot', 'agenda_resolve',
+];
 
 const TI_STATUS_STEPS = [
   'Score objectives',
@@ -71,7 +75,15 @@ export class TwilightImperiumMode implements GameMode {
 
   getTableLabel(): string {
     const phase = state.ti.phase ?? '';
-    return `TI${phase ? ` — ${phase.replace(/_/g, ' ').toUpperCase()}` : ''}`;
+    if (phase === 'action_end') return 'TI — ALL PLAYERS PASSED';
+    const labels: Record<string, string> = {
+      agenda_argent: 'ARGENT PUBLIC VOTE',
+      agenda_ballot: 'SECRET BALLOTS',
+      agenda_resolve: 'RESOLVE AGENDA',
+    };
+    const label = labels[phase] ?? phase.replace(/_/g, ' ').toUpperCase();
+    if (state.ti.executiveOrderHwid) return `TI — EXECUTIVE ORDER — ${label}`;
+    return `TI${label ? ` — ${label}` : ''}`;
   }
 
   getSetupFields(): SetupField[] {
@@ -80,7 +92,20 @@ export class TwilightImperiumMode implements GameMode {
       id: 'ti-speaker',
       label: 'Speaker',
       options: buildPlayerSelectOptions(true),
+    }, {
+      type: 'checkbox',
+      id: 'ti-hidden-agenda',
+      label: 'Hidden Agenda',
+      checked: state.ti.hiddenAgenda,
+      hint: 'Galactic event: simultaneous secret voting',
     }];
+  }
+
+  getStartValidation(): { valid: boolean; reason?: string } {
+    if (state.boxOrder.some(hwid => getFactionForBox(hwid)?.id === 'obsidian')) {
+      return { valid: false, reason: 'Choose The Firmament during setup; it becomes The Obsidian during play.' };
+    }
+    return { valid: true };
   }
 
   get turnOrder(): string[] { return state.ti.turnOrder; }
@@ -99,6 +124,10 @@ export class TwilightImperiumMode implements GameMode {
   start(): void {
     const speakerHwid = (document.getElementById('ti-speaker') as HTMLSelectElement).value;
     state.ti.speakerHwid = speakerHwid;
+    state.ti.hiddenAgenda = (document.getElementById('ti-hidden-agenda') as HTMLInputElement).checked;
+    state.ti.agendaReadyHwids = [];
+    state.ti.executiveOrderHwid = null;
+    state.ti.ralNelHero = 'locked';
     state.round = 1;
     state.ti.phase = null;
     state.ti.players = {};
@@ -130,10 +159,20 @@ export class TwilightImperiumMode implements GameMode {
           this.confirmSecondary(hwid);
         } else {
           if (hwid !== state.activeBoxId) return;
+          // A player can take consecutive turns after everyone else has passed.
+          // Close this turn even when the next active box will be the same one.
+          state.boxes[hwid].status = 'idle';
+          state.activeBoxId = null;
+          updateTurnTimers();
           state.ti.actionTurnIndex =
             (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
           this.activateActionTurn();
         }
+        break;
+
+      case 'action_end':
+        if (hwid === this.factionPlayer('ralnelconsortium')) this.useRalNelHero();
+        else if (isHubOrSim(hwid)) this.startStatusPhase();
         break;
 
       case 'status':
@@ -151,6 +190,15 @@ export class TwilightImperiumMode implements GameMode {
       case 'after_agenda_revealed':
       case 'agenda_vote':
         this.agendaEndTurn(hwid);
+        break;
+      case 'agenda_argent':
+        if (hwid === state.activeBoxId) this.startSecretBallot();
+        break;
+      case 'agenda_ballot':
+        this.confirmBallot(hwid);
+        break;
+      case 'agenda_resolve':
+        if (hwid === state.activeBoxId) this.completeAgenda();
         break;
     }
   }
@@ -209,6 +257,8 @@ export class TwilightImperiumMode implements GameMode {
 
     state.ti.turnOrder = state.ti.turnOrder.map(replaceBoxId);
     state.ti.agendaTurnOrder = state.ti.agendaTurnOrder.map(replaceBoxId);
+    state.ti.agendaReadyHwids = state.ti.agendaReadyHwids.map(replaceBoxId);
+    if (state.ti.executiveOrderHwid === oldHwid) state.ti.executiveOrderHwid = newHwid;
     if (state.ti.speakerHwid === oldHwid) state.ti.speakerHwid = newHwid;
 
     if (state.ti.players[oldHwid]) {
@@ -228,6 +278,9 @@ export class TwilightImperiumMode implements GameMode {
   onLongPress(hwid: string): void {
     if (!isHubOrSim(hwid)) return;
     switch (state.ti.phase) {
+      case 'action_end':
+        this.startStatusPhase();
+        break;
       case 'status':
         clearGuidedPhase();
         if (state.ti.mecatolControlled) {
@@ -244,9 +297,13 @@ export class TwilightImperiumMode implements GameMode {
       case 'when_agenda_revealed':
       case 'after_agenda_revealed':
       case 'agenda_vote':
+      case 'agenda_argent':
+      case 'agenda_ballot':
+      case 'agenda_resolve':
         this.advanceAgendaPhase();
         break;
     }
+    persistState();
   }
 
   onRfid(hwid: string, game: string, category: string, id: string): void {
@@ -307,6 +364,9 @@ export class TwilightImperiumMode implements GameMode {
 
   advancePhase(): void {
     switch (state.ti.phase) {
+      case 'action_end':
+        this.startStatusPhase();
+        break;
       case 'status':
         clearGuidedPhase();
         if (state.ti.mecatolControlled) {
@@ -323,6 +383,9 @@ export class TwilightImperiumMode implements GameMode {
       case 'when_agenda_revealed':
       case 'after_agenda_revealed':
       case 'agenda_vote':
+      case 'agenda_argent':
+      case 'agenda_ballot':
+      case 'agenda_resolve':
         this.advanceAgendaPhase();
         break;
     }
@@ -351,6 +414,19 @@ export class TwilightImperiumMode implements GameMode {
   }
 
   getBoxDisplay(hwid: string): Record<string, unknown> | null {
+    if (state.ti.phase === 'action_end') {
+      return { name: 'All players passed', status: hwid === this.factionPlayer('ralnelconsortium') ? 'End: use hero' : 'Hub: begin status' };
+    }
+    if (state.ti.phase === 'agenda_ballot') {
+      if (getFactionForBox(hwid)?.id === 'argent') return { name: 'Public vote complete', status: 'Wait for speaker' };
+      return { name: 'Secret ballot', status: state.ti.agendaReadyHwids.includes(hwid) ? 'Ballot submitted' : 'End: ballot ready' };
+    }
+    if (state.ti.phase === 'agenda_argent') {
+      return { name: 'Argent votes first', status: hwid === state.activeBoxId ? 'End: vote complete' : 'Wait for Argent' };
+    }
+    if (state.ti.phase === 'agenda_resolve') {
+      return { name: 'Resolve agenda', status: hwid === state.activeBoxId ? 'End: resolved' : 'Wait for speaker' };
+    }
     if (!state.ti.secondaryHints) return null;
     if (state.ti.phase !== 'action') return null;
     if (state.boxes[hwid]?.status !== 'secondary') return null;
@@ -362,9 +438,12 @@ export class TwilightImperiumMode implements GameMode {
   renderControls(statusLines: string[], actionDefs: ActionDef[]): void {
     const phase = state.ti.phase ?? '';
     if (state.ti.speakerHwid) statusLines.push(`Speaker: ${getDisplayName(state.ti.speakerHwid)}`);
-    if (['agenda_reveal', 'when_agenda_revealed', 'after_agenda_revealed', 'agenda_vote'].includes(phase)) {
-      statusLines.push(`Agenda ${(state.ti.agendaCount ?? 0) + 1} of 2`);
+    if (TI_AGENDA_PHASES.includes(phase)) {
+      statusLines.push(state.ti.executiveOrderHwid
+        ? `Executive Order — acting speaker: ${getDisplayName(state.ti.executiveOrderHwid)}`
+        : `Agenda ${(state.ti.agendaCount ?? 0) + 1} of 2`);
     }
+    this.renderExpansionControls(statusLines, actionDefs);
     if (isGuidedPhaseActive()) {
       statusLines.push(`Step ${guidedPhaseProgress()}: ${currentGuidedStep()}`);
     }
@@ -452,6 +531,104 @@ export class TwilightImperiumMode implements GameMode {
     });
   }
 
+  private factionPlayer(factionId: string): string | undefined {
+    return state.boxOrder.find(hwid => state.boxes[hwid]?.status !== 'disconnected' && getFactionForBox(hwid)?.id === factionId);
+  }
+
+  private connectedPlayers(): string[] {
+    return state.boxOrder.filter(hwid => state.boxes[hwid]?.status !== 'disconnected');
+  }
+
+  private get agendaSpeaker(): string | null {
+    return state.ti.executiveOrderHwid ?? state.ti.speakerHwid;
+  }
+
+  private get secretVoting(): boolean {
+    // Executive Order is an action, not an agenda phase.
+    return state.ti.hiddenAgenda && !state.ti.executiveOrderHwid;
+  }
+
+  private renderExpansionControls(statusLines: string[], actions: ActionDef[]): void {
+    const phase = state.ti.phase;
+    const button = (id: string, label: string, fn: () => void): void => {
+      actions.push({ html: `<button id="${id}">${label}</button>`, id, fn: () => {
+        if (state.paused) return;
+        snapshotForUndo();
+        fn();
+        render();
+        persistState();
+      } });
+    };
+    const ralNel = this.factionPlayer('ralnelconsortium');
+    if (phase === 'action_end') {
+      statusLines.push('All players passed — decide whether to use Signal Intrusion before starting status.');
+      button('gc-ralnel-use', 'Use Ral Nel hero', () => this.useRalNelHero());
+      button('gc-begin-status', 'Begin status', () => this.startStatusPhase());
+    } else if (ralNel && state.ti.ralNelHero !== 'used') {
+      actions.push({
+        html: `<label class="gc-check-row toggle-wrap">
+          <input type="checkbox" id="gc-ralnel-available"${state.ti.ralNelHero === 'available' ? ' checked' : ''}>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">Ral Nel hero available</span>
+        </label>`,
+        id: 'gc-ralnel-available', event: 'change', fn: (e: Event) => {
+          if (state.paused) { render(); return; }
+          snapshotForUndo();
+          state.ti.ralNelHero = (e.target as HTMLInputElement).checked ? 'available' : 'locked';
+          log(`Ral Nel hero ${state.ti.ralNelHero} — enable when unlocked`, 'system');
+          persistState();
+        },
+      });
+    }
+
+    if (phase === 'action' && !state.ti.secondary && state.activeBoxId) {
+      const hwid = state.activeBoxId;
+      const faction = getFactionForBox(hwid)?.id;
+      if (faction === 'keleres') {
+        button('gc-executive-order', 'Executive Order', () => this.startExecutiveOrder());
+      }
+      if (faction === 'firmament') {
+        button('gc-become-obsidian', 'Become Obsidian', () => {
+          state.boxes[hwid].factionId = 'obsidian';
+          const obsidian = getFactionForBox(hwid);
+          if (obsidian && !isManuallyRenamed(hwid)) setAutoName(hwid, obsidian.nickname ?? obsidian.name);
+          this.updateBadges();
+          log(`${getDisplayName(hwid)} becomes The Obsidian — resolve Puppets of the Blade at the table`, 'system');
+        });
+      }
+    }
+
+    if (phase === 'agenda_argent') statusLines.push('Argent casts public votes before secret ballots.');
+    if (phase === 'agenda_ballot') {
+      const pending = this.connectedPlayers().filter(id => !state.ti.agendaReadyHwids.includes(id));
+      statusLines.push(`Secret ballots — waiting for ${pending.map(getDisplayName).join(', ') || 'speaker'}. End confirms a submitted ballot or abstention.`);
+    }
+    if (phase === 'agenda_resolve') {
+      statusLines.push('Speaker: tally votes, resolve post-vote effects and the outcome, then confirm.');
+      button('gc-agenda-resolved', state.ti.executiveOrderHwid ? 'Agenda resolved — return to turn' : 'Agenda resolved', () => this.completeAgenda());
+    }
+  }
+
+  private startExecutiveOrder(): void {
+    const hwid = state.activeBoxId;
+    if (state.ti.phase !== 'action' || state.ti.secondary || !hwid || getFactionForBox(hwid)?.id !== 'keleres') return;
+    state.ti.executiveOrderHwid = hwid;
+    startPhase('executive_order');
+    this.revealAgenda();
+    log('Executive Order — exhaust the technology and resolve one agenda; planets are not readied afterwards', 'system');
+  }
+
+  private useRalNelHero(): void {
+    const hwid = this.factionPlayer('ralnelconsortium');
+    if (state.ti.phase !== 'action_end' || state.ti.ralNelHero !== 'available' || !hwid) return;
+    state.ti.ralNelHero = 'used';
+    state.ti.players[hwid].passed = false;
+    state.ti.phase = 'action';
+    state.ti.actionTurnIndex = state.ti.turnOrder.indexOf(hwid);
+    this.activateActionTurn();
+    log('Signal Intrusion — Ral Nel resumes taking turns; gain 2 command tokens, draw 1 action card, and purge the hero', 'system');
+  }
+
   onPlayerRemoved(hwid: string): void {
     // Speaker: reassign to next player in box order
     if (state.ti.speakerHwid === hwid) {
@@ -461,6 +638,28 @@ export class TwilightImperiumMode implements GameMode {
       if (state.ti.speakerHwid) {
         log(`Speaker reassigned to ${getDisplayName(state.ti.speakerHwid)}`, 'system');
       }
+    }
+
+    state.ti.agendaReadyHwids = state.ti.agendaReadyHwids.filter(id => id !== hwid);
+    if (state.ti.executiveOrderHwid === hwid) {
+      state.ti.turnOrder = state.ti.turnOrder.filter(id => id !== hwid);
+      this.finishExecutiveOrder();
+      return;
+    }
+    if (state.ti.phase === 'action_end' && !this.factionPlayer('ralnelconsortium')) {
+      this.startStatusPhase();
+      return;
+    }
+    if (state.ti.phase === 'agenda_ballot') {
+      this.finishBallotsIfReady();
+      return;
+    }
+    if (['agenda_argent', 'agenda_resolve'].includes(state.ti.phase ?? '')) {
+      if (state.activeBoxId === hwid) {
+        if (state.ti.phase === 'agenda_argent') this.startSecretBallot();
+        else this.startAgendaResolution();
+      }
+      return;
     }
 
     // Secondary: cancel if removed player was the card user; otherwise drop from pending
@@ -527,12 +726,7 @@ export class TwilightImperiumMode implements GameMode {
       }
 
       case 'agenda_reveal': {
-        if (wasActive && state.ti.speakerHwid) {
-          state.boxes[state.ti.speakerHwid].status = 'agenda_speaker';
-          disableAllRfid();
-          state.activeBoxId = state.ti.speakerHwid;
-          enableRfid(state.ti.speakerHwid);
-        }
+        if (wasActive) this.revealAgenda();
         break;
       }
 
@@ -594,9 +788,15 @@ export class TwilightImperiumMode implements GameMode {
   syncRfid(): void {
     disableAllRfid();
     const phase = state.ti.phase;
-    if ((phase === 'strategy' || phase === 'action') && state.activeBoxId) {
+    if ((phase === 'strategy' || phase === 'action' || TI_AGENDA_PHASES.includes(phase ?? '')) && state.activeBoxId) {
       enableRfid(state.activeBoxId);
     }
+  }
+
+  onResume(): void {
+    this.syncRfid();
+    this.updateBadges();
+    render();
   }
 
   onFactionChanged(): void {
@@ -620,7 +820,11 @@ export class TwilightImperiumMode implements GameMode {
       case 'agenda_reveal': this.startAgendaWhen(); break;
       case 'when_agenda_revealed': this.startAgendaAfter(); break;
       case 'after_agenda_revealed': this.startAgendaVote(); break;
-      case 'agenda_vote': this.startStatusPhase(true); break;
+      case 'agenda_vote': this.advanceAgendaPhase(); break;
+      case 'agenda_argent': this.startSecretBallot(); break;
+      case 'agenda_ballot': this.startAgendaResolution(); break;
+      case 'agenda_resolve': this.completeAgenda(); break;
+      case 'action_end': this.startStatusPhase(); break;
       case 'status2': this.endRound(); break;
       default: log('[DEBUG] Unknown TI phase', 'system');
     }
@@ -766,9 +970,16 @@ export class TwilightImperiumMode implements GameMode {
   }
 
   private endActionPhase(): void {
-    log('Action phase over', 'system');
     state.activeBoxId = null;
-    this.startStatusPhase();
+    disableAllRfid();
+    if (state.ti.ralNelHero === 'available' && this.factionPlayer('ralnelconsortium')) {
+      state.ti.phase = 'action_end';
+      log('All players passed — Ral Nel may use Signal Intrusion before status begins', 'system');
+      this.updateBadges();
+    } else {
+      log('Action phase over', 'system');
+      this.startStatusPhase();
+    }
   }
 
   // ---- Strategy Card Use ----
@@ -930,56 +1141,92 @@ export class TwilightImperiumMode implements GameMode {
   // ---- Agenda Phase ----
 
   private startAgendaPhase(): void {
-    state.ti.phase = 'agenda_reveal';
-    startPhase('agenda');
+    state.ti.executiveOrderHwid = null;
     state.ti.agendaCount = 0;
-    state.activeBoxId = null;
-    state.boxOrder.forEach(hwid => {
-      state.boxes[hwid].status = 'idle';
-    });
-
-    state.boxes[state.ti.speakerHwid!].status = 'agenda_speaker';
-    disableAllRfid();
-    state.activeBoxId = state.ti.speakerHwid;
-    enableRfid(state.ti.speakerHwid!);
+    startPhase('agenda');
+    this.revealAgenda();
     log('Agenda phase — speaker reads agenda', 'system');
+  }
+
+  private clearAgendaBoxes(): void {
+    disableAllRfid();
+    this.connectedPlayers().forEach(hwid => { state.boxes[hwid].status = 'idle'; });
+    state.activeBoxId = null;
+  }
+
+  private revealAgenda(): void {
+    this.clearAgendaBoxes();
+    state.ti.phase = 'agenda_reveal';
+    state.ti.agendaReadyHwids = [];
+    state.ti.agendaTurnOrder = [];
+    state.ti.agendaTurnIndex = 0;
+    const speaker = this.agendaSpeaker;
+    if (speaker && state.boxes[speaker]?.status !== 'disconnected') {
+      state.activeBoxId = speaker;
+      state.boxes[speaker].status = 'agenda_speaker';
+      enableRfid(speaker);
+    }
     this.updateBadges();
   }
 
   private advanceAgendaPhase(): void {
     switch (state.ti.phase) {
-      case 'agenda_reveal':
-        this.startAgendaWhen();
-        break;
-      case 'when_agenda_revealed':
-        this.startAgendaAfter();
-        break;
-      case 'after_agenda_revealed':
-        this.startAgendaVote();
-        break;
+      case 'agenda_reveal': this.startAgendaWhen(); break;
+      case 'when_agenda_revealed': this.startAgendaAfter(); break;
+      case 'after_agenda_revealed': this.startAgendaVote(); break;
       case 'agenda_vote':
-        state.ti.agendaCount = (state.ti.agendaCount ?? 0) + 1;
-        if (state.ti.agendaCount < 2) {
-          state.ti.phase = 'agenda_reveal';
-          state.boxes[state.ti.speakerHwid!].status = 'agenda_speaker';
-          disableAllRfid();
-          state.activeBoxId = state.ti.speakerHwid;
-          enableRfid(state.ti.speakerHwid!);
-          log('Second agenda — speaker reads', 'system');
-        } else {
-          this.startStatusPhase(true);
-        }
+        if (state.ti.executiveOrderHwid) this.startAgendaResolution();
+        else this.completeAgenda();
         break;
+      case 'agenda_argent': this.startSecretBallot(); break;
+      case 'agenda_ballot': this.finishBallotsIfReady(); break;
+      case 'agenda_resolve': this.completeAgenda(); break;
     }
     this.updateBadges();
   }
 
+  private completeAgenda(): void {
+    if (!TI_AGENDA_PHASES.includes(state.ti.phase ?? '')) return;
+    if (state.ti.executiveOrderHwid) {
+      this.finishExecutiveOrder();
+      return;
+    }
+    this.clearAgendaBoxes();
+    state.ti.agendaCount++;
+    if (state.ti.agendaCount < 2) {
+      this.revealAgenda();
+      log('Second agenda — speaker reads', 'system');
+    } else {
+      this.startStatusPhase(true);
+    }
+  }
+
+  private finishExecutiveOrder(): void {
+    const hwid = state.ti.executiveOrderHwid;
+    this.clearAgendaBoxes();
+    state.ti.executiveOrderHwid = null;
+    state.ti.agendaReadyHwids = [];
+    state.ti.agendaTurnOrder = [];
+    state.ti.phase = 'action';
+    this.connectedPlayers().forEach(id => {
+      state.boxes[id].status = state.ti.players[id]?.passed ? 'passed' : 'idle';
+    });
+    startPhase('action');
+    if (hwid && state.boxes[hwid]?.status !== 'disconnected' && state.ti.turnOrder.includes(hwid)) {
+      state.ti.actionTurnIndex = state.ti.turnOrder.indexOf(hwid);
+    }
+    this.activateActionTurn();
+    log('Executive Order resolved — continue the action turn; do not ready planets', 'system');
+  }
+
   private startAgendaWhen(): void {
     state.ti.phase = 'when_agenda_revealed';
-    const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid ?? '');
+    // Outside the agenda phase, ordinary action-phase ability timing still applies.
+    const order = state.ti.executiveOrderHwid ? state.ti.turnOrder : state.boxOrder;
+    const connected = order.filter(id => state.boxes[id]?.status !== 'disconnected');
+    const speakerIndex = Math.max(0, connected.indexOf(this.agendaSpeaker ?? ''));
     state.ti.agendaTurnOrder = [
-      ...state.boxOrder.slice(speakerIndex),
-      ...state.boxOrder.slice(0, speakerIndex),
+      ...connected.slice(speakerIndex), ...connected.slice(0, speakerIndex),
     ];
     state.ti.agendaTurnIndex = 0;
     if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
@@ -996,18 +1243,68 @@ export class TwilightImperiumMode implements GameMode {
   }
 
   private startAgendaVote(): void {
-    state.ti.phase = 'agenda_vote';
-    const speakerIndex = state.boxOrder.indexOf(state.ti.speakerHwid ?? '');
-    const leftIndex = (speakerIndex + 1) % state.boxOrder.length;
-    const normalVoteOrder = [
-      ...state.boxOrder.slice(leftIndex),
-      ...state.boxOrder.slice(0, leftIndex),
-    ];
+    this.clearAgendaBoxes();
+    state.ti.agendaReadyHwids = [];
+    const order = this.connectedPlayers();
+    const speakerIndex = order.indexOf(this.agendaSpeaker ?? '');
+    const leftIndex = (speakerIndex + 1) % Math.max(1, order.length);
+    const normalVoteOrder = [...order.slice(leftIndex), ...order.slice(0, leftIndex)];
     state.ti.agendaTurnOrder = this.withArgentVotingFirst(normalVoteOrder);
     state.ti.agendaTurnIndex = 0;
-    if (state.activeBoxId) state.boxes[state.activeBoxId].status = 'idle';
-    this.activateAgendaTurn('agenda_vote');
-    log('Agenda — voting', 'system');
+    if (this.secretVoting) {
+      const argent = this.factionPlayer('argent');
+      if (argent) {
+        state.ti.phase = 'agenda_argent';
+        state.activeBoxId = argent;
+        state.boxes[argent].status = 'agenda_vote';
+        log('Hidden Agenda — Argent votes publicly first', 'system');
+      } else {
+        this.startSecretBallot();
+      }
+    } else {
+      state.ti.phase = 'agenda_vote';
+      this.activateAgendaTurn('agenda_vote');
+      log('Agenda — voting', 'system');
+    }
+    this.updateBadges();
+  }
+
+  private startSecretBallot(): void {
+    const argent = state.ti.phase === 'agenda_argent' ? this.factionPlayer('argent') : undefined;
+    this.clearAgendaBoxes();
+    state.ti.phase = 'agenda_ballot';
+    state.ti.agendaReadyHwids = argent ? [argent] : [];
+    this.connectedPlayers().forEach(id => {
+      state.boxes[id].status = state.ti.agendaReadyHwids.includes(id) ? 'idle' : 'agenda_vote';
+    });
+    log('Hidden Agenda — submit ballots privately; press End when your ballot or abstention is submitted', 'system');
+    this.finishBallotsIfReady();
+    this.updateBadges();
+  }
+
+  private confirmBallot(hwid: string): void {
+    if (state.ti.phase !== 'agenda_ballot' || !this.connectedPlayers().includes(hwid) || state.ti.agendaReadyHwids.includes(hwid)) return;
+    state.ti.agendaReadyHwids.push(hwid);
+    state.boxes[hwid].status = 'idle';
+    log(`${getDisplayName(hwid)} confirms ballot submitted`, 'system');
+    this.finishBallotsIfReady();
+    this.updateBadges();
+  }
+
+  private finishBallotsIfReady(): void {
+    if (this.connectedPlayers().every(id => state.ti.agendaReadyHwids.includes(id))) this.startAgendaResolution();
+  }
+
+  private startAgendaResolution(): void {
+    this.clearAgendaBoxes();
+    state.ti.phase = 'agenda_resolve';
+    const speaker = this.agendaSpeaker;
+    if (speaker && state.boxes[speaker]?.status !== 'disconnected') {
+      state.activeBoxId = speaker;
+      state.boxes[speaker].status = 'agenda_speaker';
+    }
+    log('Speaker tallies and resolves the agenda — confirm when complete', 'system');
+    this.updateBadges();
   }
 
   private withArgentVotingFirst(order: string[]): string[] {
@@ -1024,6 +1321,11 @@ export class TwilightImperiumMode implements GameMode {
       return;
     }
     const hwid = order[state.ti.agendaTurnIndex];
+    if (state.boxes[hwid]?.status === 'disconnected') {
+      state.ti.agendaTurnIndex++;
+      this.activateAgendaTurn(phase);
+      return;
+    }
     if (state.activeBoxId && state.activeBoxId !== hwid) {
       state.boxes[state.activeBoxId].status = 'idle';
     }
@@ -1067,6 +1369,12 @@ export class TwilightImperiumMode implements GameMode {
       const badges: typeof state.boxes[string]['badges'] = [];
       if (hwid === state.ti.speakerHwid) {
         badges.push({ type: 'icon', value: '👑', label: 'Speaker' });
+      }
+      if (hwid === state.ti.executiveOrderHwid) {
+        badges.push({ type: 'text', value: 'Acting speaker', color: TI_AGENDA_SPEAKER_BLUE });
+      }
+      if (state.ti.phase === 'agenda_ballot') {
+        badges.push({ type: 'text', value: getFactionForBox(hwid)?.id === 'argent' ? 'Public vote complete' : state.ti.agendaReadyHwids.includes(hwid) ? 'Ballot submitted' : 'Submit secret ballot', color: '#8888ff' });
       }
       const faction = getFactionForBox(hwid);
       if (faction) {

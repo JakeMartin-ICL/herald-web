@@ -5,6 +5,7 @@ import { syncLeds } from './leds';
 import { render } from './render';
 import { updateSetupUI } from './boxes';
 import { MODE_NAMES } from './modes/index';
+import type { Factions } from './types';
 
 // ---- State extraction ----
 
@@ -254,7 +255,18 @@ export function restoreState(persisted: any, silent = false): void {
   state.phaseLog          = persisted.phaseLog ?? [];
   state.currentPhaseStart = persisted.currentPhaseStart ?? null;
 
-  if (persisted.factions) state.factions = persisted.factions;
+  if (persisted.factions) {
+    // Keep identities from older saves, but use the current catalogue for known
+    // factions so a resume cannot remove newly added setup choices or metadata.
+    const saved = persisted.factions as Factions;
+    const current = state.factions;
+    state.factions = Object.fromEntries(Object.keys({ ...saved, ...current }).map(game => {
+      const key = game as keyof Factions;
+      const byId = new Map((saved[key] ?? []).map(faction => [faction.id, faction]));
+      (current?.[key] ?? []).forEach(faction => byId.set(faction.id, faction));
+      return [game, [...byId.values()]];
+    })) as unknown as Factions;
+  }
 
   for (const [ph, nameObj] of Object.entries(persisted.boxNames ?? {})) {
     const ch = remap(ph);
@@ -277,10 +289,15 @@ export function restoreState(persisted: any, silent = false): void {
     const ti = { ...persisted.ti };
     ti.speakerHwid = ti.speakerHwid ? remap(ti.speakerHwid) : null;
     ti.turnOrder   = ((ti.turnOrder ?? []) as string[]).map(remap);
+    ti.agendaTurnOrder = ((ti.agendaTurnOrder ?? []) as string[]).map(remap);
+    ti.hiddenAgenda = ti.hiddenAgenda ?? false;
+    ti.agendaReadyHwids = ((ti.agendaReadyHwids ?? []) as string[]).map(remap);
+    ti.executiveOrderHwid = ti.executiveOrderHwid ? remap(ti.executiveOrderHwid) : null;
+    ti.ralNelHero = ti.ralNelHero ?? 'locked';
     if (ti.players) {
       const remapped: typeof state.ti.players = {};
       for (const [ph, data] of Object.entries(ti.players)) {
-        remapped[remap(ph)] = data as typeof state.ti.players[string];
+        remapped[remap(ph)] = { ...(data as typeof state.ti.players[string]), hwid: remap(ph) };
       }
       ti.players = remapped;
     }

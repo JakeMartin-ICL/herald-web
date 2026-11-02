@@ -1,0 +1,85 @@
+Thunder's Edge implementation and testing notes — 2 November 2026
+
+IMPLEMENTED
+Firmament is selectable during setup; Obsidian is a gameplay identity. The
+active Firmament player can use Become Obsidian. Transformation preserves
+manually chosen names, and Undo restores the previous identity and auto-name.
+
+Hidden Agenda is selected at setup. The existing ordered reveal-card windows
+remain, followed by Argent's public vote (if present), simultaneous private
+ballot readiness, and an explicit speaker resolution step. Ballots and totals
+remain outside Herald; no secret outcomes or vote amounts are stored.
+
+Executive Order is a button on Keleres' action turn, outside secondaries. It
+runs one agenda with Keleres as acting speaker, keeps the actual speaker,
+and returns to the same action turn without a planet refresh or round advance.
+
+Ral Nel hero available is a manual toggle, enabled when the hero is unlocked.
+When available, the final pass holds at All players passed. Ral Nel can use the
+hero, or the host can begin status. Using it consumes the availability for the
+rest of the game. Consecutive resumed turns get separate timing records.
+
+DESIGN CHOICES / LIMITS
+- Technology ownership, exhaustion/readying, Firmament's prerequisite plots,
+  objective-based hero unlocking, and physical component costs remain manual.
+- Hidden Agenda is applied to the regular agenda phase. Executive Order uses
+  ordinary voting during the action phase. This follows the phase-specific
+  reading of the event; I found no explicit official FAQ resolving the event's
+  voting-paragraph interaction with Executive Order.
+- Executive Order's reveal ability windows use action initiative, starting with
+  Keleres; voting uses clockwise seating with Keleres as speaker and Argent first.
+- Executive Order has its own phase-time entry, executive_order. Simultaneous
+  ballot waiting contributes to agenda time, without assigning it to one player.
+- Agenda replacements and additional votes caused by a particular agenda's
+  effects are resolved manually, as with existing agenda-card handling.
+- Hack Election, generic secondary hints, Crisis, Puppets on a String,
+  Overrule, and Strategize remain as agreed.
+
+VERIFICATION
+22 automated tests run with npm test. They cover setup filtering, transformation,
+manual names, ordered and simultaneous agenda flow, Executive Order return state,
+Ral Nel availability/consumption, repeated-turn statistics, pause guards, old-save
+migration, box substitution/removal, and hardware text lengths.
+Type-check, lint, production build and git diff --check pass. The build still
+reports the existing dynamic-import and outdated Browserslist-data warnings.
+
+Browser testing used six virtual boxes on http://127.0.0.1:5173/ and exercised
+all six expansion-included factions (swapping Argent to Deepwrought for the
+no-Argent test), RFID strategy selection, ordinary secondaries, transformation
+and undo, Executive Order/reload/undo, Ral Nel decline/undo/use, two extra turns
+(displayed count increased from 7 to 9), hidden ballots with and without Argent,
+duplicate confirmations, readiness undo/reload, and normal round-two progression.
+No browser console errors were captured. Physical hardware was not playtested.
+
+UNRELATED OBSERVATIONS LEFT UNCHANGED
+- Observed: at the narrow in-app-browser width (about 403 px), the top player card
+  overlaps toolbar buttons. Clicking Undo hit the name editor. Desktop width
+  allowed the intended controls to be tested.
+- Observed: reload/resume briefly logs Unhandled LED status for TI statuses
+  before the game mode is attached. The final rendered LED state is correct.
+- Source inspection: virtual-box manual-name markers live in an in-memory Set,
+  so they are lost after reload even though the names themselves persist.
+- Existing reveal-card windows make one circuit of the table; further circuits
+  needed after reactions are still handled manually.
+- The existing Remove Player dialog deliberately excludes virtual boxes;
+  removal and replacement cases were checked by the automated tests instead.
+
+Changes are local on codex/thunders-edge-support. No push, deployment, firmware
+release, or physical box configuration change was performed.
+
+FOLLOW-UP: RECONNECT STATE FIX — 2 November 2026
+The reported idle-player failure was caused by addBox resetting an existing
+player on every connected announcement. Re-announcements now preserve gameplay
+state and restore the reader's desired enable/disable state and hardware LEDs.
+Explicit disconnects remember the role while the same turn/phase remains current;
+a reconnect after play moves on does not revive that old role. Firmware animations
+are restarted, and countdowns resume with their remaining duration. Brightness is
+sent before relighting the ring. No firmware or brightness-limit changes were made.
+
+34 automated tests pass, including 12 new reconnect tests using real dispatch,
+box management, TI/Eclipse modes, LED projection and timers with mocked boundaries.
+Type-check, lint, production build and diff checks pass. Browser testing against
+a separate local dummy hub reproduced the three-faction strategy/secondary/Last
+Bastion transition, preserved all roles through reconnect announcements, restored
+Active on the box display, and confirmed End advances normally after reconnecting.
+No physical boxes were contacted by this isolated follow-up browser test.

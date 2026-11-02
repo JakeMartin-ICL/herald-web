@@ -1,6 +1,6 @@
 import { state, VIRTUAL_BOX_ID_OFFSET } from './state';
 import { log } from './logger';
-import { disableRfid, disableAllRfid } from './websockets';
+import { disableRfid, disableAllRfid, syncRfidForBox } from './websockets';
 import { syncLeds, syncLedsForBox } from './leds';
 import { render, scheduleRender } from './render';
 import { substituteTimerTracking } from './timers';
@@ -8,7 +8,7 @@ import { applyPendingPersistedBox, updateResumeBtnState } from './persist';
 import { prevGameStats } from './graphs';
 import { renderExpansionUI } from './expansions';
 import { currentGame, setupGame } from './currentGame';
-import type { Badge, Faction, SetupField, SetupSelectOption } from './types';
+import type { Badge, Box, BoxStatus, Faction, SetupField, SetupSelectOption } from './types';
 
 // ---- Box names ----
 
@@ -39,9 +39,9 @@ function defaultBoxName(hwid: string): string {
 
 export function getDisplayName(hwid: string): string {
   if (hwid.startsWith(VIRTUAL_BOX_ID_OFFSET)) {
-    if (virtualBoxNames[hwid]) return virtualBoxNames[hwid];
     const persisted = state.boxNames[hwid]?.name;
     if (persisted) { virtualBoxNames[hwid] = persisted; return persisted; }
+    if (virtualBoxNames[hwid]) return virtualBoxNames[hwid];
     const n = parseInt(hwid.slice(VIRTUAL_BOX_ID_OFFSET.length), 10);
     return `Sim ${n + 1}`;
   }
@@ -71,13 +71,36 @@ export function buildPlayerSelectOptions(includeFactionNames = false): SetupSele
 
 // ---- Box management ----
 
+// Only restore a disconnected role if play has not moved on in the meantime.
+// Key by box object so removal/substitution/resume cannot revive stale metadata.
+const disconnectedRoles = new WeakMap<Box, {
+  status: BoxStatus;
+  gameActive: boolean;
+  round: number;
+  phase: typeof state.currentPhaseStart;
+  activeBoxId: string | null;
+}>();
+
 export function addBox(hwid: string, isVirtual: boolean): void {
-  if (state.boxes[hwid]) {
-    state.boxes[hwid].status = 'idle';
-    state.boxes[hwid].otaUpdating = false;
+  const box = state.boxes[hwid];
+  if (box) {
+    if (box.status === 'disconnected') {
+      const previous = disconnectedRoles.get(box);
+      const sameTurn = previous?.gameActive === state.gameActive &&
+        previous.round === state.round && previous.phase === state.currentPhaseStart &&
+        previous.activeBoxId === state.activeBoxId;
+      box.status = sameTurn ? previous.status : state.activeBoxId === hwid ? 'active' : 'idle';
+      if (!sameTurn) {
+        disableRfid(hwid);
+        currentGame?.syncRfid?.();
+      }
+    }
+    disconnectedRoles.delete(box);
+    applyPendingPersistedBox(hwid);
+    box.otaUpdating = false;
     log(`Box ${getDisplayName(hwid)} reconnected`, 'system');
-    if (!state.boxes[hwid].isVirtual) disableRfid(hwid);
-    if (state.gameActive) syncLedsForBox(hwid);
+    if (!box.isVirtual) syncRfidForBox(hwid);
+    syncLedsForBox(hwid);
     updateSetupUI();
     scheduleRender();
     return;
@@ -100,6 +123,7 @@ export function addBox(hwid: string, isVirtual: boolean): void {
     status: 'idle',
     factionId: null,
   };
+  if (!isVirtual) disableRfid(hwid);
 
   if (state.gameActive) {
     log(`${isVirtual ? 'Virtual box' : 'Box'} ${getDisplayName(hwid)} connected mid-game`, 'system');
@@ -115,8 +139,15 @@ export function addBox(hwid: string, isVirtual: boolean): void {
 }
 
 export function handleBoxDisconnect(hwid: string): void {
-  if (!state.boxes[hwid]) return;
-  state.boxes[hwid].status = 'disconnected';
+  const box = state.boxes[hwid];
+  if (!box) return;
+  if (box.status !== 'disconnected') {
+    disconnectedRoles.set(box, {
+      status: box.status, gameActive: state.gameActive, round: state.round,
+      phase: state.currentPhaseStart, activeBoxId: state.activeBoxId,
+    });
+  }
+  box.status = 'disconnected';
   log(`Box ${getDisplayName(hwid)} disconnected`, 'system');
   updateSetupUI();
 }

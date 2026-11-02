@@ -54,6 +54,7 @@ function isFactionTagEnabled(game: string, tagId: string): boolean {
   const factions = state.factions?.[gameKey as keyof typeof state.factions];
   if (!Array.isArray(factions)) return true;
   const faction = factions.find(f => f.id === factionId);
+  if (!state.gameActive && faction?.setup === false) return false;
   if (!faction?.expansion || faction.expansion === 'base') return true;
   return isExpansionEnabled(game, faction.expansion);
 }

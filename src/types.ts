@@ -136,6 +136,11 @@ export interface TiState {
   players: Record<string, TiPlayer>;
   secondary: TiSecondary | null;
   agendaCount: number;
+  hiddenAgenda: boolean;
+  agendaReadyHwids: string[];
+  /** The acting speaker for an action-phase agenda; the real speaker is unchanged. */
+  executiveOrderHwid: string | null;
+  ralNelHero: 'locked' | 'available' | 'used';
 }
 
 export interface KemetState {
@@ -194,6 +199,8 @@ export interface Faction {
   nickname?: string;
   color: string;
   expansion?: string;
+  /** False for identities gained during play rather than chosen during setup. */
+  setup?: boolean;
 }
 
 export interface Expansion {

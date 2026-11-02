@@ -29,7 +29,8 @@
     {"id":"ralnelconsortium",  "name":"Ral Nel Consortium",         "nickname":"Ral Nel",    "color":"#44aacc","expansion":"thundersedge"},
     {"id":"crimsonrebellion",  "name":"Crimson Rebellion",          "nickname":"Crimson",    "color":"#aa1111","expansion":"thundersedge"},
     {"id":"scholarate",        "name":"Deepwrought Scholarate",     "nickname":"Scholarte",  "color":"#336688","expansion":"thundersedge"},
-    {"id":"obsidian",          "name":"The Obsidian",               "nickname":"Obsidian",   "color":"#556677","expansion":"thundersedge"}
+    {"id":"firmament",         "name":"The Firmament",              "nickname":"Firmament",  "color":"#556677","expansion":"thundersedge"},
+    {"id":"obsidian",          "name":"The Obsidian",               "nickname":"Obsidian",   "color":"#556677","expansion":"thundersedge","setup":false}
   ],
   "twilight_struggle": [
     {"id":"ussr", "name":"USSR", "color":"#cc2222","expansion":"base"},

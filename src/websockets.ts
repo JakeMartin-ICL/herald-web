@@ -13,6 +13,8 @@ import { handleHwTestEvent, handleHwTestRfid } from './hwtest';
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+// Desired reader state survives a box reboot, including simultaneous RFID phases.
+const rfidStates = new Map<string, boolean>();
 
 export function toggleConnect(): void {
   if (ws?.readyState === WebSocket.OPEN) {
@@ -92,11 +94,18 @@ export function sendToBox(hwid: string, msg: object): void {
 // ---- RFID enable/disable ----
 
 export function enableRfid(hwid: string): void {
+  rfidStates.set(hwid, true);
   sendToBox(hwid, { type: 'rfid_enable', hwid });
 }
 
 export function disableRfid(hwid: string): void {
+  rfidStates.set(hwid, false);
   sendToBox(hwid, { type: 'rfid_disable', hwid });
+}
+
+export function syncRfidForBox(hwid: string): void {
+  if (rfidStates.get(hwid)) enableRfid(hwid);
+  else disableRfid(hwid);
 }
 
 export function sendRfidPrompt(hwid: string, show: boolean): void {
@@ -139,9 +148,10 @@ export function handleMessage(msg: any): void {
       break;
     case 'connected': {
       const wasOtaUpdating = state.boxes[msg.hwid as string]?.otaUpdating;
+      // Apply the configured brightness before restoring a lit ring.
+      sendBrightnessToBox(msg.hwid as string);
       addBox(msg.hwid as string, false);
       if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = (msg.version as string) || 'unknown';
-      sendBrightnessToBox(msg.hwid as string);
       if (wasOtaUpdating) renderOtaDialog();
       break;
     }
