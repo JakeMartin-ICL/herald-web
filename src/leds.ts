@@ -30,6 +30,15 @@ export function receiveBoxBrightness(hwid: string, value: number): void {
 
 export const LED_COUNT = 24;
 
+// Optional led_sectors.repeat is introduced by the next patch after 3.5.0.
+// Unknown and development builds use the older command format conservatively.
+export function supportsRepeatingLedSectors(version: string | null | undefined): boolean {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version ?? '');
+  if (!match) return false;
+  const [major, minor, patch] = match.slice(1).map(Number);
+  return major > 3 || (major === 3 && (minor > 5 || (minor === 5 && patch >= 1)));
+}
+
 // ---- Array helpers (used for virtual box display only) ----
 
 export function ledSolid(n: number, color: string): string[] {
@@ -68,14 +77,19 @@ export function ledThirds(n: number, c1: string, c2: string, c3: string): string
   });
 }
 
-export function ledSectors(n: number, sectors: { color: string; count: number }[]): string[] {
+export function ledSectors(n: number, sectors: { color: string; count: number }[], repeat = false): string[] {
   const leds = ledOff(n);
   let pos = 0;
-  for (const { color, count } of sectors) {
-    for (let i = 0; i < count && pos < n; i++, pos++) {
-      leds[pos] = color;
+  do {
+    const start = pos;
+    for (const { color, count } of sectors) {
+      for (let i = 0; i < count && pos < n; i++, pos++) {
+        leds[pos] = color;
+      }
+      if (pos === n) break;
     }
-  }
+    if (pos === start) break;
+  } while (repeat && pos < n);
   return leds;
 }
 
@@ -90,7 +104,7 @@ export function ledCommandToArray(cmd: LedCommand): string[] {
     case 'led_half': return ledHalf(LED_COUNT, cmd.color, cmd.first);
     case 'led_rainbow': return ledRainbow(LED_COUNT);
     case 'led_thirds': return ledThirds(LED_COUNT, cmd.c1, cmd.c2, cmd.c3);
-    case 'led_sectors': return ledSectors(LED_COUNT, cmd.sectors);
+    case 'led_sectors': return ledSectors(LED_COUNT, cmd.sectors, cmd.repeat);
     case 'led_raw': return cmd.leds;
     // Animations: show a representative static frame
     case 'led_anim_breathe': return cmd.rainbow ? ledRainbow(LED_COUNT) : ledSolid(LED_COUNT, cmd.color);
@@ -172,6 +186,7 @@ export function syncLedsForBox(hwid: string): void {
   if (state.factionScanActive) return;
   const box = state.boxes[hwid];
   if (!box || box.isVirtual || box.status === 'disconnected') return;
+  stopFinishedTurnCountdown(hwid, box);
   const now = Date.now();
   if (state.paused) { sendToBox(hwid, { type: 'led_off' }); return; }
   box.ledOverrideUntil = null;
@@ -183,6 +198,7 @@ export function syncLedsForBox(hwid: string): void {
   if (box.countdownActive) {
     box.countdownActive = false;
     box.countdownEndMs = undefined;
+    box.countdownTurnScoped = undefined;
   }
   if (box.status === 'upkeep') {
     sendToBox(hwid, { type: 'led_anim_upkeep' });
@@ -202,12 +218,37 @@ export function syncLedsForBox(hwid: string): void {
   sendToBox(hwid, cmd);
 }
 
+// Clear the firmware timer before restoring a status LED pattern: led_off alone
+// does not stop the firmware's countdown from lighting the ring on its next tick.
+export function stopCountdownForBox(hwid: string): void {
+  const box = state.boxes[hwid];
+  if (!box) return;
+  box.countdownActive = false;
+  box.countdownEndMs = undefined;
+  box.countdownTurnScoped = undefined;
+  if (activeAnimBox === hwid) activeAnimBox = null;
+  if (!box.isVirtual) sendToBox(hwid, { type: 'countdown', durationMs: 0, color: '#000000' });
+}
+
+function stopFinishedTurnCountdown(hwid: string, box: Box): boolean {
+  if (box.countdownActive && box.countdownTurnScoped && (!state.gameActive || state.activeBoxId !== hwid)) {
+    stopCountdownForBox(hwid);
+    return true;
+  }
+  return false;
+}
+
 export function syncLeds(): void {
   if (state.factionScanActive) return;
   const now = Date.now();
   state.boxOrder.forEach(hwid => {
     const box = state.boxes[hwid];
-    if (!box || box.status === 'disconnected') return;
+    if (!box) return;
+    const stoppedCountdown = stopFinishedTurnCountdown(hwid, box);
+    if (box.status === 'disconnected') return;
+    // The mode may already have started the next phase's animation before this
+    // render. Cancelling the timer stops that too, so replay the current effect.
+    if (stoppedCountdown) { syncLedsForBox(hwid); return; }
     if (state.paused && !box.isVirtual) { sendToBox(hwid, { type: 'led_off' }); return; }
     if (box.ledOverrideUntil && now < box.ledOverrideUntil) return;
     if (box.status === 'upkeep') return; // upkeep animation manages its own LEDs

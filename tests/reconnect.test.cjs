@@ -9,7 +9,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 // Real message dispatch, box management, modes, LEDs and timers. Only browser,
 // network and persistence boundaries are replaced; no hardware is contacted.
 function fixture() {
-  const sent = [], cache = new Map(), fields = new Map();
+  const sent = [], cache = new Map(), fields = new Map(), timeouts = [];
   let now = 1000;
   const noop = () => {};
   class Clock extends Date { static now() { return now; } }
@@ -28,7 +28,7 @@ function fixture() {
     'src/github-config.ts': { loadGitHubConfig: () => null },
     'src/guided-phase.ts': { isGuidedPhaseActive: () => false },
   };
-  const real = new Set(['state', 'boxes', 'websockets', 'leds', 'timers', 'currentGame', 'game',
+  const real = new Set(['state', 'boxes', 'websockets', 'leds', 'timers', 'countdown', 'currentGame', 'game',
     'modes/ti', 'modes/eclipse', 'modes/helpers'].map(name => `src/${name}.ts`));
   function load(filename) {
     if (stubs[filename]) return stubs[filename];
@@ -37,7 +37,7 @@ function fixture() {
     const exports = {};
     cache.set(filename, exports);
     const context = {
-      exports, Date: Clock, WebSocket: Socket, setTimeout: noop, clearTimeout: noop,
+      exports, Date: Clock, WebSocket: Socket, setTimeout: fn => timeouts.push(fn), clearTimeout: noop,
       localStorage: { getItem: () => null },
       document: { getElementById: id => {
         if (!fields.has(id)) fields.set(id, { value: id === 'hub-address' ? 'dummy:8765' : 'p0',
@@ -71,9 +71,167 @@ function fixture() {
   mode.startActionPhase();
   render();
   sent.length = 0;
-  const reconnect = (id = 'p0') => ws.handleMessage({ type: 'connected', hwid: id, version: '3.5.0' });
+  const reconnect = (id = 'p0', version = '3.5.0') => ws.handleMessage({ type: 'connected', hwid: id, version });
   const commands = id => sent.filter(msg => msg.hwid === id);
-  return { state, mode, ws, load, sent, reconnect, commands, render, advance: ms => { now += ms; } };
+  return { state, mode, ws, load, sent, reconnect, commands, render, advance: ms => { now += ms; },
+    runTimeouts: () => { for (const fn of timeouts.splice(0)) fn(); } };
+}
+
+test('agenda speaker sends blue/white alternating LEDs within the ESP-NOW packet limit', () => {
+  const f = fixture();
+  f.mode.startAgendaPhase();
+  f.reconnect('p0');
+  const cmd = f.commands('p0').findLast(msg => msg.type.startsWith('led_') && msg.type !== 'led_brightness');
+  assert.equal(cmd.type, 'led_alternate_pair');
+  assert.deepEqual([cmd.a, cmd.b], ['#4444ff', '#ffffff']);
+  assert.ok(Buffer.byteLength(JSON.stringify({ ...cmd, hwid: 'AA:BB:CC:DD:EE:FF' })) <= 250);
+  assert.deepEqual(plain(f.load('src/leds.ts').ledCommandToArray(cmd)),
+    Array.from({ length: 24 }, (_, i) => i % 4 < 2 ? '#4444ff' : '#ffffff'));
+});
+
+for (const version of ['3.5.1', '3.6.0', '4.0.0']) test(`agenda speaker uses compact 3:1 sectors on firmware ${version}`, () => {
+  const f = fixture();
+  f.mode.startAgendaPhase(); f.reconnect('p0', version);
+  const cmd = f.commands('p0').findLast(msg => msg.type.startsWith('led_') && msg.type !== 'led_brightness');
+  assert.equal(cmd.type, 'led_sectors');
+  assert.equal(cmd.repeat, true);
+  assert.deepEqual(plain(cmd.sectors), [{ color: '#ffffff', count: 1 }, { color: '#4444ff', count: 3 }]);
+  assert.equal(Buffer.byteLength(JSON.stringify({ ...cmd, hwid: 'AA:BB:CC:DD:EE:FF' })), 135);
+  assert.deepEqual(plain(f.load('src/leds.ts').ledCommandToArray(cmd)),
+    Array.from({ length: 24 }, (_, i) => i % 4 === 0 ? '#ffffff' : '#4444ff'));
+});
+
+test('mixed firmware versions select speaker patterns per box and keep scan flashes compact', () => {
+  const f = fixture();
+  f.reconnect('p0', '3.5.0'); f.reconnect('p1', '3.5.1');
+  const leds = f.load('src/leds.ts');
+  for (const [id, type] of [['p0', 'led_alternate_pair'], ['p1', 'led_sectors']]) {
+    f.mode.activatePlayer(id); f.render(); f.sent.length = 0;
+    f.mode.onRfid(id, 'ti', 'token', 'speaker');
+    const flash = f.commands(id).find(msg => msg.type === type);
+    assert.ok(flash, `expected ${type} for ${id}`);
+    assert.ok(Buffer.byteLength(JSON.stringify({ ...flash, hwid: 'AA:BB:CC:DD:EE:FF' })) <= 250);
+    assert.ok(leds.ledCommandToArray(flash).includes('#ff0000'));
+    if (type === 'led_sectors') {
+      assert.deepEqual(plain(leds.ledCommandToArray(flash)),
+        Array.from({ length: 24 }, (_, i) => i % 4 === 0 ? '#ffffff' : '#ff0000'));
+    }
+  }
+});
+
+test('reconnect uses announced firmware before restoring LEDs after an upgrade or downgrade', () => {
+  const f = fixture();
+  f.mode.startAgendaPhase();
+  for (const [version, expected] of [['3.5.1', 'led_sectors'], ['3.5.0', 'led_alternate_pair']]) {
+    f.sent.length = 0; f.reconnect('p0', version);
+    const commands = f.commands('p0').filter(msg => msg.type.startsWith('led_') && msg.type !== 'led_brightness');
+    assert.ok(commands.length > 0);
+    assert.ok(commands.every(msg => msg.type === expected));
+  }
+});
+
+test('unknown, development, prerelease and old firmware use the existing command format', () => {
+  const f = fixture();
+  const supports = f.load('src/leds.ts').supportsRepeatingLedSectors;
+  for (const version of [undefined, null, '', 'unknown', 'dev', '3.4.99', '3.5.0', '3.5.1-rc.1', 'garbage']) {
+    assert.equal(supports(version), false, `unsupported firmware ${version}`);
+    f.state.boxes.p0.version = version;
+    assert.equal(f.mode.getLedForStatus('agenda_speaker', f.state.boxes.p0, 'p0').type, 'led_alternate_pair');
+  }
+  const virtual = { ...f.state.boxes.p0, isVirtual: true };
+  assert.equal(f.mode.getLedForStatus('agenda_speaker', virtual, 'virtual-0').repeat, true);
+});
+
+test('sector previews repeat arbitrary patterns, clip at the end and terminate for empty patterns', () => {
+  const f = fixture();
+  const { ledSectors } = f.load('src/leds.ts');
+  const sectors = [{ color: '#112233', count: 2 }, { color: '#445566', count: 1 }, { color: '#778899', count: 3 }];
+  const cycle = ['#112233', '#112233', '#445566', '#778899', '#778899', '#778899'];
+  assert.deepEqual(plain(ledSectors(25, sectors, true)), Array.from({ length: 25 }, (_, i) => cycle[i % 6]));
+  assert.deepEqual(plain(ledSectors(8, sectors)), [...cycle, '#000000', '#000000']);
+  assert.deepEqual(plain(ledSectors(24, [], true)), Array(24).fill('#000000'));
+  assert.deepEqual(plain(ledSectors(24, [{ color: '#ffffff', count: 0 }, { color: '#ff0000', count: -1 }], true)),
+    Array(24).fill('#000000'));
+  assert.deepEqual(plain(ledSectors(24, [{ color: '#ffffff', count: Number.MAX_SAFE_INTEGER }], true)),
+    Array(24).fill('#ffffff'));
+});
+
+for (const action of ['handleEndTurn', 'handlePass']) test(`${action} cancels the outgoing player's countdown before setting its idle LEDs`, () => {
+  const f = fixture();
+  f.state.ti.players.p0.strategyCards.forEach(card => { card.used = true; });
+  f.load('src/countdown.ts').sendCountdown('p0', 60000);
+  f.sent.length = 0;
+  f.load('src/game.ts')[action]('p0');
+  assert.equal(f.state.activeBoxId, 'p1');
+  assert.equal(f.state.boxes.p0.countdownActive, false);
+  assert.equal(f.state.boxes.p0.countdownEndMs, undefined);
+  const commands = f.commands('p0');
+  const stop = commands.findIndex(msg => msg.type === 'countdown' && msg.durationMs === 0);
+  const off = commands.findIndex(msg => msg.type === 'led_off');
+  assert.ok(stop >= 0 && off > stop, 'stop the firmware timer before restoring status LEDs');
+  f.sent.length = 0;
+  f.advance(10000); f.reconnect('p0');
+  assert.ok(!f.commands('p0').some(msg => msg.type === 'countdown' && msg.durationMs > 0));
+});
+
+test('reconnect does not replay a turn countdown after the active player changes', () => {
+  const f = fixture();
+  f.load('src/countdown.ts').sendCountdown('p0', 60000);
+  // Reconnect can restore effects before the next full render runs.
+  f.state.activeBoxId = 'p1'; f.state.boxes.p0.status = 'idle';
+  f.sent.length = 0; f.reconnect('p0');
+  assert.ok(f.commands('p0').some(msg => msg.type === 'countdown' && msg.durationMs === 0));
+  assert.ok(!f.commands('p0').some(msg => msg.type === 'countdown' && msg.durationMs > 0));
+});
+
+test('a manually started idle-box countdown survives another player ending their turn', () => {
+  const f = fixture();
+  f.load('src/countdown.ts').sendCountdown('p2', 60000);
+  f.sent.length = 0;
+  f.load('src/game.ts').handleEndTurn('p0');
+  assert.equal(f.state.boxes.p2.countdownActive, true);
+  assert.ok(!f.commands('p2').some(msg => msg.type === 'countdown' && msg.durationMs === 0));
+  f.advance(5000); f.sent.length = 0; f.reconnect('p2');
+  assert.equal(f.state.boxes.p2.status, 'idle');
+  assert.ok(f.commands('p2').some(msg => msg.type === 'countdown' && msg.durationMs === 55000));
+});
+
+test('cancelling the last turn countdown preserves the next phase animation', () => {
+  const f = fixture();
+  f.load('src/countdown.ts').sendCountdown('p0', 60000);
+  const eclipse = new (f.load('src/modes/eclipse.ts').EclipseMode)();
+  f.load('src/currentGame.ts').setCurrentGame(eclipse);
+  f.state.gameMode = 'eclipse';
+  f.state.activeBoxId = null;
+  f.sent.length = 0; eclipse.startUpkeep(); f.render();
+  const commands = f.commands('p0');
+  const stop = commands.findIndex(msg => msg.type === 'countdown' && msg.durationMs === 0);
+  assert.ok(stop >= 0);
+  assert.ok(commands.slice(stop + 1).some(msg => msg.type === 'led_anim_upkeep'));
+});
+
+test('a delayed auto-countdown cannot light the player whose turn already ended', async () => {
+  const f = fixture();
+  f.state.autoCountdownSecs = 60;
+  f.load('src/game.ts').handleEndTurn('p0');
+  f.load('src/game.ts').handleEndTurn('p1');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.state.activeBoxId, 'p2');
+  assert.ok(!f.commands('p1').some(msg => msg.type === 'countdown' && msg.durationMs > 0));
+  assert.ok(f.commands('p2').some(msg => msg.type === 'countdown' && msg.durationMs === 60000));
+});
+
+for (const style of ['breathe', 'spinner']) for (const finish of ['cancel', 'expire']) {
+  test(`${style} resumes when a countdown ${finish}s during the same turn`, () => {
+    const f = fixture();
+    f.state.activePlayerStyle.mode = style; f.render();
+    f.load('src/countdown.ts').sendCountdown('p0', 10000);
+    f.sent.length = 0;
+    if (finish === 'cancel') f.load('src/countdown.ts').cancelCountdown('p0');
+    else { f.advance(11000); f.runTimeouts(); }
+    assert.equal(f.state.boxes.p0.countdownActive, false);
+    assert.ok(f.commands('p0').some(msg => msg.type === `led_anim_${style}`));
+  });
 }
 
 test('Last Bastion reconnect keeps its turn, reader, stats and brightness; End still advances', () => {

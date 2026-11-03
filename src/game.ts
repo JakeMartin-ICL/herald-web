@@ -52,13 +52,22 @@ export function startGame(): void {
 
 // ---- Auto-countdown ----
 
+let autoCountdownRequest = 0;
+
 function maybeAutoCountdown(): void {
+  const request = ++autoCountdownRequest;
   if (!state.autoCountdownSecs || !state.activeBoxId) return;
   const hwid = state.activeBoxId;
   const box = state.boxes[hwid];
   if (!box || box.isVirtual || box.status !== 'active') return;
   const ms = state.autoCountdownSecs * 1000;
-  void import('./countdown').then(({ sendCountdown }) => sendCountdown(hwid, ms));
+  void import('./countdown').then(({ sendCountdown }) => {
+    // Loading the module can outlive the turn that requested the countdown.
+    if (request !== autoCountdownRequest || !state.gameActive || state.paused ||
+        !state.autoCountdownSecs || state.activeBoxId !== hwid ||
+        state.boxes[hwid] !== box || box.status !== 'active') return;
+    sendCountdown(hwid, ms);
+  });
 }
 
 // ---- Event dispatch ----

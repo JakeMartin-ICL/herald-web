@@ -1,6 +1,6 @@
 import { state } from './state';
 import { sendToBox } from './websockets';
-import { activePlayerColor } from './leds';
+import { activePlayerColor, resetActiveAnim, stopCountdownForBox } from './leds';
 import { getDisplayName } from './boxes';
 import { log } from './logger';
 import { render } from './render';
@@ -13,6 +13,8 @@ export function sendCountdown(hwid: string, durationMs: number): void {
   const endMs = Date.now() + durationMs;
   box.countdownActive = true;
   box.countdownEndMs = endMs;
+  box.countdownTurnScoped = state.gameActive && state.activeBoxId === hwid;
+  resetActiveAnim();
   sendToBox(hwid, { type: 'countdown', durationMs, color, rainbow });
   log(`Countdown ${Math.round(durationMs / 1000)}s started for ${getDisplayName(hwid)}`, 'system');
   render();
@@ -21,6 +23,7 @@ export function sendCountdown(hwid: string, durationMs: number): void {
     if (state.boxes[hwid]?.countdownActive && state.boxes[hwid].countdownEndMs === endMs) {
       state.boxes[hwid].countdownActive = false;
       state.boxes[hwid].countdownEndMs = undefined;
+      state.boxes[hwid].countdownTurnScoped = undefined;
       render();
     }
   }, durationMs + 500);
@@ -29,9 +32,7 @@ export function sendCountdown(hwid: string, durationMs: number): void {
 export function cancelCountdown(hwid: string): void {
   const box = state.boxes[hwid];
   if (!box) return;
-  box.countdownActive = false;
-  box.countdownEndMs = undefined;
-  if (!box.isVirtual) sendToBox(hwid, { type: 'countdown', durationMs: 0, color: '#000000' });
+  stopCountdownForBox(hwid);
   log(`Countdown cancelled for ${getDisplayName(hwid)}`, 'system');
   render();
 }

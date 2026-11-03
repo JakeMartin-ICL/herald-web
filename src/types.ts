@@ -30,7 +30,7 @@ export type LedCommand =
   | { type: 'led_half'; color: string; first: boolean }
   | { type: 'led_rainbow' }
   | { type: 'led_thirds'; c1: string; c2: string; c3: string }
-  | { type: 'led_sectors'; sectors: { color: string; count: number }[] }
+  | { type: 'led_sectors'; sectors: { color: string; count: number }[]; repeat?: boolean }
   | { type: 'led_anim_breathe'; color: string; rainbow: boolean; halfPeriodMs: number }
   | { type: 'led_anim_spinner'; color: string; rainbow: boolean; stepMs: number; fadeMs: number; reverse?: boolean }
   | { type: 'led_anim_choosing'; colors: string[]; activeMs: number; fadeMs: number }
@@ -60,6 +60,8 @@ export interface Box {
   rfidPromptOn?: boolean;
   countdownActive?: boolean;
   countdownEndMs?: number;
+  /** Countdown started during this box's turn; stop it when the turn ends. */
+  countdownTurnScoped?: boolean;
 }
 
 export interface FirmwareInfo {

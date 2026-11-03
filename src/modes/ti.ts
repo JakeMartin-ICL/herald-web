@@ -7,7 +7,7 @@ import { render, renderBoxes, isManuallyRenamed } from '../render';
 import { startPhase, updateTurnTimers } from '../timers';
 import { persistState } from '../persist';
 import { snapshotForUndo } from '../undo';
-import { LED_COUNT, resetActiveAnim, syncLeds } from '../leds';
+import { LED_COUNT, resetActiveAnim, syncLeds, supportsRepeatingLedSectors } from '../leds';
 import { filterTags } from '../tags';
 import { isHubOrSim } from './helpers';
 import { buildTiSecondaryDisplay } from '../ti-secondary-display';
@@ -64,7 +64,7 @@ export class TwilightImperiumMode implements GameMode {
       case 'secondary': return { type: 'led_alternate', color: box?.strategyColor ?? '#ffffff' };
       case 'status2': return { type: 'led_solid', color: '#8a0000' };
       case 'choosing': return box?.choosingLeds ?? { type: 'led_rainbow' };
-      case 'agenda_speaker': return { type: 'led_sectors', sectors: this.oneWhiteThreeColorSectors(TI_AGENDA_SPEAKER_BLUE) };
+      case 'agenda_speaker': return this.speakerLedPattern(TI_AGENDA_SPEAKER_BLUE, box);
       case 'agenda_reveal': return { type: 'led_off' };
       case 'when_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: false };
       case 'after_agenda_revealed': return { type: 'led_half', color: '#ff6600', first: true };
@@ -1392,18 +1392,19 @@ export class TwilightImperiumMode implements GameMode {
     if (!box || box.isVirtual || box.status === 'disconnected') return;
     resetActiveAnim();
     box.ledOverrideUntil = Date.now() + TI_SPEAKER_FLASH_MS;
-    sendToBox(hwid, { type: 'led_sectors', sectors: this.oneWhiteThreeColorSectors(TI_SPEAKER_FLASH_RED) });
+    sendToBox(hwid, this.speakerLedPattern(TI_SPEAKER_FLASH_RED, box));
     setTimeout(() => { resetActiveAnim(); syncLeds(); }, TI_SPEAKER_FLASH_MS + 100);
   }
 
-  private oneWhiteThreeColorSectors(color: string): { color: string; count: number }[] {
-    const sectors: { color: string; count: number }[] = [];
-    for (let i = 0; i < LED_COUNT; i += 4) {
-      sectors.push(
+  private speakerLedPattern(color: string, box: Box | null): LedCommand {
+    if (box?.isVirtual || supportsRepeatingLedSectors(box?.version)) {
+      return { type: 'led_sectors', repeat: true, sectors: [
         { color: TI_SPEAKER_FLASH_WHITE, count: 1 },
-        { color, count: Math.min(3, LED_COUNT - i - 1) },
-      );
+        { color, count: 3 },
+      ] };
     }
-    return sectors.filter(sector => sector.count > 0);
+    // Expanding 3:1 into explicit sectors exceeds the 250-byte ESP-NOW limit.
+    // Older firmware gets the existing compact 2:2 pattern until it is updated.
+    return { type: 'led_alternate_pair', a: color, b: TI_SPEAKER_FLASH_WHITE };
   }
 }

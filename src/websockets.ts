@@ -147,11 +147,16 @@ export function handleMessage(msg: any): void {
       }
       break;
     case 'connected': {
-      const wasOtaUpdating = state.boxes[msg.hwid as string]?.otaUpdating;
+      const box = state.boxes[msg.hwid as string];
+      const wasOtaUpdating = box?.otaUpdating;
+      const version = (msg.version as string) || 'unknown';
+      // A reconnect may follow an upgrade or downgrade. Select supported LED
+      // commands using the announced firmware before replaying box effects.
+      if (box) box.version = version;
       // Apply the configured brightness before restoring a lit ring.
       sendBrightnessToBox(msg.hwid as string);
       addBox(msg.hwid as string, false);
-      if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = (msg.version as string) || 'unknown';
+      if (state.boxes[msg.hwid]) state.boxes[msg.hwid].version = version;
       if (wasOtaUpdating) renderOtaDialog();
       break;
     }
