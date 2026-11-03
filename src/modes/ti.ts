@@ -486,8 +486,12 @@ export class TwilightImperiumMode implements GameMode {
       id: 'gc-secondary',
       event: 'change',
       fn: (e: Event) => {
+        snapshotForUndo();
         state.ti.secondaryMode = (e.target as HTMLSelectElement).value as 'fastest' | 'fast' | 'standard';
         log(`Secondary mode: ${state.ti.secondaryMode}`, 'system');
+        this.reconcileSecondaries();
+        render();
+        persistState();
       },
     });
     actionDefs.push({
@@ -1017,15 +1021,7 @@ export class TwilightImperiumMode implements GameMode {
 
     log(`${getDisplayName(hwid)} uses ${card.label} — secondaries pending`, 'system');
 
-    const mode = state.ti.secondaryMode;
-    if (mode === 'fastest') {
-      otherPlayers.forEach(id => {
-        state.boxes[id].status = 'secondary';
-        state.boxes[id].strategyColor = card.color;
-      });
-    }
-    // 'fast' and 'standard': secondaries activate when primary ends their turn
-
+    this.reconcileSecondaries();
     this.updateBadges();
   }
 
@@ -1053,50 +1049,32 @@ export class TwilightImperiumMode implements GameMode {
     if (!secondary) return;
 
     if (hwid === secondary.activeHwid) {
+      if (secondary.activeTurnEnded) return;
       secondary.activeTurnEnded = true;
       state.boxes[hwid].status = 'idle';
       state.activeBoxId = null;
-
-      if (state.ti.secondaryMode === 'fast') {
-        secondary.pendingHwids.forEach(id => {
-          if (state.boxes[id].status !== 'disconnected') {
-            state.boxes[id].status = 'secondary';
-            state.boxes[id].strategyColor = secondary.cardColor;
-          }
-        });
-      } else if (state.ti.secondaryMode === 'standard') {
-        this.activateNextSecondary();
-      } else { // fastest
-        const allConfirmed = secondary.pendingHwids.every(id =>
-          state.ti.players[id].confirmedSecondary ||
-          state.boxes[id].status === 'disconnected'
-        );
-        if (allConfirmed) {
-          log('All secondaries confirmed — advancing turn', 'system');
-          state.ti.secondary = null;
-          state.ti.actionTurnIndex =
-            (state.ti.actionTurnIndex + 1) % state.ti.turnOrder.length;
-          this.activateActionTurn();
-        }
-      }
-      return;
+    } else {
+      // Waiting or already-finished players cannot confirm a secondary.
+      if (!secondary.pendingHwids.includes(hwid) || state.boxes[hwid]?.status !== 'secondary' ||
+          state.ti.players[hwid].confirmedSecondary) return;
+      state.ti.players[hwid].confirmedSecondary = true;
+      state.boxes[hwid].status = 'idle';
     }
 
-    if (!secondary.pendingHwids.includes(hwid)) return;
-    state.ti.players[hwid].confirmedSecondary = true;
-    state.boxes[hwid].status = 'idle';
+    this.reconcileSecondaries();
+    this.updateBadges();
+  }
 
-    if (state.ti.secondaryMode === 'standard') {
-      this.activateNextSecondary();
-    }
+  private reconcileSecondaries(): void {
+    const secondary = state.ti.secondary;
+    if (!secondary) return;
 
-    const allConfirmed = secondary.pendingHwids.every(id =>
-      state.ti.players[id].confirmedSecondary ||
-      state.boxes[id].status === 'disconnected'
+    const outstanding = secondary.pendingHwids.filter(id =>
+      !state.ti.players[id].confirmedSecondary && state.boxes[id].status !== 'disconnected'
     );
 
-    if (allConfirmed) {
-      log('All secondaries confirmed — advancing turn', 'system');
+    if (outstanding.length === 0) {
+      log('All secondaries confirmed', 'system');
       state.ti.secondary = null;
 
       if (secondary.activeTurnEnded) {
@@ -1111,10 +1089,20 @@ export class TwilightImperiumMode implements GameMode {
         enableRfid(secondary.activeHwid);
       }
       this.updateBadges();
-      render();
+      return;
     }
 
-    this.updateBadges();
+    const mode = state.ti.secondaryMode;
+    if (mode === 'fastest' || (mode === 'fast' && secondary.activeTurnEnded)) {
+      outstanding.forEach(id => {
+        state.boxes[id].status = 'secondary';
+        state.boxes[id].strategyColor = secondary.cardColor;
+      });
+    } else if (mode === 'standard' && secondary.activeTurnEnded &&
+               !outstanding.some(id => state.boxes[id].status === 'secondary')) {
+      // Slowing down never interrupts secondaries that have already started.
+      this.activateNextSecondary();
+    }
   }
 
   // ---- Status Phase ----

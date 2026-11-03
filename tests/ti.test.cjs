@@ -65,8 +65,174 @@ function fixture(ids = ['sol', 'keleres', 'ralnelconsortium']) {
   function click(id) { const control = actions().find(c => c.id === id); assert.ok(control, `control ${id} must exist`); control.fn(); }
   function allPass() { for (let i = 0; i < ids.length; i++) mode.onPass(state.activeBoxId); }
   function finishWindow() { const phase = state.ti.phase; for (let i = 0; state.ti.phase === phase && i < 12; i++) mode.onEndTurn(state.activeBoxId); assert.notEqual(state.ti.phase, phase); }
-  return { state, mode, logs, phases, fields, actions, click, allPass, finishWindow, compile, sends, timers };
+  return { state, mode, logs, phases, fields, actions, click, allPass, finishWindow, compile, sends, timers, deps };
 }
+
+function strategyFixture(mode, ids) {
+  const f = fixture(ids);
+  f.state.ti.secondaryMode = mode;
+  const card = f.state.ti.players.p0.strategyCards[0];
+  card.used = false;
+  f.mode.onRfid('p0', 'ti', 'strategy', card.id);
+  return f;
+}
+
+function changeSecondaryMode(f, value) {
+  f.actions().find(c => c.id === 'gc-secondary').fn({ target: { value } });
+}
+
+function assertSecondaries(f, expected) {
+  assert.deepEqual(plain(f.state.boxOrder.filter(id => f.state.boxes[id].status === 'secondary')), expected);
+  for (const id of expected) assert.equal(f.state.boxes[id].strategyColor, '#123456');
+}
+
+function finishSecondaries(f) {
+  for (let i = 0; f.state.ti.secondary && i < f.state.boxOrder.length; i++) {
+    const active = f.state.boxOrder.find(id => f.state.boxes[id].status === 'secondary');
+    assert.ok(active, 'an outstanding secondary must be available to finish');
+    f.mode.onEndTurn(active);
+  }
+  assert.equal(f.state.ti.secondary, null);
+  assert.equal(f.state.activeBoxId, 'p1');
+}
+
+for (const from of ['standard', 'fast', 'fastest']) {
+  for (const to of ['standard', 'fast', 'fastest']) {
+    for (const primaryEnded of [false, true]) {
+      test(`secondary mode ${from} -> ${to} ${primaryEnded ? 'after' : 'before'} primary completion`, () => {
+        const f = strategyFixture(from);
+        if (primaryEnded) f.mode.onEndTurn('p0');
+        changeSecondaryMode(f, to);
+
+        const simultaneous = from === 'fastest' || to === 'fastest' ||
+          (primaryEnded && (from === 'fast' || to === 'fast'));
+        assertSecondaries(f, simultaneous ? ['p1', 'p2'] : primaryEnded ? ['p1'] : []);
+        assert.equal(f.state.activeBoxId, primaryEnded ? null : 'p0');
+        assert.equal(f.state.boxes.p0.status, primaryEnded ? 'idle' : 'strategy');
+
+        if (!primaryEnded) f.mode.onEndTurn('p0');
+        assertSecondaries(f, simultaneous || to === 'fast' ? ['p1', 'p2'] : ['p1']);
+        finishSecondaries(f);
+      });
+    }
+  }
+}
+
+for (const to of ['standard', 'fast']) {
+  test(`Fastest -> ${to} preserves a completed secondary when the primary ends`, () => {
+    const f = strategyFixture('fastest');
+    f.mode.onEndTurn('p1');
+    changeSecondaryMode(f, to);
+    assertSecondaries(f, ['p2']);
+    f.mode.onEndTurn('p0');
+    assertSecondaries(f, ['p2']);
+    assert.equal(f.state.ti.players.p1.confirmedSecondary, true);
+    finishSecondaries(f);
+  });
+
+  test(`Fastest -> ${to} still waits for the primary when all secondaries finish first`, () => {
+    const f = strategyFixture('fastest');
+    changeSecondaryMode(f, to);
+    f.mode.onEndTurn('p2'); f.mode.onEndTurn('p1');
+    assertSecondaries(f, []);
+    assert.equal(f.state.activeBoxId, 'p0');
+    assert.equal(f.state.boxes.p0.status, 'strategy');
+    f.mode.onEndTurn('p0');
+    assert.equal(f.state.activeBoxId, 'p1');
+    assert.equal(f.state.ti.secondary, null);
+  });
+}
+
+test('Standard -> Fast starts only unfinished secondaries after the primary', () => {
+  const f = strategyFixture('standard', ['sol', 'keleres', 'ralnelconsortium', 'argent']);
+  f.mode.onEndTurn('p0'); f.mode.onEndTurn('p1');
+  assertSecondaries(f, ['p2']);
+  changeSecondaryMode(f, 'fast');
+  assertSecondaries(f, ['p2', 'p3']);
+  assert.equal(f.state.ti.players.p1.confirmedSecondary, true);
+  f.mode.onEndTurn('p3');
+  assertSecondaries(f, ['p2']);
+  finishSecondaries(f);
+});
+
+test('repeated mode changes preserve progress and do not restart active secondaries', () => {
+  const f = strategyFixture('standard', ['sol', 'keleres', 'ralnelconsortium', 'argent']);
+  f.mode.onEndTurn('p0'); f.mode.onEndTurn('p1');
+  changeSecondaryMode(f, 'fastest');
+  changeSecondaryMode(f, 'standard');
+  assertSecondaries(f, ['p2', 'p3']);
+  f.mode.onEndTurn('p3');
+  assertSecondaries(f, ['p2']);
+  changeSecondaryMode(f, 'fast'); changeSecondaryMode(f, 'standard');
+  assertSecondaries(f, ['p2']);
+  finishSecondaries(f);
+});
+
+test('waiting, completed and unknown players cannot confirm a secondary', () => {
+  const f = strategyFixture('standard');
+  f.mode.onEndTurn('p1'); f.mode.onPass('p2'); f.mode.onEndTurn('unknown');
+  assert.equal(f.state.ti.players.p1.confirmedSecondary, false);
+  assert.equal(f.state.ti.players.p2.confirmedSecondary, false);
+  f.mode.onEndTurn('p0');
+  f.mode.onEndTurn('p2'); assertSecondaries(f, ['p1']);
+  f.mode.onPass('p1');
+  f.mode.onEndTurn('p1'); f.mode.onEndTurn('p0');
+  assertSecondaries(f, ['p2']);
+  finishSecondaries(f);
+});
+
+test('mode changes skip disconnected players and still finish the action', () => {
+  const f = strategyFixture('standard');
+  f.state.boxes.p2.status = 'disconnected';
+  changeSecondaryMode(f, 'fastest');
+  assertSecondaries(f, ['p1']);
+  assert.equal(f.state.boxes.p2.status, 'disconnected');
+  f.mode.onEndTurn('p0');
+  finishSecondaries(f);
+});
+
+test('primary completion advances in every mode when no secondaries remain connected', () => {
+  for (const mode of ['standard', 'fast', 'fastest']) {
+    const f = strategyFixture(mode);
+    f.state.boxes.p1.status = 'disconnected'; f.state.boxes.p2.status = 'disconnected';
+    f.mode.onEndTurn('p0');
+    assert.equal(f.state.ti.secondary, null);
+    assert.equal(f.state.activeBoxId, 'p0');
+    assert.equal(f.state.boxes.p0.status, 'active');
+  }
+});
+
+test('mode changes refresh and save immediately; undo restores partial secondary progress', () => {
+  const f = strategyFixture('standard', ['sol', 'keleres', 'ralnelconsortium', 'argent']);
+  const persist = f.compile('src/persist.ts', {
+    './state': { state: f.state }, './render': { render: () => {} }, './leds': { syncLeds: () => {} },
+  });
+  const undo = f.compile('src/undo.ts', { './persist': persist });
+  f.deps['../undo'].snapshotForUndo = undo.snapshotForUndo;
+  const effects = [];
+  let saved;
+  f.deps['../render'].render = () => effects.push('render');
+  f.deps['../persist'].persistState = () => { effects.push('save'); saved = plain(persist.extractPersistableState()); };
+  f.mode.onEndTurn('p0'); f.mode.onEndTurn('p1');
+  changeSecondaryMode(f, 'fastest');
+  assert.deepEqual(effects, ['render', 'save']);
+  assert.equal(saved.ti.secondaryMode, 'fastest');
+  assert.equal(saved.ti.players.p1.confirmedSecondary, true);
+  assert.equal(saved.boxes.p2.status, 'secondary');
+  assert.equal(saved.boxes.p3.status, 'secondary');
+  assert.equal(undo.canUndo(), true);
+  undo.undo();
+  assert.equal(f.state.ti.secondaryMode, 'standard');
+  assert.equal(f.state.ti.players.p1.confirmedSecondary, true);
+  assertSecondaries(f, ['p2']);
+
+  // Resume into fresh boxes, rather than relying on colours left in memory.
+  f.state.boxOrder.forEach(id => { f.state.boxes[id].strategyColor = null; });
+  persist.restoreState(saved, true);
+  assert.equal(f.state.ti.players.p1.confirmedSecondary, true);
+  assertSecondaries(f, ['p2', 'p3']);
+  finishSecondaries(f);
+});
 
 test('Firmament is a setup identity; Obsidian is only gained in play', () => {
   const firmament = factions.twilight_imperium.find(f => f.id === 'firmament');

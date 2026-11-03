@@ -18,6 +18,7 @@ export function extractPersistableState() {
       hwid:         box.hwid,
       isVirtual:    box.isVirtual,
       status:       box.status,
+      strategyColor: box.strategyColor ?? null,
       factionId:    box.factionId ?? null,
       badges:       box.badges ?? [],
       version:      box.version ?? null,
@@ -27,11 +28,6 @@ export function extractPersistableState() {
   }
 
   const ti = JSON.parse(JSON.stringify(state.ti)) as typeof state.ti;
-  if (ti.players) {
-    for (const hwid of Object.keys(ti.players)) {
-      if (ti.players[hwid]) delete (ti.players[hwid] as unknown as Record<string, unknown>).confirmedSecondary;
-    }
-  }
 
   return {
     gameActive:         state.gameActive,
@@ -228,6 +224,7 @@ function mergePersistedBox(hwid: string, persBox: Record<string, unknown>): void
   if (!box) return;
   box.status        = (persBox.status as typeof box.status) ?? 'idle';
   box.factionId     = (persBox.factionId as string | null) ?? null;
+  box.strategyColor = (persBox.strategyColor as string | null) ?? null;
   box.badges        = (persBox.badges as typeof box.badges) ?? [];
   box.totalTurnTime = (persBox.totalTurnTime as number) ?? 0;
   box.turnHistory   = (persBox.turnHistory as typeof box.turnHistory) ?? [];

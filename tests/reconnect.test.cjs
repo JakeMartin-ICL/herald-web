@@ -8,7 +8,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 // Real message dispatch, box management, modes, LEDs and timers. Only browser,
 // network and persistence boundaries are replaced; no hardware is contacted.
-function fixture() {
+function fixture({ syncDisplays = false } = {}) {
   const sent = [], cache = new Map(), fields = new Map(), timeouts = [];
   let now = 1000;
   const noop = () => {};
@@ -18,7 +18,10 @@ function fixture() {
     readyState = 1;
     send(json) { sent.push(JSON.parse(json)); }
   }
-  const render = () => { load('src/timers.ts').updateTurnTimers(); load('src/leds.ts').syncLeds(); };
+  const render = () => {
+    load('src/timers.ts').updateTurnTimers(); load('src/leds.ts').syncLeds();
+    if (syncDisplays) load('src/display.ts').syncDisplay();
+  };
   const stubs = {
     'src/render.ts': { render, scheduleRender: render, renderBoxes: noop, renderTableLabel: noop },
     'src/logger.ts': { log: noop, setStatus: noop },
@@ -26,10 +29,10 @@ function fixture() {
     'src/graphs.ts': { prevGameStats: null },
     'src/expansions.ts': { renderExpansionUI: noop },
     'src/github-config.ts': { loadGitHubConfig: () => null },
-    'src/guided-phase.ts': { isGuidedPhaseActive: () => false },
+    'src/guided-phase.ts': { isGuidedPhaseActive: () => false, currentGuidedStep: () => null, guidedPhaseProgress: () => '' },
   };
   const real = new Set(['state', 'boxes', 'websockets', 'leds', 'timers', 'countdown', 'currentGame', 'game',
-    'modes/ti', 'modes/eclipse', 'modes/helpers'].map(name => `src/${name}.ts`));
+    'modes/ti', 'modes/eclipse', 'modes/helpers', 'display', 'display-canvas', 'ti-secondary-display'].map(name => `src/${name}.ts`));
   function load(filename) {
     if (stubs[filename]) return stubs[filename];
     if (cache.has(filename)) return cache.get(filename);
@@ -284,6 +287,39 @@ test('primary and secondary reconnects preserve pending confirmations and strate
   assert.equal(f.state.activeBoxId, 'p1');
   assert.equal(f.state.ti.secondary, null);
 });
+
+for (const [from, to, primaryEnded] of [
+  ['fast', 'fastest', false], ['standard', 'fastest', false],
+  ['standard', 'fast', true], ['standard', 'fastest', true],
+]) {
+  for (const hints of [false, true]) {
+    test(`${from} -> ${to} sends secondary LEDs and ${hints ? 'hints' : 'status'} immediately (${primaryEnded ? 'after' : 'before'} primary)`, () => {
+      const f = fixture({ syncDisplays: true });
+      f.state.ti.secondaryMode = from;
+      f.state.ti.secondaryHints = hints;
+      f.mode.onRfid('p0', 'ti', 'strategy', 'leadership');
+      f.render();
+      if (primaryEnded) f.load('src/game.ts').handleEndTurn('p0');
+      f.sent.length = 0;
+      const controls = [];
+      f.mode.renderControls([], controls);
+      controls.find(c => c.id === 'gc-secondary').fn({ target: { value: to } });
+      for (const id of ['p1', 'p2']) {
+        assert.equal(f.state.boxes[id].status, 'secondary');
+        assert.ok(f.commands(id).some(msg => msg.type === 'led_alternate' && msg.color === '#123456'));
+        const display = f.commands(id).findLast(msg => msg.type === 'display');
+        assert.ok(display, 'display must be sent without another player action');
+        if (hints) assert.ok(display.e.some(el => el[0] === 't' && el[4] === 'LEADERSHIP secondary'));
+        else assert.equal(display.status, 'Secondary');
+      }
+      assert.equal(f.state.activeBoxId, primaryEnded ? null : 'p0');
+      if (!primaryEnded) f.load('src/game.ts').handleEndTurn('p0');
+      f.load('src/game.ts').handleEndTurn('p2'); f.load('src/game.ts').handleEndTurn('p1');
+      assert.equal(f.state.ti.secondary, null);
+      assert.equal(f.state.activeBoxId, 'p1');
+    });
+  }
+}
 
 test('agenda and secret ballot readiness survive player re-announcements', () => {
   const f = fixture();
